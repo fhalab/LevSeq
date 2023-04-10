@@ -1,2 +1,2 @@
 # MinION
-Code base for nanopore sequencesdata processing
+Code base for nanopore sequences data processing
