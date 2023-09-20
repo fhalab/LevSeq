@@ -6,6 +6,7 @@ from minION.util.IO_processor import create_folder, find_experiment_folder, find
 from minION.basecaller import run_dorado, check_model
 from minION.demultiplexer import run_demultiplexer
 from minION.consensus import process_fastq, consensus_prompt, run_medaka, medeka_stitch_prompt
+from minION.analyse import get_variant_df
 from minION.util.globals import BARCODES, MEDAKA_MODELS
 
     
@@ -17,8 +18,10 @@ def main(args):
     output_name = args.output_name
     ref_seq = args.ref
 
+    basecall_model = "sup"
 
-    result_folder = create_folder(experiment_name, output_path, output_name = output_name)
+
+    result_folder = create_folder(experiment_name, basecall_model ,output_path, output_name = output_name)
 
     experiment_folder = find_experiment_folder(experiment_name)
 
@@ -30,7 +33,7 @@ def main(args):
     # Create a basecall folder if not exists
     Path(basecall_folder).mkdir(parents=True, exist_ok=True)
 
-    run_dorado("fast", pod5_files, basecall_folder, fastq = True)
+    run_dorado(basecall_model, pod5_files, basecall_folder, fastq = True)
 
     ### ----- Demultiplex ----- ###    
     run_demultiplexer(result_folder, BARCODES, 60, 50)
@@ -61,13 +64,20 @@ def main(args):
             prompt = medeka_stitch_prompt(forward, ref_seq, final_consensus, qualities = True)
 
             # Align and calculate the Phred Quality Score
-            
-
             run_medaka(prompt)
 
 
-  
-    return demultiplex_folder
+    ### ----- Variant Data Frame ----- ###
+    variant_df = get_variant_df(barcode_dict, ref_seq, sequences=True)
+
+
+    filename = f'{experiment_name}_{basecall_model}_variant_df.csv'
+    filepath = os.path.join(result_folder, filename)
+
+
+    variant_df.to_csv(filepath, index=False)
+
+    return "Success!"
 
 if __name__ == "__main__":
 
