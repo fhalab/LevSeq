@@ -1,33 +1,34 @@
 from minION.util.IO_processor import IO_processor
 import numpy as np
-from bokeh.plotting import figure, show, output_notebook
-from bokeh.models import ColorBar, LinearColorMapper
-from bokeh.transform import transform
-from bokeh.layouts import column
-from bokeh.models import TabPanel, Tabs
-from bokeh.layouts import layout
-from bokeh.io import push_notebook
+import plotly.express as px
 
-def create_heatmap_for_rbc(df):
+
+def barcode_score(summary, nbins = 100 , unclassified = True):
+    """The Barcode score is a quality metric for each read. A read is only considered to be valid, if the barcode
+    score is above a threshold. For lower quality, the reads are stored in unclassified folder
+    Input: 
+        - Summary file (.txt) by default. For each demultiplex run, a summary file is generated. For evSeq-minION, one summary file should exist
+        for reverse barcode (# Plates). In addition, within each reverse barcode folder, a summary file should exist summarising the demultiplexing for 
+        forward barcode (# Samples).
+        - nbins: Integer. Number of bins for the histogram
+        - unclassified: Boolean. If True, the unclassified reads are included in the histogram. If False, the unclassified reads are excluded.
+    Output:
+        - Histogram of Barcode Score Distribution """
     
 
-    # Convert the matrix to a format suitable for Bokeh
-    heatmap_matrix = heatmap_matrix[::-1]  # Reverse the matrix to align with Bokeh's coordinate system
-    df = pd.DataFrame(heatmap_matrix, columns=x, index=y).stack().rename_axis(('y', 'x')).reset_index(name='value')
+    fig = px.histogram(summary, x="barcode_score", nbins=100, 
+                       title="Barcode Score Distribution", 
+                       labels={
+                                'barcode_score': 'Barcode Score', 
+                               'count': 'Frequency'})
     
-    # Create the Bokeh heatmap plot
-    colors = ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b']
-    mapper = LinearColorMapper(palette=colors, low=df.value.min(), high=df.value.max())
+    fig.update_traces(  marker_color='red',
+                        marker_line_color='black', 
+                        marker_line_width=1.5, 
+                        opacity=0.5)
+    
+    fig.update_layout(  width=600, 
+                        height=400)
+    
+    return fig
 
-    p = figure(title="96-Well Plate Heatmap", x_range=x, y_range=y, width=800, height=400,
-               toolbar_location=None, tools="", x_axis_label="Columns", y_axis_label="Rows")
-    p.rect(x="x", y="y", width=1, height=1, source=df, fill_color=transform('value', mapper))
-
-    color_bar = ColorBar(color_mapper=mapper, location=(0, 0))
-    p.add_layout(color_bar, 'right')
-
-    layout = column(p, sizing_mode='scale_width')  # Use the Bokeh column layout for responsive width
-    output_notebook()
-    show(layout)
-
-    return p, df

@@ -44,7 +44,7 @@ def run_demultiplexer(result_folder, BARCODES, fbc_score = 60, rbc_score = 50):
     if not os.path.exists(output_folder):
         raise Exception("Demultiplex folder does not exist. Please check if you have chosen the right experiment name.")
 
-    barcode_rbc = BARCODES["Barcode-kit-RBC"]
+    barcode_rbc = BARCODES["Barcode-kit-RBC-MASKED"]
 
     barcode_fbc = BARCODES["Barcode-kit"]
 

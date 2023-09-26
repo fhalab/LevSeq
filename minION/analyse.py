@@ -7,26 +7,14 @@ from statistics import mean
 from Bio import Align
 from Bio.Seq import Seq
 
-def minION_summarise():
-    """Summarises the the whole ev-Seq-minION"""
-
-    # 1) minION sequencing run
-
-    # 2) basecalling
-
-    # 3) Barcode demultiplexing
-
-    # 4) Consensus calling
-
-    # 5) Variant calling
-
-    pass
-
 def get_consensus_sequence(path, score = True):
     """Get the consensus sequence with the Phred Quality Score
     Input:  - path, where the fasta file is located
             - score, if True, return sequence and quality scores
     Output: Dictionary with sequence only or sequence and quality scores"""
+
+    if path is None:
+        return {"Sequence" : "NA", "Quality-Score" : "NA"}
 
     sequences = read_fasta_file(path, True)
 
@@ -192,7 +180,7 @@ def bioalign(template, consensus):
     n_template = ufloat(len(template), thres)
 
     if len(seq2) > len(seq1):
-        raise ValueError("Query sequence is longer than target sequence. Cannot align.")
+        print("Query sequence is longer than target sequence. Cannot align.")
 
     elif uncertainty(n_template, len(seq2)) == False:
         print("Consensus and template sequence have different lengths. Cannot align.")
@@ -311,6 +299,19 @@ def barcode_arrangements(rbc):
 
     return barcode_counts[barcode_counts["barcode_arrangement"] != "unclassified"]
 
+def count_reads_in_fastq(filename):
+    """
+    Count the number of reads in a FASTQ file.
+
+    Parameters:
+    - filename: The name of the FASTQ file.
+
+    Returns:
+    - The number of reads in the FASTQ file.
+    """
+    with open(filename, 'r') as f:
+        return sum(1 for line in f) // 4
+
 
 def quality_score(qulity_score, position):
     """Return the quality score at the mutated positions
@@ -410,3 +411,31 @@ def get_variant_df(demultiplex_folder, ref_seq, barcode_dicts : dict = None, seq
     
 
 
+def minION_summarise(experiment_folder):
+    """Summarises the the whole ev-Seq-minION"""
+
+    minION_summary = {"N_reads_basecalled": "NA"
+                      }
+
+    # 1) minION sequencing run
+
+    # 2) basecalling
+
+    basecalled_folder = os.path.join(experiment_folder, "basecalled")
+    file = os.path.join(basecalled_folder, "basecalled.fastq")
+    n_reads_basecalled = count_reads_in_fastq(file)
+
+    # 3) Barcode demultiplexing
+
+    demultiplex_folder = os.path.join(experiment_folder, "demultiplex")
+    
+    # 4) Consensus calling
+
+    # 5) Variant calling
+
+
+
+    minION_summary["N_reads_basecalled"] = n_reads_basecalled
+
+
+    return minION_summary
