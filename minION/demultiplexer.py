@@ -2,17 +2,20 @@ import os
 import glob
 from pathlib import Path
 from util.globals import BARCODES
-from minION.util.IO_processor import concat_all_fastq
+from minION.util.IO_processor import concatenate_fastq_files
+import subprocess
 
 
 def get_prompt(result_folder, output_folder, data_path, barcode_kit, score = 60):
     """Get prompt for guppy_barcoder
-    Input: 
-    Experiment folder, Fastq folder after bassecalling
-    output_folder, Output folder for barcoding
-    barcode_kit, Barcode kit used
+    Args: 
+        - Experiment folder, Fastq folder after bassecalling
+        - output_folder, Output folder for barcoding
+        - barcode_kit, Barcode kit used
 
-    Output: Prompt for guppy_barcoder"""
+    Return: 
+        - Prompt for guppy_barcoder
+    """
 
     prompt = f'guppy_barcoder --input_path {result_folder} --save_path {output_folder} --data_path {data_path} --barcode_kits {barcode_kit} --min_score_barcode_front {score}'
 
@@ -21,14 +24,29 @@ def get_prompt(result_folder, output_folder, data_path, barcode_kit, score = 60)
 
 def run_prompt(prompt):
     """Run os prompts"""
-    return os.system(prompt)
+    return subprocess.run(prompt, shell=True)
 
 
-def run_demultiplexer(result_folder, BARCODES, fbc_score = 60, rbc_score = 50):
-    """Run Demultiplexer """
+def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 60, rbc_score : int = 50, output_folder = None) -> bool:
+    """Create the prompt to run Guppy Barcoder. The function first checks if the basecalled folder exists. If not, it assumes that the fastq files are in the experiment folder.
     
-    # Create a demultiplex folder if not exists
-    output_folder = os.path.join(result_folder, "demultiplex")
+    Args:
+        - result_folder: Path to the experiment folder
+        - BARCODES: Dictionary of barcodes
+        - fbc_score: Score for the front barcode
+        - rbc_score: Score for the reverse barcode
+        - output_folder: Output folder for the demultiplexed files
+    
+    Return:
+        - True if the function ran successfully
+    """
+    
+    if output_folder is None:
+        output_folder = os.path.join(result_folder, "demultiplex")
+    
+    else:
+        output_folder = output_folder
+
     Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     fastqfolder = os.path.join(result_folder, "basecalled")
@@ -44,7 +62,7 @@ def run_demultiplexer(result_folder, BARCODES, fbc_score = 60, rbc_score = 50):
     if not os.path.exists(output_folder):
         raise Exception("Demultiplex folder does not exist. Please check if you have chosen the right experiment name.")
 
-    barcode_rbc = BARCODES["Barcode-kit-RBC-MASKED"]
+    barcode_rbc = BARCODES["Barcode-kit-RBC"]
 
     barcode_fbc = BARCODES["Barcode-kit"]
 
@@ -59,7 +77,7 @@ def run_demultiplexer(result_folder, BARCODES, fbc_score = 60, rbc_score = 50):
         raise Exception("Barcode folder does not exist. Either no barcodes were found or the barcode score is too high. Rerun the experiment and adapt the barcode score")
 
     for rv_barcodes in rbc_files:
-        concat_all_fastq(rv_barcodes, "demultiplexed", "fastq_runid", delete = True)
+        concatenate_fastq_files(rv_barcodes, "demultiplexed", "fastq_runid", delete = True)
         front_prompt = get_prompt(rv_barcodes, rv_barcodes, data_path, barcode_fbc, score=fbc_score)
         run_prompt(front_prompt)
 

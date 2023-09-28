@@ -1,12 +1,12 @@
 import os
 from pathlib import Path
-from minION.util.IO_processor import concat_all_fastq
+from minION.util.IO_processor import concatenate_fastq_files
 from minION.util.globals import MEDAKA_MODELS
 
 def process_fastq(fastq_folder, filename = "pre_consensus", prefix = "fastq_runid", delete = False):
     """Processes all runid_fastq files in a folder. It concatenates all reads in one file and returns the path of the file."""
     
-    concat_all_fastq(fastq_folder, filename = filename, prefix = prefix, delete = delete)
+    concatenate_fastq_files(fastq_folder, filename = filename, prefix = prefix, delete = delete)
 
     return os.path.join(fastq_folder, "pre_consensus.fastq")
 

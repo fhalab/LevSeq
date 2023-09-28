@@ -1,6 +1,7 @@
 from minION.util.globals import DORADO_MODELS, MINKNOW_PATH
 import os
 import glob
+import subprocess
 
 def check_model(dorado_type):
     """Checks if the required dorado model is downloaded."""
@@ -23,7 +24,7 @@ def download_model(dorado_type, model_path):
     model = DORADO_MODELS[dorado_type]
     
     input = f"dorado download --model {model} --directory {model_path}"
-    os.system(input)
+    subprocess.run(input, shell=True)
     return "Model downloaded."
 
 def run_dorado(model, file_folder, save_folder, fastq = True):
@@ -39,7 +40,8 @@ def run_dorado(model, file_folder, save_folder, fastq = True):
     else:
         input = f"dorado basecaller {model_path} {file_folder} > {save_folder}/basecalled.fastq"
 
-    os.system(input)
+    subprocess.run(input, shell=True)
+    
     return "Basecalling submitted"
 
 

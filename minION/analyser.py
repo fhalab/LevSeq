@@ -2,10 +2,27 @@ from minION.util.IO_processor import read_fasta_file, find_file, get_barcode_dic
 from minION.util.globals import CODONS
 from uncertainties import ufloat 
 import pandas as pd
+from pathlib import Path
 import os
 from statistics import mean
 from Bio import Align
 from Bio.Seq import Seq
+
+
+def get_sequence_distribution(path : Path) -> list:
+    """Get the sequence distribution from one or multiple fastq files
+    Args: 
+        - path, path to fastq file
+    Return:
+        - List of sequence distribution
+    """
+
+    if path is None:
+        return [0]
+
+    sequences = read_fasta_file(path, True)
+
+    return sequences["Sequence"]
 
 def get_consensus_sequence(path, score = True):
     """Get the consensus sequence with the Phred Quality Score
@@ -276,7 +293,6 @@ def rename_barcode(variant_df):
     variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
 
     return variant_df
-
 
 
 def barcode_arrangements(rbc):
