@@ -24,7 +24,7 @@ def get_sequence_distribution(path : Path) -> list:
 
     return sequences["Sequence"]
 
-def get_consensus_sequence(path, score = True):
+def get_consensus_sequence(path : Path, score = True) -> dict:
     """Get the consensus sequence with the Phred Quality Score
     Input:  - path, where the fasta file is located
             - score, if True, return sequence and quality scores
@@ -37,7 +37,7 @@ def get_consensus_sequence(path, score = True):
 
     return sequences
 
-def get_template_sequence(path):
+def get_template_sequence(path : Path) -> str:
     """Read template sequence fasta file
     Input:  - path, where the fasta file is located
     Output: Template sequence"""
@@ -46,7 +46,7 @@ def get_template_sequence(path):
     
     return template["Sequence"][0]
 
-def get_n_reads(path):
+def get_n_reads(path : Path) -> int:
     """Get the number of reads from a fastq file
     Input:  - path, where the fastq file is located
     Output: Number of reads"""
@@ -61,7 +61,7 @@ def get_n_reads(path):
     return n_reads
 
 
-def check_sequence(sequence : str = ""):
+def check_sequence(sequence : str = "") -> bool:
     """Check if the sequence is a multiple of 3, so that it can be translated into a protein sequence. Otherwise the sequence is not valid. Reason can be low quality, ...
     Input:  - sequence, DNA/RNA sequence
     Output: - True if sequence is a multiple of 3, False otherwise"""
@@ -70,11 +70,14 @@ def check_sequence(sequence : str = ""):
     else:
         return False
 
-def align_sequences(consensus_path, template_path):
+def align_sequences(consensus_path : Path, template_path : Path) -> dict:
     """Align consensus sequences to template sequence.
-    Input:  - template_path, path to template sequence
-            - consensus_path, path to consensus sequence
-    Output: Dictionary with aligned sequences"""
+    Args:  
+        - template_path, path to template sequence
+        - consensus_path, path to consensus sequence
+    Return: 
+        - Dictionary with aligned sequences
+    """
 
     template = get_template_sequence(template_path)
 
@@ -83,7 +86,7 @@ def align_sequences(consensus_path, template_path):
     return bioalign(template, consensus), template
 
 
-def swap_NN(template, consensus, min_score=10):
+def swap_NN(template : str, consensus : str , min_score : int = 10):
     """Swap Nucleotides in consensus with template if the score is below min_score
 
     Input:  
@@ -103,6 +106,7 @@ def swap_NN(template, consensus, min_score=10):
 
     for i in range(len(template)):
         if template[i] != seq[i] and quality[i] < min_score:
+            print(f"Swapping {seq[i]} with {template[i]} at position {i} because quality score is {quality[i]}")
             seq[i] = template[i]
 
     # Assuming mean_quality_score returns the average score for the sequence
@@ -215,16 +219,13 @@ def bioalign(template, consensus):
 
     alignments = aligner.align(seq1,seq2)[0]
 
-    # Retrieve the second sequence from the alignment
-    aligned_seq1 = str(alignments).split('\n')[0] # Index 1 is the special character indicating the alignment |
-    aligned_seq2 = str(alignments).split('\n')[2] # Does not work for biopython 1.81 anymore, TODO adjust for new version
 
     
-    aligned_seq = "".join([s1 if s2 == '-' else s2 for s1, s2 in zip(aligned_seq1, aligned_seq2)])
+    aligned_seq = "".join([s1 if s2 == '-' else s2 for s1, s2 in zip(alignments.target, alignments.query)])
 
     score_final = []
     score_index = 0
-    for char in aligned_seq2:
+    for char in alignments.query:
         if char == '-':
             score_final.append(0)
         else:
@@ -455,3 +456,15 @@ def minION_summarise(experiment_folder):
 
 
     return minION_summary
+
+
+def extract_query_sequence(text):
+    lines = text.split('\n')
+    query_sequence = ""
+
+    for line in lines:
+        if line.startswith("query"):
+            sequence = line.split()[-1]  # assuming the sequence is the last item in the line
+            query_sequence += sequence
+
+    return query_sequence

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from minION.util.IO_processor import concatenate_fastq_files
 from minION.util.globals import MEDAKA_MODELS
+import subprocess
 
 def process_fastq(fastq_folder, filename = "pre_consensus", prefix = "fastq_runid", delete = False):
     """Processes all runid_fastq files in a folder. It concatenates all reads in one file and returns the path of the file."""
@@ -41,5 +42,5 @@ def medeka_stitch_prompt(barcode_folder : Path, ref, output_name,qualities = Tru
 
 def run_medaka(prompt):
     """Function to run medaka"""
-    return os.system(prompt)
+    return subprocess.run(prompt, shell=True)
 

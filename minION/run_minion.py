@@ -32,8 +32,27 @@ def process_barcode(reverse, forward, ref_seq):
 
     
 def main(args, parallel = True):
+    """Main Function to run evSeq minION. In order to run evSeq-minION, make sure that you have run the sequencing successfully. Ideally, also check the 
+    quality report from Nanopore to make sure that the sequencing was successful and the quality of the reads are good. However, this script will also provide a quality report at the end of the run. \n
+    Please note that this script is designed to run on a Linux machine. 
+    
+    Args:
+        - args (argparse.Namespace): Arguments from the command line
+            - experiment_name (str): Name of the experiment. This will be used to create a folder to store the results.
+            - output_path (str): Path to the output folder. Defaults to the current working directory.
+            - TOML config file (str): Path to the TOML config file. Defaults to the config.toml file in the current working directory. #TODO: Add a default config file
+            - output_name (str): Name of the output folder. Defaults to the experiment_name.
+            - ref (str): Path to the reference sequence fasta file.
+            - skip_basecalling (bool): If True, the script will skip the basecalling step. Defaults to False.
+            - skip_demultiplex (bool): If True, the script will skip the demultiplexing step. Defaults to False.
+            - skip_consensus (bool): If True, the script will skip the consensus step. Defaults to False.
+        
+        - parallel (bool, optional): If True, the script will run in parallel. Defaults to True.
+        
+    """
 
     # Arguments
+    
     basecall_model = "sup"
 
     result_folder = create_folder(args.experiment_name, basecall_model, target_path=args.output_path, output_name=args.output_name)
@@ -43,14 +62,14 @@ def main(args, parallel = True):
     #TODO: Find Files based if it was basecalled or not
     for key, value in DEFAULT_TARGETS.items():
         file_path = find_experiment_files(experiment_folder, value)
-
-    pod5_files = find_folder(experiment_folder, "pod5_pass")
-
+    
+    basecall_folder = result_folder / "basecalled_filtered"
+    
     ### ----- Basecaller ----- ###
 
     if not args.skip_basecalling:
-
-        basecall_folder = os.path.join(result_folder, "basecalled")
+        pod5_files = find_folder(experiment_folder, "pod5_pass")
+        basecall_folder = os.path.join(result_folder, "basecalled_filtered")
         # Create a basecall folder if not exists
         Path(basecall_folder).mkdir(parents=True, exist_ok=True)
         run_dorado(basecall_model, pod5_files, basecall_folder, fastq = True)
@@ -59,11 +78,13 @@ def main(args, parallel = True):
 
     if not args.skip_demultiplex:
 
-        run_demultiplexer(result_folder, BARCODES, 60, 25)
-        demultiplex_folder = os.path.join(result_folder, "demultiplex")
-    
+        run_demultiplexer(result_folder, BARCODES, 60, 50, basecall_folder = basecall_folder)
+        
+        
+    demultiplex_folder = result_folder / "demultiplex_50"
+
     ### ----- Consensus ----- ###
-    
+
     barcode_dict = get_barcode_dict(demultiplex_folder)
 
     if not args.skip_consensus:
@@ -87,6 +108,11 @@ def main(args, parallel = True):
         else:
             for reverse in barcode_dict.keys():
                 for forward in barcode_dict[reverse]:
+                    print(f"Processing {os.path.basename(forward)}")
+                    # Check if consensus file already exists
+                    if os.path.exists(os.path.join(forward, "final_consensus.fasta")):
+                        print(f"Consensus file in {os.path.basename(forward)} already exists")
+                        continue
 
                     # Concat all fastq files
                     fastq_file = process_fastq(forward)
