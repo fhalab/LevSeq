@@ -7,6 +7,42 @@ import subprocess
 import concurrent.futures as futures
 
 
+class Demultiplexer:
+    """This is a custom demultiplexer adapted from guppy barcode. It is adapted for evSeq application and also uses Smith Waterman algorithm to find the best match for the barcode.
+    
+    """
+
+    def __init__(self) -> None:
+        pass
+        
+    def read_barcodes(self, barcode_file : str) -> dict:
+        """Read the barcode file and return a dictionary of barcodes
+
+        Read1 : 5' - Front Barcode ---------------------- Reverse Barcode Complement - 3'
+
+        Read2 : 5' - Reverse Barcode ---------------------- Front Barcode Complement - 3'
+        
+        Args:
+            - barcode_file: Path to the barcode file
+        
+        Return:
+            - Dictionary of barcodes
+        """
+        pass
+    
+    def reverse_complement(self, seq):
+        """ 
+        Get the reverse complement of a sequence/barcode. Depending on the strand, reads will either have front or reverse complement barcode.
+         
+        """
+        complement_dict = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+
+        complement = [complement_dict[base] for base in seq]
+
+        return ''.join(complement)[::-1]
+
+
+
 def get_prompt(result_folder, output_folder, data_path, barcode_kit, score = 60):
     """Get prompt for guppy_barcoder
     Args: 
@@ -43,7 +79,7 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     """
     
     if output_folder is None:
-        output_folder = os.path.join(result_folder, "demultiplex_50_reversed")
+        output_folder = os.path.join(result_folder, "demultiplex_60_un")
     
     else:
         output_folder = output_folder
@@ -51,7 +87,7 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     if basecall_folder is None:
-        fastqfolder = os.path.join(result_folder, "basecalled_filtered")
+        fastqfolder = os.path.join(result_folder, "basecalled_filtered_un")
         print("Fastqfolder:", fastqfolder)
 
     else:
@@ -68,9 +104,9 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     if not os.path.exists(output_folder):
         raise Exception("Demultiplex folder does not exist. Please check if you have chosen the right experiment name.")
 
-    barcode_rbc = BARCODES["Barcode-kit-RBC"]
+    barcode_rbc = BARCODES["Barcode-kit-RBC-rev"]
 
-    barcode_fbc = BARCODES["Barcode-kit-FBC"]
+    barcode_fbc = BARCODES["Barcode-kit-FBC-rev"]
 
     print("Barcode_rbc:", barcode_rbc, "Barcode_fbc:", barcode_fbc)
 

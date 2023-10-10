@@ -63,7 +63,7 @@ def main(args, parallel = True):
     for key, value in DEFAULT_TARGETS.items():
         file_path = find_experiment_files(experiment_folder, value)
     
-    basecall_folder = result_folder / "basecalled_filtered"
+    basecall_folder = result_folder / "basecalled_filtered_un"
     
     ### ----- Basecaller ----- ###
 
@@ -78,10 +78,10 @@ def main(args, parallel = True):
 
     if not args.skip_demultiplex:
 
-        run_demultiplexer(result_folder, BARCODES, 60, 50, basecall_folder = basecall_folder)
+        run_demultiplexer(result_folder, BARCODES, 60, 60, basecall_folder = basecall_folder)
         
         
-    demultiplex_folder = result_folder / "demultiplex_50"
+    demultiplex_folder = result_folder / "demultiplex_60_un"
 
     ### ----- Consensus ----- ###
 
@@ -142,7 +142,7 @@ def main(args, parallel = True):
     variant_df = get_variant_df(demultiplex_folder, args.ref, sequences=True)
 
 
-    filename = f'{args.experiment_name}_{basecall_model}_variant_df.csv'
+    filename = f'{args.experiment_name}_{basecall_model}_variant_df_50.csv'
     filepath = os.path.join(result_folder, filename)
 
 
