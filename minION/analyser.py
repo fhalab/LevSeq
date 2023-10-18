@@ -86,7 +86,7 @@ def align_sequences(consensus_path : Path, template_path : Path) -> dict:
     return bioalign(template, consensus), template
 
 
-def swap_NN(template : str, consensus : str , min_score : int = 10):
+def swap_NN(template : str, consensus : str , min_score : int = 1):
     """Swap Nucleotides in consensus with template if the score is below min_score
 
     Input:  
@@ -240,6 +240,7 @@ def call_variant(template, consensus, quality_score):
     Input:  
         - template, template sequence
         - consensus, consensus sequence
+        - quality_score, quality score of the consensus sequence
     Output: 
         - Dictionary with Mutaiton and at which Position"""
     
@@ -256,9 +257,9 @@ def call_variant(template, consensus, quality_score):
             variants["Quality-Score"].append(quality_score[i])
     return variants
 
-def read_summary_file(demultiplex_folder):
+def read_summary_file(demultiplex_folder, summary_file = "barcode_summary", file_type = ".txt"):
     """Read barcoding summary files """
-    path = find_file(demultiplex_folder, "barcoding_summary", ".txt")
+    path = find_file(demultiplex_folder, summary_file, file_type)
 
     return pd.read_csv(path, sep = "\t")
 
@@ -271,7 +272,7 @@ def convert_ascii_to_phred(ascii):
 
 
 def barcode_to_well(barcode):
-    number = int(barcode.split('barcode')[-1])
+    number = int(barcode.split('NB')[-1])
     rows = 'ABCDEFGH'
     row = rows[(number-1) // 12]
     col = (number-1) % 12 + 1
@@ -295,8 +296,29 @@ def rename_barcode(variant_df):
 
     return variant_df
 
+def barcode_arrangements(summary_path : Path, column = "RBC") -> pd.DataFrame:
+    """
+    Get number of reads for each barcode/well
 
-def barcode_arrangements(rbc):
+    Input:
+        - Path to Summary file (e.g Demultiplex folder)
+        - column, column name of the barcode
+    
+    Output:
+        - DataFrame: Contains the number of reads for each barcode/well.
+
+    """
+
+    barcode_counts = (
+        read_summary_file(summary_path)[column]
+        .value_counts()
+        .reset_index()
+        .rename(columns={"count": "N_reads"})
+    )
+
+    return barcode_counts[barcode_counts[column] != "unclassified"]
+
+def barcode_arrangements(rbc, column = "RBC"):
     """
     Get the number of reads for each barcode/well.
     
@@ -308,13 +330,13 @@ def barcode_arrangements(rbc):
     """
     
     barcode_counts = (
-        read_summary_file(rbc)["barcode_arrangement"]
+        read_summary_file(rbc)[column]
         .value_counts()
         .reset_index()
         .rename(columns={"count": "N_reads"})
     )
 
-    return barcode_counts[barcode_counts["barcode_arrangement"] != "unclassified"]
+    return barcode_counts[barcode_counts[column] != "unclassified"]
 
 def count_reads_in_fastq(filename):
     """
@@ -364,17 +386,19 @@ def template_df(barcode_dicts : dict = None):
     return pd.DataFrame(template)
 
         
-def get_variant_df(demultiplex_folder, ref_seq, barcode_dicts : dict = None, sequences = False):
+def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dict = None, consensus_folder_name = "consensus" ,sequences = False):
     """Call Variants from consensus sequences and return Variants for each barcode/well
 
     Input:  
-        - result_folder, folder where the demultiplexed files are located
-        - ref_seq, reference sequence
-        - barcode_dicts, dictionary with barcodes and their corresponding sequences (Optional)
+        - Demultiplex folder (Path), folder where the demultiplexed files are located
+        - ref_seq (Path), path to reference sequence
+        - barcode_dicts (dict), dictionary with barcodes
+        - sequences (bool), if True, return the consensus sequence
 
     Output: 
         - DataFrame of Variants for each reverse Barcode (RBC = Plate) and forward Barcode (FBC = Well). 
-            For each Well, the variants are called and the number of reads for each barcode/well is counted"""
+            For each Well, the variants are called and the number of reads for each barcode/well is counted
+    """
 
     if barcode_dicts is None:
         barcode_dicts = get_barcode_dict(demultiplex_folder)
@@ -386,33 +410,56 @@ def get_variant_df(demultiplex_folder, ref_seq, barcode_dicts : dict = None, seq
     if sequences:
         variants["Sequence"] = []
 
-    template = get_template_sequence(ref_seq)
+    template = get_template_sequence(ref_seq) # Reference sequence
     template_aa = translate_sequence([template])
 
-    reads_df = pd.DataFrame(columns=["RBC", "FBC"])
+    #reads_df = pd.DataFrame(columns=["RBC", "FBC"])
+
+    summary = read_summary_file(demultiplex_folder)
+    n_counts = summary.groupby(["RBC","FBC"])["FBC"].value_counts().reset_index()
+
+
 
     for barcode_id, barcode_dict in barcode_dicts.items():
+
         rbc = os.path.basename(barcode_id)
 
-        n_counts = barcode_arrangements(barcode_id) # df with number of reads for each barcode/well
+        #n_counts = barcode_arrangements(barcode_id) # df with number of reads for each barcode/well
 
-        n_counts["RBC"] = str(rbc)
-        n_counts.rename(columns={"barcode_arrangement": "FBC"}, inplace=True)
+        #n_counts["RBC"] = str(rbc)
+        #n_counts.rename(columns={"barcode_arrangement": "FBC"}, inplace=True)
 
-        reads_df = pd.concat([reads_df, n_counts], ignore_index=True)
+        #reads_df = pd.concat([reads_df, n_counts], ignore_index=True)
 
         for front_barcode in barcode_dict:
 
             fbc = os.path.basename(front_barcode)
 
-            fasta_file = os.path.join(front_barcode, "final_consensus.fasta")
+            front_barcode = os.path.join(front_barcode, consensus_folder_name)
 
-            consensus_aa = AA_seq(fasta_file, ref_seq)
+            fasta_file = os.path.join(front_barcode, "consensus.fastq")
+
+            # Check if consensus file exists
+            if not os.path.exists(fasta_file):
+                #print(f"Consensus file in {front_barcode} does not exist, skipping {fbc}")
+                continue
+
+            #consensus_aa = AA_seq(fasta_file, ref_seq)
+
+            try:
+                consensus = get_consensus_sequence(fasta_file, True)
+                quality = mean_quality_score(consensus["Quality-Score"][0])
+                consensus_aa = translate_sequence(consensus["Sequence"])
+            
+            except:
+                print(f"Skipping {rbc}/{fbc}")
+                print(consensus)
+                continue
 
             if sequences:
-                variants["Sequence"].append(consensus_aa["Sequence"][0][0])
+                variants["Sequence"].append(consensus_aa["Protein-Sequence"][0])
 
-            aa_variants = call_variant(template_aa["Protein-Sequence"][0], consensus_aa["Sequence"][0][0], consensus_aa["Quality-Score"])
+            aa_variants = call_variant(template_aa["Protein-Sequence"][0], consensus_aa["Protein-Sequence"][0], quality)
 
 
             variants["RBC"].append(rbc)
@@ -422,7 +469,7 @@ def get_variant_df(demultiplex_folder, ref_seq, barcode_dicts : dict = None, seq
             variants["Quality-Score"].append(aa_variants["Quality-Score"])
     
 
-    variant_df = rename_barcode(pd.DataFrame(variants).merge(reads_df, on=["RBC","FBC"] , how="left"))
+    variant_df = rename_barcode(pd.DataFrame(variants).merge(n_counts, on=["RBC","FBC"] , how="left"))
 
     return variant_df.merge(variant_template_df, on=["Plate", "Well"], how="right")
     

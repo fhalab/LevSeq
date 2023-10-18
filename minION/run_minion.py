@@ -6,31 +6,12 @@ from minION.util.parser import create_parser, check_parser
 from minION.util.IO_processor import create_folder, find_experiment_folder, find_folder, get_barcode_dict, concatenate_fastq_files, find_experiment_files
 from minION.basecaller import run_dorado, check_model
 from minION.demultiplexer import run_demultiplexer
-from minION.consensus import process_fastq, consensus_prompt, run_medaka, medeka_stitch_prompt
+from minION.consensus import process_fastq,get_consensus
 from minION.analyser import get_variant_df
 from minION.util.globals import BARCODES, MEDAKA_MODELS, DEFAULT_TARGETS
 
 
-
-def process_barcode(reverse, forward, ref_seq):
-    # Concat all fastq files
-    fastq_file = process_fastq(forward)
-
-    # Output directory
-    output_dir = os.path.join(forward, "medaka")
-
-    # Run Consensus
-    prompt = consensus_prompt(fastq_file, output_dir, ref_seq, n_threads = 4, model = "default")
-    run_medaka(prompt)
-
-    # Run Stitch
-    final_consensus = os.path.join(forward, "final_consensus.fasta")
-    prompt = medeka_stitch_prompt(forward, ref_seq, final_consensus, qualities = True)
-
-    # Align and calculate the Phred Quality Score
-    run_medaka(prompt)
-
-    
+  
 def main(args, parallel = True):
     """Main Function to run evSeq minION. In order to run evSeq-minION, make sure that you have run the sequencing successfully. Ideally, also check the 
     quality report from Nanopore to make sure that the sequencing was successful and the quality of the reads are good. However, this script will also provide a quality report at the end of the run. \n
@@ -63,7 +44,7 @@ def main(args, parallel = True):
     for key, value in DEFAULT_TARGETS.items():
         file_path = find_experiment_files(experiment_folder, value)
     
-    basecall_folder = result_folder / "basecalled_filtered_un"
+    basecall_folder = result_folder / "basecalled_filtered"
     
     ### ----- Basecaller ----- ###
 
@@ -81,7 +62,9 @@ def main(args, parallel = True):
         run_demultiplexer(result_folder, BARCODES, 60, 60, basecall_folder = basecall_folder)
         
         
-    demultiplex_folder = result_folder / "demultiplex_60_un"
+    demultiplex_folder = result_folder / "Demultiplex_cpp_70"
+
+    consensus_folder_name = "consensus_2"
 
     ### ----- Consensus ----- ###
 
@@ -91,58 +74,35 @@ def main(args, parallel = True):
 
         if parallel:
 
-            # Using ThreadPoolExecutor to parallelize the process
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-                futures = []
-                for reverse in barcode_dict.keys():
-                    for forward in barcode_dict[reverse]:
-                        futures.append(executor.submit(process_barcode, reverse, forward, args.ref))
-
-                # Collecting results (if any) and handling exceptions
-                for future in concurrent.futures.as_completed(futures):
-                    try:
-                        future.result()
-                    except Exception as exc:
-                        print(f"Generated an exception: {exc}")
+            #TODO : Add parallel processing
+            pass
 
         else:
             for reverse in barcode_dict.keys():
                 for forward in barcode_dict[reverse]:
+
                     print(f"Processing {os.path.basename(forward)}")
+
                     # Check if consensus file already exists
-                    if os.path.exists(os.path.join(forward, "final_consensus.fasta")):
+                    if os.path.exists(os.path.join(forward, consensus_folder_name ,"consensus.fastq")):
                         print(f"Consensus file in {os.path.basename(forward)} already exists")
                         continue
-
-                    # Concat all fastq files
-                    fastq_file = process_fastq(forward)
-
-                    # Output directory
-                    output_dir = os.path.join(forward, "medaka")
+                    
+                    print("Processing fastq files")
+                    concatenate_fastq_files(forward, filename = "concated", prefix = "demultiplexed", delete = False)
+                    print("Processing fastq files done")
 
                     # Run Consensus
-                    prompt = consensus_prompt(fastq_file, 
-                                              output_dir, 
-                                              args.ref, 
-                                              n_threads = 2,
-                                              model = "default")
-                    run_medaka(prompt)
+                    get_consensus(Path(forward), args.ref, "consensus.fastq", qualities=True, consensus_folder=consensus_folder_name)              
 
-                    # Run Stitch
-                    final_consensus = os.path.join(forward, "final_consensus.fasta")
-
-                    prompt = medeka_stitch_prompt(forward, args.ref, final_consensus, qualities = True)
-
-                    # Align and calculate the Phred Quality Score
-                    run_medaka(prompt)
 
 
     # ### ----- Variant Data Frame ----- ###
     
-    variant_df = get_variant_df(demultiplex_folder, args.ref, sequences=True)
+    variant_df = get_variant_df(demultiplex_folder, args.ref, consensus_folder_name="consensus_2" ,sequences=True)
 
 
-    filename = f'{args.experiment_name}_{basecall_model}_variant_df_50.csv'
+    filename = f'{args.experiment_name}_{basecall_model}_variant_concat_cpp_70.csv'
     filepath = os.path.join(result_folder, filename)
 
 

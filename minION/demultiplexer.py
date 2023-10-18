@@ -79,7 +79,7 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     """
     
     if output_folder is None:
-        output_folder = os.path.join(result_folder, "demultiplex_60_un")
+        output_folder = os.path.join(result_folder, "demultiplex_60")
     
     else:
         output_folder = output_folder
@@ -87,7 +87,7 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     if basecall_folder is None:
-        fastqfolder = os.path.join(result_folder, "basecalled_filtered_un")
+        fastqfolder = os.path.join(result_folder, "basecalled_filtered")
         print("Fastqfolder:", fastqfolder)
 
     else:
@@ -104,9 +104,9 @@ def run_demultiplexer(result_folder : Path, BARCODES : dict, fbc_score : int = 6
     if not os.path.exists(output_folder):
         raise Exception("Demultiplex folder does not exist. Please check if you have chosen the right experiment name.")
 
-    barcode_rbc = BARCODES["Barcode-kit-RBC-rev"]
+    barcode_rbc = BARCODES["Barcode-kit-RBC"]
 
-    barcode_fbc = BARCODES["Barcode-kit-FBC-rev"]
+    barcode_fbc = BARCODES["Barcode-kit-FBC"]
 
     print("Barcode_rbc:", barcode_rbc, "Barcode_fbc:", barcode_fbc)
 
