@@ -7,7 +7,7 @@ from minION.util.IO_processor import create_folder, find_experiment_folder, find
 from minION.basecaller import run_dorado, check_model
 from minION.demultiplexer import run_demultiplexer
 from minION.consensus import process_fastq,get_consensus
-from minION.analyser import get_variant_df
+from minION.analyser import get_variant_df_nn
 from minION.util.globals import BARCODES, MEDAKA_MODELS, DEFAULT_TARGETS
 
 
@@ -44,12 +44,12 @@ def main(args, parallel = False):
     for key, value in DEFAULT_TARGETS.items():
         file_path = find_experiment_files(experiment_folder, value)
     
-    #basecall_folder = result_folder / "basecalled_filtered"
+    basecall_folder = result_folder / "basecalled_filtered"
     
     ### ----- Basecaller ----- ###
 
     if not args.skip_basecalling:
-        pod5_files = find_folder(experiment_folder, "pod5")
+        pod5_files = find_folder(experiment_folder, "pod5_pass")
         basecall_folder = os.path.join(result_folder, "basecalled_filtered")
         # Create a basecall folder if not exists
         Path(basecall_folder).mkdir(parents=True, exist_ok=True)
@@ -59,10 +59,10 @@ def main(args, parallel = False):
 
     if not args.skip_demultiplex:
 
-        run_demultiplexer(result_folder, BARCODES, 60, 60, basecall_folder = basecall_folder)
+        run_demultiplexer(result_folder, BARCODES, 45, 45, basecall_folder = basecall_folder)
         
         
-    demultiplex_folder = result_folder / "Demultiplex_cpp_70"
+    demultiplex_folder = result_folder / "demultiplex_45"
 
     consensus_folder_name = "consensus"
 
@@ -84,14 +84,14 @@ def main(args, parallel = False):
                     print(f"Processing {os.path.basename(forward)}")
 
                     # Check if consensus file already exists
-                    if os.path.exists(os.path.join(forward, consensus_folder_name ,"consensus.fastq")):
+                    if os.path.exists(os.path.join(forward, consensus_folder_name , "consensus.fastq")):
                         print(f"Consensus file in {os.path.basename(forward)} already exists")
                         continue
                     
                     print("Processing fastq files")
-                    concatenate_fastq_files(forward, filename = "concated", prefix = "demultiplexed", delete = False)
+                    concatenate_fastq_files(Path(forward), filename = "concated", prefix = "demultiplexed", delete = True)
                     print("Processing fastq files done")
-
+    
                     # Run Consensus
                     get_consensus(Path(forward), args.ref, "consensus.fastq", qualities=True, consensus_folder=consensus_folder_name)              
 
@@ -99,10 +99,10 @@ def main(args, parallel = False):
 
     # ### ----- Variant Data Frame ----- ###
     
-    variant_df = get_variant_df(demultiplex_folder, args.ref, consensus_folder_name="consensus" ,sequences=True)
+    variant_df = get_variant_df_nn(demultiplex_folder, args.ref, consensus_folder_name="consensus" ,sequences=True)
 
 
-    filename = f'{args.experiment_name}_{basecall_model}_variant_concat_cpp_70.csv'
+    filename = f'{args.experiment_name}_{basecall_model}_guppy_45.csv'
     filepath = os.path.join(result_folder, filename)
 
 

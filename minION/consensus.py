@@ -84,8 +84,17 @@ def medaka_stitch(folder_path : Path, ref : Path, output_name = "consensus.fastq
 
     return subprocess.run(prompt, shell=True)
 
-def medaka_variant(folder_path : Path, ref : Path, output_name = "pre_consensus.hdf"): #TODO, not functional yet
-    """Run Medaka variant on the hdf file"""
+def medaka_variant(folder_path : Path, ref : Path, output = "variants.vcf"): #TODO, not functional yet
+    """Variant calling with medaka variant. The function is applied after medaka consensus
+    
+    Args:
+        - folder_path (Path): Path to the folder containing the fastq files
+        - ref (Path): Path to the reference sequence
+    
+    Returns:
+        - subprocess.CompletedProcess: Completed process from subprocess.run
+        - variants.vcf (file): VCF file containing the variants
+    """
 
     # Check if consensus folder exists
     consensus_path = folder_path / "consensus"
@@ -94,9 +103,10 @@ def medaka_variant(folder_path : Path, ref : Path, output_name = "pre_consensus.
     if not os.path.exists(consensus_path):
         raise Exception("Consensus folder does not exist")
     
-    prompt = f"medaka variant {consensus_path}/pre_consensus.hdf {ref} {output_name} --threads 4"
+    prompt = f"medaka variant {folder_path}/pre_consensus.hdf {ref} {output} --threads 4"
 
     return subprocess.run(prompt, shell=True)
+
 
 def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus"):
     """Function to get the consensus sequence from the fastq files"""
@@ -104,7 +114,7 @@ def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq
     create_consensus_folder(folder_path, consensus_folder)
 
     # Mini align
-    mini_align(folder_path, ref, 4, "concat", "alignment.bam", consensus_folder)
+    mini_align(folder_path, ref , n_threads = 1, prefix = "" , output_name = "alignment")
 
     # Medaka consensus
     medaka_consensus(folder_path, consensus_folder)

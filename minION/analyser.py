@@ -252,12 +252,41 @@ def call_variant(template, consensus, quality_score):
     
     for i in range(min(len(template), len(consensus))):
         if template[i] != consensus[i]:
-            variants["Variant"].append(f"{template[i]}->{consensus[i]}")
-            variants["Position"].append(i + 1)
+            pos = i + 1
+            variants["Variant"].append(f"{template[i]}{pos}{consensus[i]}") 
+            variants["Position"].append(pos)
             variants["Quality-Score"].append(quality_score[i])
+        
+    if variants["Variant"] == []:
+        variants["Variant"].append("#PARENT")
+        variants["Position"].append("-")
+        variants["Quality-Score"].append("-")
     return variants
 
-def read_summary_file(demultiplex_folder, summary_file = "barcode_summary", file_type = ".txt"):
+def call_variant_nn(template, consensus, quality_score):
+
+    if len(template) != len(consensus) or consensus == "NA" or quality_score == "NA":
+        return {"Variant" : "NA", "Position" : "NA", "Quality-Score" : "NA"}
+
+    variants = {"Variant" : [], "Position" : [], "Quality-Score" : []}
+
+    for i in range(min(len(template), len(consensus))):
+        if template[i] != consensus[i]:
+            pos = i + 1
+            variants["Variant"].append(f"{template[i]}{pos}{consensus[i]}") 
+            variants["Position"].append(pos)
+            variants["Quality-Score"].append(quality_score[i])
+        
+    if variants["Variant"] == []:
+        variants["Variant"].append("#PARENT#")
+        variants["Position"].append("-")
+        variants["Quality-Score"].append("-")
+
+    return variants
+
+
+
+def read_summary_file(demultiplex_folder, summary_file = "barcoding_summary", file_type = ".txt"):
     """Read barcoding summary files """
     path = find_file(demultiplex_folder, summary_file, file_type)
 
@@ -318,25 +347,25 @@ def barcode_arrangements(summary_path : Path, column = "RBC") -> pd.DataFrame:
 
     return barcode_counts[barcode_counts[column] != "unclassified"]
 
-def barcode_arrangements(rbc, column = "RBC"):
-    """
-    Get the number of reads for each barcode/well.
+# def barcode_arrangements(rbc, column = "RBC"):
+#     """
+#     Get the number of reads for each barcode/well.
     
-    Input:
-    - rbc (str): reverse barcode.
+#     Input:
+#     - rbc (str): reverse barcode.
     
-    Output:
-    - DataFrame: Contains the number of reads for each barcode/well.
-    """
+#     Output:
+#     - DataFrame: Contains the number of reads for each barcode/well.
+#     """
     
-    barcode_counts = (
-        read_summary_file(rbc)[column]
-        .value_counts()
-        .reset_index()
-        .rename(columns={"count": "N_reads"})
-    )
+#     barcode_counts = (
+#         read_summary_file(rbc)[column]
+#         .value_counts()
+#         .reset_index()
+#         .rename(columns={"count": "N_reads"})
+#     )
 
-    return barcode_counts[barcode_counts[column] != "unclassified"]
+#     return barcode_counts[barcode_counts[column] != "unclassified"]
 
 def count_reads_in_fastq(filename):
     """
@@ -362,10 +391,12 @@ def quality_score(qulity_score, position):
     
     return [qulity_score[i] for i in position]
 
-def template_df(barcode_dicts : dict = None):
+def template_df(barcode_dicts : dict = None, rowwise = True):
     """To have coherent df for each experiment, a template df is created. The template also have the desired plates and columns in the desired order
     Input:
-        - demultiplex_folder, folder where the demultiplexed files are located"""
+        - demultiplex_folder, folder where the demultiplexed files are located
+        - rowwise, if True, the reverse barcodes are rows and not plates
+        """
     
     if barcode_dicts is None:
         raise ValueError("No barcode dictionary provided")
@@ -375,18 +406,28 @@ def template_df(barcode_dicts : dict = None):
     rows = ["A", "B", "C", "D", "E", "F", "G", "H"]
     columns = [i for i in range(1, 13)]
 
-    template = {"Plate": [], "Well": []}
+    if rowwise:
+        template = {"Plate": [], "Well": []}
 
-    for i in range(n_rbc):
         for row in rows:
             for column in columns:
-                template["Plate"].append(i+1)
+                template["Plate"].append(1)
                 template["Well"].append(f"{row}{column}")
+    
+    else:
+
+        template = {"Plate": [], "Well": []}
+
+        for i in range(n_rbc):
+            for row in rows:
+                for column in columns:
+                    template["Plate"].append(i+1)
+                    template["Well"].append(f"{row}{column}")
         
     return pd.DataFrame(template)
 
         
-def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dict = None, consensus_folder_name = "consensus" ,sequences = False):
+def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dict = None, consensus_folder_name = "consensus" , sequences = False):
     """Call Variants from consensus sequences and return Variants for each barcode/well
 
     Input:  
@@ -416,20 +457,15 @@ def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dic
     #reads_df = pd.DataFrame(columns=["RBC", "FBC"])
 
     summary = read_summary_file(demultiplex_folder)
+    
     n_counts = summary.groupby(["RBC","FBC"])["FBC"].value_counts().reset_index()
+    
 
 
 
     for barcode_id, barcode_dict in barcode_dicts.items():
 
         rbc = os.path.basename(barcode_id)
-
-        #n_counts = barcode_arrangements(barcode_id) # df with number of reads for each barcode/well
-
-        #n_counts["RBC"] = str(rbc)
-        #n_counts.rename(columns={"barcode_arrangement": "FBC"}, inplace=True)
-
-        #reads_df = pd.concat([reads_df, n_counts], ignore_index=True)
 
         for front_barcode in barcode_dict:
 
@@ -462,6 +498,7 @@ def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dic
             aa_variants = call_variant(template_aa["Protein-Sequence"][0], consensus_aa["Protein-Sequence"][0], quality)
 
 
+
             variants["RBC"].append(rbc)
             variants["FBC"].append(fbc)
             variants["Position"].append(aa_variants["Position"])
@@ -472,8 +509,97 @@ def get_variant_df(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dic
     variant_df = rename_barcode(pd.DataFrame(variants).merge(n_counts, on=["RBC","FBC"] , how="left"))
 
     return variant_df.merge(variant_template_df, on=["Plate", "Well"], how="right")
+
+def get_variant_df_nn(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dict = None, consensus_folder_name = "consensus" , sequences = False, merge = True):
+    """Call Variants from consensus sequences and return Variants for each barcode/well
+
+    Input:  
+        - Demultiplex folder (Path), folder where the demultiplexed files are located
+        - ref_seq (Path), path to reference sequence
+        - barcode_dicts (dict), dictionary with barcodes
+        - sequences (bool), if True, return the consensus sequence
+
+    Output: 
+        - DataFrame of Variants for each reverse Barcode (RBC = Plate) and forward Barcode (FBC = Well). 
+            For each Well, the variants are called and the number of reads for each barcode/well is counted
+    """
+
+    if barcode_dicts is None:
+        barcode_dicts = get_barcode_dict(demultiplex_folder)
+    
+    variant_template_df = template_df(barcode_dicts, rowwise=False)
+
+    variants = {"RBC": [], "FBC": [], "Position": [], "Variant": [], "Quality-Score": []}
+
+    if sequences:
+        variants["Sequence"] = []
+
+    template = get_template_sequence(ref_seq) # Reference sequence
+
+    summary = read_summary_file(demultiplex_folder)
+    n_counts = summary.groupby(["RBC","FBC"])["FBC"].value_counts().reset_index()
+
+
+    for barcode_id, barcode_dict in barcode_dicts.items():
+
+        rbc = os.path.basename(barcode_id)
+
+        for front_barcode in barcode_dict:
+
+            fbc = os.path.basename(front_barcode)
+
+            front_barcode = os.path.join(front_barcode, consensus_folder_name)
+
+            fasta_file = os.path.join(front_barcode, "consensus.fastq")
+
+            # Check if consensus file exists
+            if not os.path.exists(fasta_file):
+                #print(f"Consensus file in {front_barcode} does not exist, skipping {fbc}")
+                continue
+
+            try:
+                consensus = get_consensus_sequence(fasta_file, True)
+            
+            except:
+                print(f"Skipping {rbc}/{fbc}")
+                print(consensus)
+                continue
+
+            if sequences:
+                variants["Sequence"].append(consensus["Sequence"][0])
+
+            nn_variants = call_variant_nn(template, consensus["Sequence"][0], consensus["Quality-Score"][0])
+
+
+
+            variants["RBC"].append(rbc)
+            variants["FBC"].append(fbc)
+            variants["Position"].append(nn_variants["Position"])
+            variants["Variant"].append(nn_variants["Variant"])
+            variants["Quality-Score"].append(nn_variants["Quality-Score"])
     
 
+    variant_df = rename_barcode(pd.DataFrame(variants).merge(n_counts, on=["RBC","FBC"] , how="left"))
+
+    if merge:
+        return variant_df.merge(variant_template_df, on=["Plate", "Well"], how="right")
+    else:
+        return variant_df
+
+    
+def get_variant_vcf(demultiplex_folder: Path, ref_seq : Path, barcode_dicts : dict = None, consensus_folder_name = "consensus" , sequences : bool = False) -> pd.DataFrame:
+    """ Call variants from medaka variant option
+
+    Args:
+        - demultiplex_folder, folder where the demultiplexed files are located
+        - ref_seq, path to reference sequence
+        - barcode_dicts, dictionary with barcodes
+        - sequences, if True, return the consensus sequence
+        - consensus_folder_name, folder where the consensus sequences are located
+        - sequences, if True, return the consensus sequence
+    """
+
+    pass
 
 def minION_summarise(experiment_folder):
     """Summarises the the whole ev-Seq-minION"""
