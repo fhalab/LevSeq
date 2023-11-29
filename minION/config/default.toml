@@ -1,0 +1,19 @@
+# TOML file for minion configuration.
+
+
+[Experiment]
+sequencer = "minION"
+date = "Today"
+description = None
+
+
+[Basecaller]
+dorado_model = "fast"
+
+
+[Demultiplexer]
+score_thereshold = 60
+rbc_score = 60
+fbc_score = 50
+rbc_barcode_kit = RBC_v1
+fbc_barcode_kit = FBC_v1
