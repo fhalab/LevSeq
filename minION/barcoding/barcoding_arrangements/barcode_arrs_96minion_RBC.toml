@@ -43,14 +43,10 @@ double_variants_frontrear = false
 [arrangement]
 name = "barcode_arrs_96minion_RBC"
 id_pattern = "RB%02i"
-compatible_kits = ["MINION-BARCODES-RBC"]
+compatible_kits = ["RBC"]
 first_index = 1
 last_index = 3
-kit = "CUST"
+kit = "Plate"
 normalised_id_pattern = "barcode%02i"
 scoring_function = "MAX"
-#   mask = "RB_1st"
-#   mask2 = "RB_2nd"
-#   mask = "CUST"
-#   barcode1_pattern = "RB%02i"
 barcode2_pattern = "RB%02i"

@@ -5,7 +5,7 @@ double_variants_frontrear = false
 # ############### Native barcoding kit ###############
 
 [arrangement]
-name = "custom_guppy_v1_RBC"
+name = "custom_guppy_v2_RBC"
 id_pattern = "RB%02i"
 compatible_kits = ["RBC_v2"]
 first_index = 1
@@ -14,5 +14,5 @@ kit = "RBC_v2"
 normalised_id_pattern = "barcode%02i"
 scoring_function = "MAX"
 
-barcode1_pattern = "RB%02i"
+#barcode1_pattern = "RB%02i"
 barcode2_pattern = "RB%02i"
