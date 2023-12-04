@@ -1,0 +1,15 @@
+# This is a generated file and its contents are an internal implementation detail.
+# The download step will be re-executed if anything in this file changes.
+# No other meaning or use of this file is supported.
+
+method=git
+command=/home/emre/bin/cmake/bin/cmake;-P;/home/emre/tutorials/sequence_tut/source/_deps/seqan3_fetch_content-subbuild/seqan3_fetch_content-populate-prefix/tmp/seqan3_fetch_content-populate-gitclone.cmake
+source_dir=/home/emre/tutorials/sequence_tut/source/_deps/seqan3_fetch_content-src
+work_dir=/home/emre/tutorials/sequence_tut/source/_deps
+repository=https://github.com/seqan/seqan3.git
+remote=origin
+init_submodules=TRUE
+recurse_submodules=--recursive
+submodules=
+CMP0097=NEW
+
