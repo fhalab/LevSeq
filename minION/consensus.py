@@ -34,7 +34,7 @@ def create_consensus_folder(folder_path : Path, folder_name = "consensus"):
 
 
 
-def mini_align(folder_path : Path, ref : Path, n_threads = 1, prefix = "" ,output_name = "alignment", consensus_folder = "consensus"):
+def mini_align(folder_path : Path, ref : Path, n_threads = 1, prefix = "" , output_name = "alignment", consensus_folder = "consensus"):
     """Mini align uses minimap2 and samtools to align the reads to a reference sequence
     Args:
         - folder_path (Path): Path to the folder containing the fastq files
@@ -48,6 +48,9 @@ def mini_align(folder_path : Path, ref : Path, n_threads = 1, prefix = "" ,outpu
     
     """
         
+    create_consensus_folder(folder_path, folder_name = consensus_folder)
+
+
     prompt = f'mini_align -r {ref} -i {folder_path}/{prefix}*.fastq -t {n_threads} -m -p alignment && mv *.bam *.bam.bai {folder_path}/{consensus_folder}' 
 
     return subprocess.run(prompt, shell=True)
@@ -56,26 +59,26 @@ def mini_align(folder_path : Path, ref : Path, n_threads = 1, prefix = "" ,outpu
 def medaka_consensus(folder_path : Path, consensus_folder = "consensus"):
     """Run Medaka consensus on aligned bam files"""
 
-    # Check if consensus folder exists
-    consensus_path = folder_path / consensus_folder
-
-    # Check if the hdf file exists
-    if not os.path.exists(consensus_path):
-        raise Exception("Consensus folder does not exist")
+    # # Check if consensus folder exists
+    # consensus_path = folder_path / consensus_folder
+    consensus_path = folder_path
+    # # Check if the hdf file exists
+    # if not os.path.exists(consensus_path):
+    #     raise Exception("Consensus folder does not exist")
     
-    prompt = f"medaka consensus {consensus_path}/*.bam {consensus_path}/pre_consensus.hdf --batch 200 --threads 4"
+    prompt = f"medaka consensus {consensus_path}/alignment_minimap.bam {consensus_path}/pre_consensus.hdf --batch 200 --threads 4"
 
     return subprocess.run(prompt, shell=True)
 
 def medaka_stitch(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus"):
     """Run Medaka stitch on the hdf file"""
 
-    # Check if consensus folder exists
-    consensus_path = folder_path / consensus_folder
-
-    # Check if the hdf file exists
-    if not os.path.exists(consensus_path):
-        raise Exception("Consensus folder does not exist")
+    # # Check if consensus folder exists
+    # consensus_path = folder_path / consensus_folder
+    consensus_path = folder_path
+    # # Check if the hdf file exists
+    # if not os.path.exists(consensus_path):
+    #     raise Exception("Consensus folder does not exist")
     
     prompt = f"medaka stitch {consensus_path}/pre_consensus.hdf {ref} {consensus_path}/{output_name} --threads 4"
 
@@ -111,13 +114,18 @@ def medaka_variant(folder_path : Path, ref : Path, output = "variants.vcf"): #TO
 def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus"):
     """Function to get the consensus sequence from the fastq files"""
 
-    create_consensus_folder(folder_path, consensus_folder)
+    bam_file = folder_path / "alignment_minimap.bam"
 
-    # Mini align
-    mini_align(folder_path, ref , n_threads = 1, prefix = "" , output_name = "alignment")
+    if not os.path.exists(bam_file):
+        print("Bam file does not exist. Running mini_align")
+        create_consensus_folder(folder_path, consensus_folder)
+        # Mini align
+        mini_align(folder_path, ref , n_threads = 1, prefix = "" , output_name = "alignment")
+        # Medaka consensus
+        medaka_consensus(folder_path, consensus_folder)
 
-    # Medaka consensus
-    medaka_consensus(folder_path, consensus_folder)
-
-    # Medaka stitch
-    medaka_stitch(folder_path, ref, output_name, qualities, consensus_folder)
+    else:  
+        # Medaka consensus
+        medaka_consensus(folder_path, folder_path)
+        # Medaka stitch
+        medaka_stitch(folder_path, ref, output_name, qualities, folder_path)
