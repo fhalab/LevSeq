@@ -1,0 +1,260 @@
+The system is: Linux - 5.4.0-169-generic - x86_64
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++ 
+Build flags: -fvisibility-inlines-hidden;-fmessage-length=0;-march=nocona;-mtune=haswell;-ftree-vectorize;-fPIC;-fstack-protector-strong;-fno-plt;-O2;-ffunction-sections;-pipe;-isystem;/home/emre/miniconda3/envs/conda_gcc_env/include
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is GNU, found in "/home/emre/tutorials/sequence_tut/source/CMakeFiles/3.16.3/CompilerIdCXX/a.out"
+
+Determining if the CXX compiler works passed with the following output:
+Change Dir: /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_cdb47/fast && /usr/bin/make -f CMakeFiles/cmTC_cdb47.dir/build.make CMakeFiles/cmTC_cdb47.dir/build
+make[1]: Entering directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_cdb47.dir/testCXXCompiler.cxx.o
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++    -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include    -o CMakeFiles/cmTC_cdb47.dir/testCXXCompiler.cxx.o -c /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+Linking CXX executable cmTC_cdb47
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_cdb47.dir/link.txt --verbose=1
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++  -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include   -Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpath,/home/emre/miniconda3/envs/conda_gcc_env/lib -Wl,-rpath-link,/home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/lib  CMakeFiles/cmTC_cdb47.dir/testCXXCompiler.cxx.o  -o cmTC_cdb47 
+make[1]: Leaving directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_8ba90/fast && /usr/bin/make -f CMakeFiles/cmTC_8ba90.dir/build.make CMakeFiles/cmTC_8ba90.dir/build
+make[1]: Entering directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++    -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include    -v -o CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.16/Modules/CMakeCXXCompilerABI.cpp
+Reading specs from /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/specs
+could not find specs file conda.specs
+COLLECT_GCC=/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++
+Target: x86_64-conda-linux-gnu
+Configured with: ../configure --prefix=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho --with-slibdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --libdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --mandir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/man --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=x86_64-conda-linux-gnu --enable-default-pie --enable-languages=c,c++,fortran,objc,obj-c++ --enable-__cxa_atexit --disable-libmudflap --enable-libgomp --disable-libssp --enable-libquadmath --enable-libquadmath-support --enable-libsanitizer --enable-lto --enable-threads=posix --enable-target-optspace --enable-plugin --enable-gold --disable-nls --disable-bootstrap --disable-multilib --enable-long-long --with-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/sysroot --with-build-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_build_env/x86_64-conda-linux-gnu/sysroot --with-gxx-include-dir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/include/c++/13.1.0 --with-pkgversion='conda-forge gcc 13.1.0-0' --with-bugurl=https://github.com/conda-forge/ctng-compilers-feedstock/issues/new/choose
+Thread model: posix
+Supported LTO compression algorithms: zlib
+gcc version 13.1.0 (conda-forge gcc 13.1.0-0) 
+COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-v' '-o' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-dumpdir' 'CMakeFiles/cmTC_8ba90.dir/'
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/cc1plus -quiet -v -iprefix /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/ -isysroot /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot -D_GNU_SOURCE -isystem /home/emre/miniconda3/envs/conda_gcc_env/include /usr/share/cmake-3.16/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_8ba90.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -march=nocona -mtune=haswell -O2 -version -fvisibility-inlines-hidden -fmessage-length=0 -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -ffunction-sections -o - |
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/as -v --64 -o CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o
+GNU assembler version 2.40 (x86_64-conda-linux-gnu) using BFD version (GNU Binutils) 2.40
+GNU C++17 (conda-forge gcc 13.1.0-0) version 13.1.0 (x86_64-conda-linux-gnu)
+	compiled by GNU C version 12.2.0, GMP version 6.2.1, MPFR version 4.1.0, MPC version 1.2.1, isl version isl-0.24-GMP
+
+GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include"
+ignoring nonexistent directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/local/include"
+ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed"
+ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include"
+#include "..." search starts here:
+#include <...> search starts here:
+ /home/emre/miniconda3/envs/conda_gcc_env/include
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/backward
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/include
+End of search list.
+Compiler executable checksum: 564b911ccccc40eeed26f9ce6376dab3
+COMPILER_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/
+LIBRARY_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/
+COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-v' '-o' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-dumpdir' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.'
+Linking CXX executable cmTC_8ba90
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8ba90.dir/link.txt --verbose=1
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++  -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include   -Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpath,/home/emre/miniconda3/envs/conda_gcc_env/lib -Wl,-rpath-link,/home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/lib -v CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_8ba90 
+Reading specs from /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/specs
+could not find specs file conda.specs
+COLLECT_GCC=/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++
+COLLECT_LTO_WRAPPER=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/lto-wrapper
+Target: x86_64-conda-linux-gnu
+Configured with: ../configure --prefix=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho --with-slibdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --libdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --mandir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/man --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=x86_64-conda-linux-gnu --enable-default-pie --enable-languages=c,c++,fortran,objc,obj-c++ --enable-__cxa_atexit --disable-libmudflap --enable-libgomp --disable-libssp --enable-libquadmath --enable-libquadmath-support --enable-libsanitizer --enable-lto --enable-threads=posix --enable-target-optspace --enable-plugin --enable-gold --disable-nls --disable-bootstrap --disable-multilib --enable-long-long --with-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/sysroot --with-build-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_build_env/x86_64-conda-linux-gnu/sysroot --with-gxx-include-dir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/include/c++/13.1.0 --with-pkgversion='conda-forge gcc 13.1.0-0' --with-bugurl=https://github.com/conda-forge/ctng-compilers-feedstock/issues/new/choose
+Thread model: posix
+Supported LTO compression algorithms: zlib
+gcc version 13.1.0 (conda-forge gcc 13.1.0-0) 
+COMPILER_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/
+LIBRARY_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/
+COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-L/home/emre/miniconda3/envs/conda_gcc_env/lib' '-v' '-o' 'cmTC_8ba90' '-shared-libgcc' '-dumpdir' 'cmTC_8ba90.'
+ /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/collect2 -plugin /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/liblto_plugin.so -plugin-opt=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLUmm3S.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --sysroot=/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_8ba90 /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/Scrt1.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crti.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtbeginS.o -L/home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0 -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../.. -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib -O2 --sort-common --as-needed -z relro -z now --disable-new-dtags --gc-sections --allow-shlib-undefined -rpath /home/emre/miniconda3/envs/conda_gcc_env/lib -rpath-link /home/emre/miniconda3/envs/conda_gcc_env/lib CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtendS.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crtn.o -rpath /home/emre/miniconda3/envs/conda_gcc_env/lib
+COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-L/home/emre/miniconda3/envs/conda_gcc_env/lib' '-v' '-o' 'cmTC_8ba90' '-shared-libgcc' '-dumpdir' 'cmTC_8ba90.'
+make[1]: Leaving directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+
+
+
+Parsed CXX implicit include dir info from above output: rv=done
+  found start of include info
+  found start of implicit include info
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/include]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/backward]
+    add: [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/include]
+  end of search list found
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/include] ==> [/home/emre/miniconda3/envs/conda_gcc_env/include]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0/include]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/backward] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0/backward]
+  collapse include dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/include] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/usr/include]
+  implicit include dirs: [/home/emre/miniconda3/envs/conda_gcc_env/include;/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0/include;/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/include/c++/13.1.0/backward;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/usr/include]
+
+
+Parsed CXX implicit link information from above output:
+  link line regex: [^( *|.*[/\])(x86_64-conda-linux-gnu-ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
+  ignore line: [Change Dir: /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp]
+  ignore line: []
+  ignore line: [Run Build Command(s):/usr/bin/make cmTC_8ba90/fast && /usr/bin/make -f CMakeFiles/cmTC_8ba90.dir/build.make CMakeFiles/cmTC_8ba90.dir/build]
+  ignore line: [make[1]: Entering directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp']
+  ignore line: [Building CXX object CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++    -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include    -v -o CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.16/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Reading specs from /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/specs]
+  ignore line: [could not find specs file conda.specs]
+  ignore line: [COLLECT_GCC=/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++]
+  ignore line: [Target: x86_64-conda-linux-gnu]
+  ignore line: [Configured with: ../configure --prefix=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho --with-slibdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --libdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --mandir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/man --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=x86_64-conda-linux-gnu --enable-default-pie --enable-languages=c c++ fortran objc obj-c++ --enable-__cxa_atexit --disable-libmudflap --enable-libgomp --disable-libssp --enable-libquadmath --enable-libquadmath-support --enable-libsanitizer --enable-lto --enable-threads=posix --enable-target-optspace --enable-plugin --enable-gold --disable-nls --disable-bootstrap --disable-multilib --enable-long-long --with-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/sysroot --with-build-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_build_env/x86_64-conda-linux-gnu/sysroot --with-gxx-include-dir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/include/c++/13.1.0 --with-pkgversion='conda-forge gcc 13.1.0-0' --with-bugurl=https://github.com/conda-forge/ctng-compilers-feedstock/issues/new/choose]
+  ignore line: [Thread model: posix]
+  ignore line: [Supported LTO compression algorithms: zlib]
+  ignore line: [gcc version 13.1.0 (conda-forge gcc 13.1.0-0) ]
+  ignore line: [COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-v' '-o' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-dumpdir' 'CMakeFiles/cmTC_8ba90.dir/']
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/cc1plus -quiet -v -iprefix /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/ -isysroot /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot -D_GNU_SOURCE -isystem /home/emre/miniconda3/envs/conda_gcc_env/include /usr/share/cmake-3.16/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_8ba90.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -march=nocona -mtune=haswell -O2 -version -fvisibility-inlines-hidden -fmessage-length=0 -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -ffunction-sections -o - |]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/as -v --64 -o CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [GNU assembler version 2.40 (x86_64-conda-linux-gnu) using BFD version (GNU Binutils) 2.40]
+  ignore line: [GNU C++17 (conda-forge gcc 13.1.0-0) version 13.1.0 (x86_64-conda-linux-gnu)]
+  ignore line: [	compiled by GNU C version 12.2.0  GMP version 6.2.1  MPFR version 4.1.0  MPC version 1.2.1  isl version isl-0.24-GMP]
+  ignore line: []
+  ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+  ignore line: [ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include"]
+  ignore line: [ignoring nonexistent directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/local/include"]
+  ignore line: [ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed"]
+  ignore line: [ignoring duplicate directory "/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include"]
+  ignore line: [#include "..." search starts here:]
+  ignore line: [#include <...> search starts here:]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/include]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/include-fixed]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/include]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/x86_64-conda-linux-gnu]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/../../x86_64-conda-linux-gnu/include/c++/13.1.0/backward]
+  ignore line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/include]
+  ignore line: [End of search list.]
+  ignore line: [Compiler executable checksum: 564b911ccccc40eeed26f9ce6376dab3]
+  ignore line: [COMPILER_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/]
+  ignore line: [LIBRARY_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-v' '-o' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-dumpdir' 'CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.']
+  ignore line: [Linking CXX executable cmTC_8ba90]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8ba90.dir/link.txt --verbose=1]
+  ignore line: [/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++  -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include   -Wl -O2 -Wl --sort-common -Wl --as-needed -Wl -z relro -Wl -z now -Wl --disable-new-dtags -Wl --gc-sections -Wl --allow-shlib-undefined -Wl -rpath /home/emre/miniconda3/envs/conda_gcc_env/lib -Wl -rpath-link /home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/lib -v CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_8ba90 ]
+  ignore line: [Reading specs from /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/specs]
+  ignore line: [could not find specs file conda.specs]
+  ignore line: [COLLECT_GCC=/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++]
+  ignore line: [COLLECT_LTO_WRAPPER=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/lto-wrapper]
+  ignore line: [Target: x86_64-conda-linux-gnu]
+  ignore line: [Configured with: ../configure --prefix=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho --with-slibdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --libdir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/lib --mandir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/man --build=x86_64-conda-linux-gnu --host=x86_64-conda-linux-gnu --target=x86_64-conda-linux-gnu --enable-default-pie --enable-languages=c c++ fortran objc obj-c++ --enable-__cxa_atexit --disable-libmudflap --enable-libgomp --disable-libssp --enable-libquadmath --enable-libquadmath-support --enable-libsanitizer --enable-lto --enable-threads=posix --enable-target-optspace --enable-plugin --enable-gold --disable-nls --disable-bootstrap --disable-multilib --enable-long-long --with-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/sysroot --with-build-sysroot=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_build_env/x86_64-conda-linux-gnu/sysroot --with-gxx-include-dir=/home/conda/feedstock_root/build_artifacts/gcc_compilers_1685813977163/_h_env_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placeho/x86_64-conda-linux-gnu/include/c++/13.1.0 --with-pkgversion='conda-forge gcc 13.1.0-0' --with-bugurl=https://github.com/conda-forge/ctng-compilers-feedstock/issues/new/choose]
+  ignore line: [Thread model: posix]
+  ignore line: [Supported LTO compression algorithms: zlib]
+  ignore line: [gcc version 13.1.0 (conda-forge gcc 13.1.0-0) ]
+  ignore line: [COMPILER_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/bin/]
+  ignore line: [LIBRARY_PATH=/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/:/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/]
+  ignore line: [COLLECT_GCC_OPTIONS='-fvisibility-inlines-hidden' '-fmessage-length=0' '-march=nocona' '-mtune=haswell' '-ftree-vectorize' '-fPIC' '-fstack-protector-strong' '-fno-plt' '-O2' '-ffunction-sections' '-pipe' '-isystem' '/home/emre/miniconda3/envs/conda_gcc_env/include' '-L/home/emre/miniconda3/envs/conda_gcc_env/lib' '-v' '-o' 'cmTC_8ba90' '-shared-libgcc' '-dumpdir' 'cmTC_8ba90.']
+  link line: [ /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/collect2 -plugin /home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/liblto_plugin.so -plugin-opt=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/lto-wrapper -plugin-opt=-fresolution=/tmp/ccLUmm3S.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --sysroot=/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_8ba90 /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/Scrt1.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crti.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtbeginS.o -L/home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0 -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../.. -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib -L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib -O2 --sort-common --as-needed -z relro -z now --disable-new-dtags --gc-sections --allow-shlib-undefined -rpath /home/emre/miniconda3/envs/conda_gcc_env/lib -rpath-link /home/emre/miniconda3/envs/conda_gcc_env/lib CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtendS.o /home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crtn.o -rpath /home/emre/miniconda3/envs/conda_gcc_env/lib]
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/collect2] ==> ignore
+    arg [-plugin] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/liblto_plugin.so] ==> ignore
+    arg [-plugin-opt=/home/emre/miniconda3/envs/conda_gcc_env/bin/../libexec/gcc/x86_64-conda-linux-gnu/13.1.0/lto-wrapper] ==> ignore
+    arg [-plugin-opt=-fresolution=/tmp/ccLUmm3S.res] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lc] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+    arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+    arg [--sysroot=/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot] ==> ignore
+    arg [--eh-frame-hdr] ==> ignore
+    arg [-m] ==> ignore
+    arg [elf_x86_64] ==> ignore
+    arg [-dynamic-linker] ==> ignore
+    arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+    arg [-pie] ==> ignore
+    arg [-o] ==> ignore
+    arg [cmTC_8ba90] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/Scrt1.o] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crti.o] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtbeginS.o] ==> ignore
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../..] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../..]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib]
+    arg [-L/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib] ==> dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib]
+    arg [-O2] ==> ignore
+    arg [--sort-common] ==> ignore
+    arg [--as-needed] ==> ignore
+    arg [-zrelro] ==> ignore
+    arg [-znow] ==> ignore
+    arg [--disable-new-dtags] ==> ignore
+    arg [--gc-sections] ==> ignore
+    arg [--allow-shlib-undefined] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/lib] ==> ignore
+    arg [-rpath-link] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/lib] ==> ignore
+    arg [CMakeFiles/cmTC_8ba90.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [-lstdc++] ==> lib [stdc++]
+    arg [-lm] ==> lib [m]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [-lc] ==> lib [c]
+    arg [-lgcc_s] ==> lib [gcc_s]
+    arg [-lgcc] ==> lib [gcc]
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/crtendS.o] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib/crtn.o] ==> ignore
+    arg [-rpath] ==> ignore
+    arg [/home/emre/miniconda3/envs/conda_gcc_env/lib] ==> ignore
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib/../lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib/../lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib/../lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/usr/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../../../x86_64-conda-linux-gnu/lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../lib/gcc/x86_64-conda-linux-gnu/13.1.0/../../..] ==> [/home/emre/miniconda3/envs/conda_gcc_env/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/lib]
+  collapse library dir [/home/emre/miniconda3/envs/conda_gcc_env/bin/../x86_64-conda-linux-gnu/sysroot/usr/lib] ==> [/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/usr/lib]
+  implicit libs: [stdc++;m;gcc_s;gcc;c;gcc_s;gcc]
+  implicit dirs: [/home/emre/miniconda3/envs/conda_gcc_env/lib;/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc/x86_64-conda-linux-gnu/13.1.0;/home/emre/miniconda3/envs/conda_gcc_env/lib/gcc;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/lib;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/lib;/home/emre/miniconda3/envs/conda_gcc_env/x86_64-conda-linux-gnu/sysroot/usr/lib]
+  implicit fwks: []
+
+
+Determining if the include file pthread.h exists passed with the following output:
+Change Dir: /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_2f197/fast && /usr/bin/make -f CMakeFiles/cmTC_2f197.dir/build.make CMakeFiles/cmTC_2f197.dir/build
+make[1]: Entering directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_2f197.dir/CheckIncludeFile.cxx.o
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++   -I/home/emre/tutorials/sequence_tut/seqan3/include -I/home/emre/tutorials/sequence_tut/seqan3/submodules/sdsl-lite/include -I/home/emre/tutorials/sequence_tut/seqan3/submodules/cereal/include  -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include   -o CMakeFiles/cmTC_2f197.dir/CheckIncludeFile.cxx.o -c /home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp/CheckIncludeFile.cxx
+Linking CXX executable cmTC_2f197
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2f197.dir/link.txt --verbose=1
+/home/emre/miniconda3/envs/conda_gcc_env/bin/x86_64-conda-linux-gnu-c++  -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include -fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /home/emre/miniconda3/envs/conda_gcc_env/include  -Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpath,/home/emre/miniconda3/envs/conda_gcc_env/lib -Wl,-rpath-link,/home/emre/miniconda3/envs/conda_gcc_env/lib -L/home/emre/miniconda3/envs/conda_gcc_env/lib  CMakeFiles/cmTC_2f197.dir/CheckIncludeFile.cxx.o  -o cmTC_2f197 
+make[1]: Leaving directory '/home/emre/tutorials/sequence_tut/source/CMakeFiles/CMakeTmp'
+
+
+

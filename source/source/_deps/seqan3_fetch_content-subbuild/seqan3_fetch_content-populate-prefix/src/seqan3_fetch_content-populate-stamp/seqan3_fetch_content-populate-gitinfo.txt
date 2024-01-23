@@ -1,0 +1,3 @@
+repository='https://github.com/seqan/seqan3.git'
+module=''
+tag='origin'

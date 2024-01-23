@@ -205,7 +205,7 @@ def bioalign(template, consensus):
     seq2 = Seq(consensus["Sequence"][0])
     score = consensus["Quality-Score"][0]
 
-    thres = 5
+    thres = 0
 
     n_template = ufloat(len(template), thres)
 
@@ -214,7 +214,7 @@ def bioalign(template, consensus):
 
     elif uncertainty(n_template, len(seq2)) == False:
         print("Consensus and template sequence have different lengths. Cannot align.")
-        return {"Sequence" : "NA", "Quality-Score" : "NA"}
+        return {"Sequence" : np.nan, "Quality-Score" : np.nan}
 
     aligner = Align.PairwiseAligner()
 
@@ -272,14 +272,14 @@ def bioalign(template, consensus):
 #         variants["Quality-Score"].append("-")
 #     return variants
 
-def call_variant_nn(template, consensus, quality_score):
+def call_variant_nn(template, consensus, quality_score, padding = 50):
 
     if len(template) != len(consensus) or consensus == "NA" or quality_score == "NA":
         return {"Variant" : "NA", "Position" : "NA", "Quality-Score" : "NA"}
 
     variants = {"Variant" : [], "Position" : [], "Quality-Score" : []}
 
-    for i in range(min(len(template), len(consensus))):
+    for i in range(padding, min(len(template) - padding, len(consensus) - padding + 1)):
         if template[i] != consensus[i]:
             pos = i + 1
             variants["Variant"].append(f"{template[i]}{pos}{consensus[i]}") 
@@ -361,25 +361,31 @@ def barcode_to_well(barcode,):
 
 
 
-def rename_barcode_guppy(variant_df):
-    variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+def rename_barcode_guppy(variant_df, rowwise = False):
 
-    # Extracting numbers from the 'Plate' column and converting to int
-    variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
+    if rowwise:
+        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
+        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
 
-    # Applying the barcode_to_well function to the 'Well' column
-    variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
+    else:
+        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
+        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
 
     return variant_df
 
-def rename_barcode(variant_df):
-    variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+def rename_barcode(variant_df, rowwise = False):
 
-    # Extracting numbers from the 'Plate' column and converting to int
-    variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
+    if rowwise:
+        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
+        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
 
-    # Applying the barcode_to_well function to the 'Well' column
-    variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
+    else:
+        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
+        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
+        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
 
     return variant_df
 
@@ -1250,7 +1256,7 @@ def adjust_variant(variant, padding_start):
     return '_'.join(adjusted_variants)
 
 
-def run_alignment_and_indexing(ref, output_dir):
+def run_alignment_and_indexing(ref, output_dir, site_saturation = False, alignment_name = "alignment_minimap_Q10"):
     """
     Aligns sequences using minimap2, converts to BAM, sorts and indexes the BAM file.
 
@@ -1270,17 +1276,28 @@ def run_alignment_and_indexing(ref, output_dir):
 
     fastq_files_str = " ".join(str(file) for file in fastq_files)
 
-    minimap_cmd = f"minimap2 -ax map-ont {ref} {fastq_files_str} > {output_dir}/alignment_minimap.sam"
-    subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("Running minimap2...")
+    if site_saturation:
+        alignment_name = "alignment_minimap_site_saturation"
 
+        match_score = 4
+        mismatch_score = 2
+        gap_opening_penalty = 10
 
-    view_cmd = f"samtools view -bS {output_dir}/alignment_minimap.sam > {output_dir}/alignment_minimap.bam"
+        minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {ref} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+        subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    else:
+        minimap_cmd = f"minimap2 -ax map-ont -A 2 -B 4 -O 4,24 {ref} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+        subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    view_cmd = f"samtools view -bS {output_dir}/{alignment_name}.sam > {output_dir}/{alignment_name}.bam"
     subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    sort_cmd = f"samtools sort {output_dir}/alignment_minimap.bam -o {output_dir}/alignment_minimap.bam"
+    sort_cmd = f"samtools sort {output_dir}/{alignment_name}.bam -o {output_dir}/{alignment_name}.bam"
     subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    index_cmd = f"samtools index {output_dir}/alignment_minimap.bam"
+    index_cmd = f"samtools index {output_dir}/{alignment_name}.bam"
     subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

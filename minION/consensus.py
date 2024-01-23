@@ -56,7 +56,7 @@ def mini_align(folder_path : Path, ref : Path, n_threads = 1, prefix = "" , outp
     return subprocess.run(prompt, shell=True)
 
 
-def medaka_consensus(folder_path : Path, consensus_folder = "consensus"):
+def medaka_consensus(folder_path : Path, consensus_folder = "consensus", alignment_name = "alignment_minimap.bam"):
     """Run Medaka consensus on aligned bam files"""
 
     # # Check if consensus folder exists
@@ -66,9 +66,9 @@ def medaka_consensus(folder_path : Path, consensus_folder = "consensus"):
     # if not os.path.exists(consensus_path):
     #     raise Exception("Consensus folder does not exist")
     
-    prompt = f"medaka consensus {consensus_path}/alignment_minimap.bam {consensus_path}/pre_consensus.hdf --batch 200 --threads 4"
+    prompt = f"medaka consensus {consensus_path}/{alignment_name} {consensus_path}/pre_consensus_Q10.hdf --batch 200 --threads 4"
 
-    return subprocess.run(prompt, shell=True)
+    return subprocess.run(prompt, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def medaka_stitch(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus"):
     """Run Medaka stitch on the hdf file"""
@@ -80,12 +80,12 @@ def medaka_stitch(folder_path : Path, ref : Path, output_name = "consensus.fastq
     # if not os.path.exists(consensus_path):
     #     raise Exception("Consensus folder does not exist")
     
-    prompt = f"medaka stitch {consensus_path}/pre_consensus.hdf {ref} {consensus_path}/{output_name} --threads 4"
+    prompt = f"medaka stitch {consensus_path}/pre_consensus_Q10.hdf {ref} {consensus_path}/{output_name} --threads 4"
 
     if qualities:
         prompt += " --qualities"
 
-    return subprocess.run(prompt, shell=True)
+    return subprocess.run(prompt, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def medaka_variant(folder_path : Path, ref : Path, output = "variants.vcf"): #TODO, not functional yet
     """Variant calling with medaka variant. The function is applied after medaka consensus
@@ -111,10 +111,10 @@ def medaka_variant(folder_path : Path, ref : Path, output = "variants.vcf"): #TO
     return subprocess.run(prompt, shell=True)
 
 
-def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus"):
+def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq", qualities = True, consensus_folder = "consensus", alignment_name = "alignment_minimap.bam"):
     """Function to get the consensus sequence from the fastq files"""
 
-    bam_file = folder_path / "alignment_minimap.bam"
+    bam_file = folder_path / alignment_name
 
     if not os.path.exists(bam_file):
         print("Bam file does not exist. Running mini_align")
@@ -126,6 +126,6 @@ def get_consensus(folder_path : Path, ref : Path, output_name = "consensus.fastq
 
     else:  
         # Medaka consensus
-        medaka_consensus(folder_path, folder_path)
+        medaka_consensus(folder_path, folder_path, alignment_name = alignment_name)
         # Medaka stitch
         medaka_stitch(folder_path, ref, output_name, qualities, folder_path)
