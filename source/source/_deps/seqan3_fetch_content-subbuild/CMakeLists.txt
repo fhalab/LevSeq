@@ -12,8 +12,8 @@ project(seqan3_fetch_content-populate NONE)
 include(ExternalProject)
 ExternalProject_Add(seqan3_fetch_content-populate
                      "UPDATE_DISCONNECTED" "False" "GIT_REPOSITORY" "https://github.com/seqan/seqan3.git" "GIT_TAG" "master"
-                    SOURCE_DIR          "/home/emre/tutorials/sequence_tut/source/_deps/seqan3_fetch_content-src"
-                    BINARY_DIR          "/home/emre/tutorials/sequence_tut/source/_deps/seqan3_fetch_content-build"
+                    SOURCE_DIR          "/home/emre/github_repo/MinION/source/source/_deps/seqan3_fetch_content-src"
+                    BINARY_DIR          "/home/emre/github_repo/MinION/source/source/_deps/seqan3_fetch_content-build"
                     CONFIGURE_COMMAND   ""
                     BUILD_COMMAND       ""
                     INSTALL_COMMAND     ""

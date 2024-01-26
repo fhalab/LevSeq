@@ -53,13 +53,13 @@ namespace fs = std::filesystem;
 void printHelp() {
     std::cout << "Usage: ./myprogram [OPTIONS]\n\n"
               << "Options:\n"
-              << "  -folder_name, -f                 Required, Path to the fastq/fastq.gz files, string\n"
-              << "  -demultiplexer_folder_path, -d   Required, Path where the demultiplexed sequences should be saved, string\n"
-              << "  -barcode_fasta, -b               Required, Path to barcode fasta file, string\n"
-              << "  -front_window_size, -w           Required, integer\n"
-              << "  -rear_window_size, -r            Required, integer\n"
-              << "  -match_score                 Optional, integer, default: 1\n"
-              << "  -mismatch_score              Optional, integer, default: -1\n"
+              << "  --folder_name, -f                 Required, Path to the fastq/fastq.gz files, string\n"
+              << "  --demultiplexer_folder_path, -d   Required, Path where the demultiplexed sequences should be saved, string\n"
+              << "  --barcode_fasta, -b               Required, Path to barcode fasta file, string\n"
+              << "  --front_window_size, -w           Required, integer\n"
+              << "  --rear_window_size, -r            Required, integer\n"
+              << "  --match_score                 Optional, integer, default: 1\n"
+              << "  --mismatch_score              Optional, integer, default: -1\n"
               << "  -h, --help                   Show this help message and exit\n";
 }
 
@@ -84,25 +84,34 @@ int main(int argc, char* argv[]) {
 
     std::map<std::string, std::string> args;
     std::map<std::string, std::string> keyMap = {
-        {"-f", "-folder_name"},
-        {"-d", "-demultiplexer_folder_path"},
-        {"-b", "-barcode_fasta"},
-        {"-w", "-front_window_size"},
-        {"-r", "-rear_window_size"}
+        {"-f", "--folder_name"},
+        {"-d", "--demultiplexer_folder_path"},
+        {"-b", "--barcode_fasta"},
+        {"-w", "--front_window_size"},
+        {"-r", "--rear_window_size"}
     };
 
     for (int i = 1; i < argc; i += 2) {
         std::string key(argv[i]);
 
         if (key[0] == '-' && i + 1 < argc) { 
-            args[key] = argv[i + 1];
+            if (keyMap.find(key) != keyMap.end()) {
+                // Store both short and long forms in the map
+                args[key] = argv[i + 1];
+                args[keyMap[key]] = argv[i + 1];
+                std::cout << "Processed argument: " << key << " with value: " << argv[i + 1] << std::endl;
+
+            } else {
+                std::cerr << "Invalid argument: " << key << std::endl;
+                return 1;
+            }
         } else {
             std::cerr << "Invalid argument format: " << key << std::endl;
             return 1;
         }
     }
 
-    std::vector<std::string> requiredArgs = {"-folder_name", "-demultiplexer_folder_path", "-barcode_fasta", "-front_window_size", "-rear_window_size"};
+    std::vector<std::string> requiredArgs = {"-f", "--folder_name", "-d", "--demultiplexer_folder_path", "-b", "--barcode_fasta", "-w", "--front_window_size", "-r", "--rear_window_size"};
     std::vector<std::string> missingArgs = checkRequiredArgs(args, requiredArgs);
 
     if (!missingArgs.empty()) {
@@ -113,14 +122,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::string folderName = args["-folder_name"];
-    std::string demultiplexerFolderPath = args["-demultiplexer_folder_path"];
-    std::string barcodeFasta = args["-barcode_fasta"];
+    std::string folderName = args["--folder_name"];
+    std::string demultiplexerFolderPath = args["--demultiplexer_folder_path"];
+    std::string barcodeFasta = args["--barcode_fasta"];
     int frontWindowSize;
     int rearWindowSize;
     try {
-        frontWindowSize = std::stoi(args["-front_window_size"]);
-        rearWindowSize = std::stoi(args["-rear_window_size"]);
+        frontWindowSize = std::stoi(args["--front_window_size"]);
+        rearWindowSize = std::stoi(args["--rear_window_size"]);
     } catch (const std::exception& e) {
         std::cerr << "Error: Invalid window size provided." << std::endl;
         return 1;

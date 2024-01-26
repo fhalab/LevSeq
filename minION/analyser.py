@@ -361,19 +361,7 @@ def barcode_to_well(barcode,):
 
 
 
-def rename_barcode_guppy(variant_df, rowwise = False):
 
-    if rowwise:
-        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
-        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
-        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
-
-    else:
-        variant_df = variant_df.rename(columns={'RBC': 'Plate', 'FBC': 'Well'})
-        variant_df["Plate"] = variant_df['Plate'].str.extract('(\d+)').astype(int)
-        variant_df["Well"] = variant_df["Well"].apply(barcode_to_well)
-
-    return variant_df
 
 def rename_barcode(variant_df, rowwise = False):
 

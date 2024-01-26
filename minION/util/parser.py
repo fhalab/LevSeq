@@ -18,8 +18,9 @@ def create_parser():
                         required=True,
                         help='Path to reference sequence.')
 
-    parser.add_argument('--output',
+    parser.add_argument('--output_path',
                         metavar='o',
+                        default=None,
                         type=Path,
                         required=False,
                         help='Path to output folder. If not given, the output folder will be created in the current directory')
@@ -28,6 +29,18 @@ def create_parser():
                         metavar='on',
                         type=str,
                         help="Name of the output folder. If not given, the name will be the same as the experiment name")
+    
+    parser.add_argument("--skip_basecalling", 
+                        action="store_true", 
+                        help="Skip the basecalling step.")
+
+    parser.add_argument("--skip_demultiplex", 
+                        action="store_true", 
+                        help="Skip the demultiplexing step.")
+    
+    parser.add_argument("--skip_consensus",
+                        action="store_true",
+                        help="Skip the consensus step.")
 
     parser.add_argument('--json_file',
                         metavar='j',
