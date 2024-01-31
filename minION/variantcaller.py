@@ -62,19 +62,22 @@ class VariantCaller:
                  reference_path : Path,
                  barcodes = True, 
                  demultiplex_folder_name = "demultiplex", 
-                 front_barcode_prefix = "NB", reverse_barcode_prefix = "RB", rowwise=False) -> None:
-        
+                 front_barcode_prefix = "NB", reverse_barcode_prefix = "RB", rowwise=False,
+                 padding_start : int = 0, padding_end : int = 0) -> None:
+        self.reference_path = reference_path
         self.reference = analyser.get_template_sequence(reference_path)
         self.experiment_folder = experiment_folder
+        self.ref_name = self._get_ref_name()
+        self.padding_start = padding_start
+        self.padding_end = padding_end
 
         if barcodes:
             self.demultiplex_folder = experiment_folder / demultiplex_folder_name
             self.barcode_dict = get_barcode_dict(self.demultiplex_folder, front_prefix= front_barcode_prefix, reverse_prefix=reverse_barcode_prefix)
             self.variant_df = self._get_sample_name()
-            self.variant_df = self._rename_barcode(rowwise = rowwise,merge=True)
+            self.variant_df = self._rename_barcodes(rowwise = rowwise,merge=True)
 
         self.alignment_name = "alignment_minimap.bam"
-        self.reference = self.experiment_folder / "reference.fasta"
         self.depth = 4000
         self.allele_frequency = 0.1
 
@@ -89,12 +92,12 @@ class VariantCaller:
 
                 variant_df["Parent"].append(parent)
                 variant_df["Child"].append(child)
-                variant_df["Path"].append(barcode_path)
+                variant_df["Path"].append(Path(barcode_path))
 
         return pd.DataFrame(variant_df)
 
 
-    def _rename_barcode(self, rowwise = False, parent_name = "Plate", child_name = "Well", merge = True):
+    def _rename_barcodes(self, rowwise = False, parent_name = "Plate", child_name = "Well", merge = True):
 
         df = self.variant_df
 
@@ -181,16 +184,12 @@ class VariantCaller:
         # Remove SAM file
         os.remove(f"{output_dir}/{alignment_name}.sam")
 
-    def _get_highest_non_ref_base_freq(self, bam_file : Path, ref_name : str, positions : list, reference_sequence, qualities=True):
-
+    def _get_highest_non_ref_base_freq(self, bam_file : Path, positions : list, qualities=True, threshold : float = 0.2):
         base_frequencies = {position: Counter() for position in positions}
         base_qualities = {position: [] for position in positions} if qualities else None
 
         with pysam.AlignmentFile(bam_file, 'rb') as bam:
-            for pileup_column in bam.pileup(ref_name, min(positions) - 1, max(positions),
-                                            min_base_quality=0, 
-                                            min_mapping_quality=0, 
-                                            truncate=True):
+            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions), min_base_quality=0, min_mapping_quality=0, truncate=True):
                 if pileup_column.pos + 1 in positions:
                     for pileup_read in pileup_column.pileups:
                         if not pileup_read.is_del and not pileup_read.is_refskip:
@@ -208,30 +207,170 @@ class VariantCaller:
         mean_quality_score = {position: 0 for position in positions} if qualities else None
         for position in positions:
             counts = base_frequencies[position]
-            ref_base = reference_sequence[position - 1].upper()  
+            ref_base = self.reference[position - 1].upper()  
             total_bases = sum(counts.values())
             if total_bases > 0:
                 non_ref_bases = {base: count for base, count in counts.items() if base != ref_base}
                 if non_ref_bases:
                     max_base = max(non_ref_bases, key=non_ref_bases.get)
                     max_freq = non_ref_bases[max_base] / total_bases
-                    highest_non_ref_base_freq[position] = (max_base, max_freq)
+                    if max_freq > threshold:  # Add only if frequency is above threshold
+                        highest_non_ref_base_freq[position] = (max_base, max_freq)
 
-                    if qualities:
-                        max_base_qualities = [qual for base, qual in zip(counts.elements(), base_qualities[position]) if base == max_base]
-                        mean_quality_score[position] = int(sum(max_base_qualities) / len(max_base_qualities)) if max_base_qualities else 0
-                else:
-                    highest_non_ref_base_freq[position] = (None, 0)
-            else:
-                highest_non_ref_base_freq[position] = (None, 0)
+                        if qualities:
+                            max_base_qualities = [qual for base, qual in zip(counts.elements(), base_qualities[position]) if base == max_base]
+                            mean_quality_score[position] = int(sum(max_base_qualities) / len(max_base_qualities)) if max_base_qualities else 0
 
         return highest_non_ref_base_freq, mean_quality_score if qualities else highest_non_ref_base_freq
 
+    def call_variant(self, alignment_file : Path, qualities = True, threshold : float = 0.2):
+        """
+        Call Variant for a given alignment file
+        """
+
+        nb_positions = self._get_postion_range(self.padding_start, self.padding_end)
+        freq_dist = self._get_highest_non_ref_base_freq(alignment_file, nb_positions, threshold=threshold, qualities=qualities)[0]
+        positions = self._get_nb_positions(freq_dist)
+
+        pileup_df = self.get_bases_from_pileup(alignment_file, positions)
+
+        return pileup_df
+
+
+    def _get_ref_name(self):
+        with open(self.reference_path , "r") as f:
+
+            #Check if the reference is in fasta format
+            ref_name = f.readline().strip()
+            if not ref_name.startswith(">"):
+                raise ValueError("Reference file is not in fasta format")
+            else:
+                ref_name = ref_name[1:]
+        return ref_name
+
+    def _get_alignment_count(self, sample_folder_path : Path):
+        """
+        Get the number of alignments in a BAM file.
+        
+        Args:
+            - sample_folder_path (Path): Path to the folder containing the BAM file.
+            
+        Returns:
+            - int: Number of alignments in the BAM file.
+        """
+        if not isinstance(sample_folder_path, Path):
+            return 0
+
+        bam_file = sample_folder_path / self.alignment_name
+
+        if not bam_file.exists():
+            return 0 
+
+        alignment_count = int(subprocess.run(f"samtools view -c {bam_file}", shell=True, capture_output=True).stdout.decode("utf-8").strip())
+
+        return alignment_count
+
+    def _apply_alignment_count(self):
+        """
+        Get alignment count for each sample
+        """
+
+        self.variant_df["Path"] = self.variant_df["Path"].apply(lambda x: Path(x) if isinstance(x, str) else x)
+
+
+        self.variant_df["Alignment_count"] = self.variant_df["Path"].apply(self._get_alignment_count)
+
+        return self.variant_df
+
+    def _get_postion_range(self, padding_start : int = 0, padding_end : int = 0):
+        """
+        Get the positions of the non-reference bases in the reference sequence.
+
+        Args:
+            - padding_start (int, optional): Number of bases to pad at the start of the reference sequence. Defaults to 0.
+            - padding_end (int, optional): Number of bases to pad at the end of the reference sequence. Defaults to 0.
+        
+        Returns:
+            - list: List of positions of the non-reference bases in the reference sequence.
+        """
+        
+        return range(padding_start + 1, len(self.reference) - padding_end + 1)
+
+    def _get_nb_positions(self, base_dict : dict):
+        """
+        Get the positions of the non-reference bases in the reference sequence.
+
+        Returns:
+            - list: List of positions of the non-reference bases in the reference sequence.
+        """
+        if not base_dict:
+            return []
+        else:
+            return list(base_dict.keys())
+
+    def _get_bases_from_pileup(self, bam_file, positions):
+        bases_dict = {position: {} for position in positions}
+        
+        with pysam.AlignmentFile(bam_file, 'rb') as bam:
+            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions) + 1,
+                                            min_base_quality=0, 
+                                            min_mapping_quality=0, 
+                                            truncate=True):
+                pos = pileup_column.pos + 1
+                if pos in positions:
+                    for pileup_read in pileup_column.pileups:
+                        read_name = pileup_read.alignment.query_name
+                        if pileup_read.is_del:
+                            base = '-'  # or any symbol you prefer to represent a deletion
+                        elif not pileup_read.is_refskip:
+                            base = pileup_read.alignment.query_sequence[pileup_read.query_position]
+                        else:
+                            continue
+
+                        if read_name not in bases_dict[pos]:
+                            bases_dict[pos][read_name] = base
+
+        read_names = sorted(set().union(*[bases_dict[pos].keys() for pos in bases_dict]))
+        df = pd.DataFrame(index=read_names, columns=positions)
+        
+        for pos in positions:
+            for read_name, base in bases_dict[pos].items():
+                df.at[read_name, pos] = base
+        
+        df = df.fillna("-")
+
+        return df
+    
+    def _get_neighbouring_position(self, position : int, neighbour_range : int = 2):
+        """
+        Get the neighbouring positions of the non-reference bases in the reference sequence.
+
+        Args:
+            - positions (list): List of positions of the non-reference bases in the reference sequence.
+            - neighbour_range (int, optional): Range of neighbouring positions to consider. Defaults to 2.
+        
+        Returns:
+            - list: List of neighbouring positions of the non-reference bases in the reference sequence.
+        """
+
+        # Get min range and max range
+
+        pos_range = self._get_postion_range( padding_start=self.padding_start, padding_end=self.padding_end)
+
+        min_range = min(pos_range)
+        max_range = max(pos_range)
+        
+
+        neighbouring_positions = list(range(position - neighbour_range, position + neighbour_range + 1))
+
+        neighbouring_positions = [pos for pos in neighbouring_positions if pos >= min_range and pos <= max_range]
+
+        return neighbouring_positions
+
+
+
     
     
-
-
-
 
 
 def get_template_df(plate_numbers : list, barcode_dicts : dict = None, rowwise = True):

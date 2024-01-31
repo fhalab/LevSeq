@@ -76,7 +76,17 @@ class TestVariantCaller(unittest.TestCase):
             alignment_files = list(folder.glob("*.bam"))
             self.assertEqual(len(alignment_files), 1)
 
+    def test_ref_name(self):
+        ref_name = self.variant_caller._get_ref_name()
+        self.assertEqual(ref_name, "HetCPIII")
+    
+    def test_alignment_count(self):
 
+        experiment_folder = Path("/home/emre/minION_results/MinION_RBC_0902723_sup")
+        template_fasta = "/home/emre/github_repo/MinION/data/refseq/hetcpiii.fasta"
+        vc = VariantCaller(experiment_folder, template_fasta, demultiplex_folder_name="Demultiplex_cpp_70_200k_reads")    
+        df = vc._apply_alignment_count()
+        self.assertEqual(df.iloc[0,3], 2)
         
 
 
