@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Union
 import pandas as pd
 import re
+import itertools
+import numpy as np
 
 '''
 The variant caller starts from demultiplexed fastq files. 
@@ -228,13 +230,21 @@ class VariantCaller:
         Call Variant for a given alignment file
         """
 
+        variants = {"Position": [], "Variant": []}
+
         nb_positions = self._get_postion_range(self.padding_start, self.padding_end)
         freq_dist = self._get_highest_non_ref_base_freq(alignment_file, nb_positions, threshold=threshold, qualities=qualities)[0]
         positions = self._get_nb_positions(freq_dist)
 
-        pileup_df = self.get_bases_from_pileup(alignment_file, positions)
+        if not positions: #TODO: Generate 3 random positions before calling parent
+            variants["Position"].append("#PARENT#")
+            variants["Variant"].append("#PARENT#")
+            
+        
+        else:
+            pileup_df, qual_df = self._get_bases_from_pileup(alignment_file, positions)
 
-        return pileup_df
+        return variants
 
 
     def _get_ref_name(self):
@@ -308,39 +318,124 @@ class VariantCaller:
         else:
             return list(base_dict.keys())
 
-    def _get_bases_from_pileup(self, bam_file, positions):
-        bases_dict = {position: {} for position in positions}
-        
+    def _get_bases_from_pileup(self, bam_file, positions, n_neighbours : int = 2):
+        all_positions = []  # Include neighbouring positions as well
+
+        for position in positions:
+            all_positions.extend(self._get_neighbouring_position(position, neighbour_range=n_neighbours))
+
+        bases_dict = {position: {} for position in all_positions}
+        qualities_dict = {position: {} for position in all_positions}
         with pysam.AlignmentFile(bam_file, 'rb') as bam:
-            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions) + 1,
-                                            min_base_quality=0, 
-                                            min_mapping_quality=0, 
+            for pileup_column in bam.pileup(self.ref_name, min(all_positions) - 1, max(all_positions) + 1,
+                                            min_base_quality=0,
+                                            min_mapping_quality=0,
                                             truncate=True):
                 pos = pileup_column.pos + 1
-                if pos in positions:
+                if pos in all_positions:
                     for pileup_read in pileup_column.pileups:
                         read_name = pileup_read.alignment.query_name
                         if pileup_read.is_del:
-                            base = '-'  # or any symbol you prefer to represent a deletion
+                            base = '-'
+                            quality = 0  # Assign a default quality for deletions
                         elif not pileup_read.is_refskip:
                             base = pileup_read.alignment.query_sequence[pileup_read.query_position]
+                            quality = pileup_read.alignment.query_qualities[pileup_read.query_position]
                         else:
                             continue
 
                         if read_name not in bases_dict[pos]:
                             bases_dict[pos][read_name] = base
+                            qualities_dict[pos][read_name] = quality
 
         read_names = sorted(set().union(*[bases_dict[pos].keys() for pos in bases_dict]))
-        df = pd.DataFrame(index=read_names, columns=positions)
-        
-        for pos in positions:
-            for read_name, base in bases_dict[pos].items():
-                df.at[read_name, pos] = base
-        
-        df = df.fillna("-")
+        df_bases = pd.DataFrame(index=read_names, columns=positions)  # Only include original positions
+        df_qualities = pd.DataFrame(index=read_names, columns=all_positions)  # Include all positions
 
-        return df
+        for pos in all_positions:  # Include all positions
+            for read_name in bases_dict[pos]:
+                df_bases.at[read_name, pos] = bases_dict[pos][read_name]
+                df_qualities.at[read_name, pos] = qualities_dict[pos][read_name]
+
+        df_bases = df_bases.fillna("-")
+
+        # Calculate average quality for each position based on its neighboring positions
+        for pos in positions:
+            neighbors = self._get_neighbouring_position(pos)
+            df_qualities[pos] = df_qualities[neighbors].mean(axis=1)
+
+        df_qualities = df_qualities[positions]
+        df_bases = df_bases[positions]  
+
+        return df_bases, df_qualities
     
+    def _get_softmax_count_df(self, bases_df, qual_df, nb_positions):
+
+        alphabet = "ACTG-"
+
+        softmax_counts = {position: [] for position in nb_positions}
+        
+        for position in nb_positions:
+            for base in alphabet:
+                base_mask = bases_df[position] == base
+                base_counts = base_mask.sum()
+                # Calculate the non-error probability for each base and sum them up
+                soft_count = sum(base_mask * qual_df[position].apply(VariantCaller._get_non_error_prop))
+                softmax_counts[position].append(soft_count)
+
+        softmax_count_df = pd.DataFrame(softmax_counts, columns=nb_positions, index=list(alphabet))
+
+        # Apply softmax to each column (position)
+        softmax_count_df = softmax_count_df.apply(lambda x: x / x.sum(), axis=0)
+
+        return softmax_count_df
+
+
+    def _call_potential_populations(self, softmax_df, call_threshold : float = 0.1):
+
+        positions = softmax_df.columns
+        top_combinations = []
+        
+        # Get the top 2 variants for each position
+        for position in positions:
+            top_variants = softmax_df[position].nlargest(2)
+
+            if top_variants.iloc[1] < call_threshold:
+                top_combinations.append([top_variants.index[0]])
+            
+            else:
+                top_combinations.append(top_variants.index.tolist())
+
+            potential_combinations = list(itertools.product(*top_combinations))
+
+        
+        variants = {"Variant" : [], "Probability" : []}
+        
+        for combination in potential_combinations:
+            final_variant = []
+            for i, pos in enumerate(positions):
+
+                if combination[i] == self.reference[pos - 1]:
+                    continue
+
+                elif combination[i] == "-":
+                    var = f"{self.reference[pos - 1]}{pos}DEL"
+                    final_variant.append(var)
+                else:
+                    var = f"{self.reference[pos - 1]}{pos}{combination[i]}"
+                    final_variant.append(var)
+
+            final_variant = '_'.join(final_variant)
+            if final_variant == "":
+                final_variant = "#PARENT#"
+
+            joint_prob = np.prod([softmax_df.at[combination[i], positions[i]] for i in range(len(positions))])
+        
+            variants["Variant"].append(final_variant)
+            variants["Probability"].append(joint_prob)
+
+        return variants
+
     def _get_neighbouring_position(self, position : int, neighbour_range : int = 2):
         """
         Get the neighbouring positions of the non-reference bases in the reference sequence.
@@ -355,21 +450,36 @@ class VariantCaller:
 
         # Get min range and max range
 
-        pos_range = self._get_postion_range( padding_start=self.padding_start, padding_end=self.padding_end)
+
+        pos_range = self._get_postion_range(padding_start=self.padding_start, padding_end=self.padding_end)
 
         min_range = min(pos_range)
         max_range = max(pos_range)
         
+        if position < min_range or position > max_range:
+            raise ValueError(f"Position {position} is out of range. The position should be between {min_range} and {max_range}.")
 
         neighbouring_positions = list(range(position - neighbour_range, position + neighbour_range + 1))
 
         neighbouring_positions = [pos for pos in neighbouring_positions if pos >= min_range and pos <= max_range]
 
         return neighbouring_positions
-
-
-
     
+
+    @staticmethod
+    def _get_non_error_prop(quality_score):
+        """
+        Convert quality score to non-error probability.
+        
+        Args:
+            - Phred quality_score (int): Quality score.
+        
+        Returns:
+            - float: Non-error probability.
+        """
+        return 1 - 10 ** (-quality_score / 10)
+
+
     
 
 
