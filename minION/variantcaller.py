@@ -3,19 +3,17 @@ Script for variant calling
 '''
 
 
-from minION.util.IO_processor import get_barcode_dict
-from minION import analyser
-from minION import consensus
+from minION.util.IO_processor import get_barcode_dict, read_fasta_file
 import subprocess
 import pysam
 import os
 from collections import Counter
 from pathlib import Path
-from typing import Union
 import pandas as pd
 import re
 import itertools
 import numpy as np
+from tqdm import tqdm  
 
 '''
 The variant caller starts from demultiplexed fastq files. 
@@ -67,21 +65,20 @@ class VariantCaller:
                  front_barcode_prefix = "NB", reverse_barcode_prefix = "RB", rowwise=False,
                  padding_start : int = 0, padding_end : int = 0) -> None:
         self.reference_path = reference_path
-        self.reference = analyser.get_template_sequence(reference_path)
+        self.reference = get_template_sequence(reference_path)
         self.experiment_folder = experiment_folder
         self.ref_name = self._get_ref_name()
         self.padding_start = padding_start
         self.padding_end = padding_end
+        self.alignment_name = "alignment_minimap.bam"
 
         if barcodes:
             self.demultiplex_folder = experiment_folder / demultiplex_folder_name
             self.barcode_dict = get_barcode_dict(self.demultiplex_folder, front_prefix= front_barcode_prefix, reverse_prefix=reverse_barcode_prefix)
             self.variant_df = self._get_sample_name()
-            self.variant_df = self._rename_barcodes(rowwise = rowwise,merge=True)
+            self.variant_df = self._rename_barcodes(rowwise = rowwise, merge=True)
+            self.variant_df = self._apply_alignment_count()
 
-        self.alignment_name = "alignment_minimap.bam"
-        self.depth = 4000
-        self.allele_frequency = 0.1
 
     def _get_sample_name(self):
         variant_df = {"Parent": [], "Child": [], "Path": []}
@@ -225,24 +222,72 @@ class VariantCaller:
 
         return highest_non_ref_base_freq, mean_quality_score if qualities else highest_non_ref_base_freq
 
-    def call_variant(self, alignment_file : Path, qualities = True, threshold : float = 0.2):
+    def get_variant_df(self, qualities = True, threshold : float = 0.2, min_depth : int = 5):
+        """
+        Get Variant Data Frame for all samples in the experiment
+
+        Args:
+            - alignment_file (Path): Path to the alignment file (.bam).
+            - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
+            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
+        """
+
+        for i, row in tqdm(self.variant_df.iterrows()):
+
+            try:
+                bam_file = row["Path"] / self.alignment_name
+
+                #Check alignment count
+                if row["Alignment_count"] < min_depth or isinstance(bam_file, float):
+                    self.variant_df.at[i, "Variant"] = float("nan")
+                    self.variant_df.at[i, "Probability"] = float("nan")
+                    continue
+                
+
+                variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
+                self.variant_df.at[i, "Variant"] = variant["Variant"].values
+                self.variant_df.at[i, "Probability"] = variant["Probability"].values
+
+            except Exception as e:
+                print(e)
+                self.variant_df.at[i, "Variant"] = float("nan")
+                self.variant_df.at[i, "Probability"] = float("nan")
+                continue
+
+        return self.variant_df
+    
+    def call_variant(self, alignment_file : Path, qualities = True, threshold : float = 0.2, top_N : int = 1):
         """
         Call Variant for a given alignment file
+
+        Args:
+            - alignment_file (Path): Path to the alignment file (.bam).
+            - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True. Currently only true works
+            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
         """
-
-        variants = {"Position": [], "Variant": []}
-
+        variants = {"Variant": [], "Probability": []}
         nb_positions = self._get_postion_range(self.padding_start, self.padding_end)
         freq_dist = self._get_highest_non_ref_base_freq(alignment_file, nb_positions, threshold=threshold, qualities=qualities)[0]
         positions = self._get_nb_positions(freq_dist)
 
         if not positions: #TODO: Generate 3 random positions before calling parent
-            variants["Position"].append("#PARENT#")
-            variants["Variant"].append("#PARENT#")
-            
-        
-        else:
-            pileup_df, qual_df = self._get_bases_from_pileup(alignment_file, positions)
+            # Choose 3 random positions
+            positions = np.random.choice(nb_positions, 3, replace=False)
+
+        elif len(positions) > 10:
+            print(f"Too many positions: {len(positions)}, Skipping...")
+            #Append nan
+            variants["Variant"].append(float("nan"))
+            variants["Probability"].append(float("nan"))
+
+            return pd.DataFrame(variants)
+
+       
+        pileup_df, qual_df = self._get_bases_from_pileup(alignment_file, positions)
+        softmax_df = self._get_softmax_count_df(pileup_df, qual_df, positions)
+        variants = self._call_potential_populations(softmax_df, call_threshold=0.1)
+        variants = pd.DataFrame(variants).nlargest(top_N, "Probability")
+
 
         return variants
 
@@ -330,7 +375,8 @@ class VariantCaller:
             for pileup_column in bam.pileup(self.ref_name, min(all_positions) - 1, max(all_positions) + 1,
                                             min_base_quality=0,
                                             min_mapping_quality=0,
-                                            truncate=True):
+                                            truncate=True,
+                                            max_depth=500):
                 pos = pileup_column.pos + 1
                 if pos in all_positions:
                     for pileup_read in pileup_column.pileups:
@@ -350,14 +396,16 @@ class VariantCaller:
 
         read_names = sorted(set().union(*[bases_dict[pos].keys() for pos in bases_dict]))
         df_bases = pd.DataFrame(index=read_names, columns=positions)  # Only include original positions
-        df_qualities = pd.DataFrame(index=read_names, columns=all_positions)  # Include all positions
+        df_qualities = pd.DataFrame(index=read_names, columns=positions)  # Include all positions
 
         for pos in all_positions:  # Include all positions
             for read_name in bases_dict[pos]:
                 df_bases.at[read_name, pos] = bases_dict[pos][read_name]
                 df_qualities.at[read_name, pos] = qualities_dict[pos][read_name]
 
-        df_bases = df_bases.fillna("-")
+        #Drop NAs
+        df_bases = df_bases.dropna()
+        df_qualities = df_qualities.dropna()
 
         # Calculate average quality for each position based on its neighboring positions
         for pos in positions:
@@ -371,6 +419,7 @@ class VariantCaller:
     
     def _get_softmax_count_df(self, bases_df, qual_df, nb_positions):
 
+
         alphabet = "ACTG-"
 
         softmax_counts = {position: [] for position in nb_positions}
@@ -379,7 +428,7 @@ class VariantCaller:
             for base in alphabet:
                 base_mask = bases_df[position] == base
                 base_counts = base_mask.sum()
-                # Calculate the non-error probability for each base and sum them up
+
                 soft_count = sum(base_mask * qual_df[position].apply(VariantCaller._get_non_error_prop))
                 softmax_counts[position].append(soft_count)
 
@@ -429,8 +478,13 @@ class VariantCaller:
             if final_variant == "":
                 final_variant = "#PARENT#"
 
-            joint_prob = np.prod([softmax_df.at[combination[i], positions[i]] for i in range(len(positions))])
-        
+            
+            joint_prob = VariantCaller.joint_probability_score(softmax_df, combination, positions)
+            # TODO: Add calculate score function, so different type of scores can be used:
+            # Input: Softmax_df
+            # Output: Variant name with Score
+
+
             variants["Variant"].append(final_variant)
             variants["Probability"].append(joint_prob)
 
@@ -480,15 +534,41 @@ class VariantCaller:
         return 1 - 10 ** (-quality_score / 10)
 
 
+    @staticmethod
+    def joint_probability_score(softmax_df, combination, positions):
+        """
+        Calculate the joint probability score for a given combination of variants.
+
+        Args:
+            - softmax_df (pd.DataFrame): Softmax count dataframe.
+        
+        Returns:
+            - float: Joint probability score.
+        """
+        return np.prod([softmax_df.at[combination[i], positions[i]] for i in range(len(positions))])
     
+    @staticmethod
+    def joint_log_probability_score(softmax_df, combination, positions):
+        """
+        Calculate the joint probability score for a given combination of variants.
+
+        Args:
+            - softmax_df (pd.DataFrame): Softmax count dataframe.
+        
+        Returns:
+            - float: Joint probability score.
+        """
+        return np.sum([np.log(softmax_df.at[combination[i], positions[i]]) for i in range(len(positions))])
+
 
 
 def get_template_df(plate_numbers : list, barcode_dicts : dict = None, rowwise = True):
-    """To have coherent df for each experiment, a template df is created. The template also have the desired plates and columns in the desired order
+    """
+    To have coherent df for each experiment, a template df is created. The template also have the desired plates and columns in the desired order
     Input:
         - demultiplex_folder, folder where the demultiplexed files are located
         - rowwise, if True, the reverse barcodes are rows and not plates
-        """
+    """
     
     if barcode_dicts is None:
         raise ValueError("No barcode dictionary provided")
@@ -517,3 +597,17 @@ def get_template_df(plate_numbers : list, barcode_dicts : dict = None, rowwise =
                     template["Well"].append(f"{row}{column}")
         
     return pd.DataFrame(template)
+
+
+def get_template_sequence(path : Path) -> str:
+    """
+    Read template sequence fasta file
+        Args:  
+            - path, where the fasta file is located
+        Returns: 
+            - Template sequence
+    """
+    
+    template = read_fasta_file(path)
+    
+    return template["Sequence"][0]

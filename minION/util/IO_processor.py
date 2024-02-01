@@ -3,10 +3,56 @@
 import os
 import glob
 from minION.util.globals import MINKNOW_PATH
+from minION.variantcaller import get_template_sequence
 from Bio import SeqIO
 from pathlib import Path
 import gzip
 import subprocess
+
+
+class SequenceGenerator:
+    """
+    A class for processing Sequence data. The class uses variant data frame to generate sequences.
+    """
+
+    def __init__(self, variant_df, reference_path, padding_start = 50, padding_end = 50):
+        self.variant_df = variant_df
+        self.reference = get_template_sequence(reference_path)
+        self.padding_start = padding_start
+        self.padding_end = padding_end
+    
+    def generate_sequence(self):
+        """
+        Generate sequence from variant data frame.
+
+        Args:
+        - Sequence: The generated sequence.
+
+        Returns
+        """
+        pass
+
+
+        
+        
+    
+
+def find_folder(start_path, target_folder_name):
+    """
+    Find a specific folder within the start_path. Access the name from Meta File.
+    
+    Args:
+    - start_path (str): The path to begin the search from.
+    - target_folder_name (str): The name of the folder to search for.
+
+    Returns:
+    - str: The full path to the found folder.
+    - Exception: If the target folder is not found.
+    """
+    for (path, dirs, _) in os.walk(start_path, topdown=True):
+        if target_folder_name in dirs:
+            return os.path.join(path, target_folder_name)
+    raise Exception(f"{target_folder_name} folder does not exist. Please check if you have chosen the right name.")
 
 def check_data_folder(path : Path) -> None:
     """
