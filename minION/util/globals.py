@@ -31,11 +31,6 @@ MINKNOW_PATH = "/var/lib/minknow/data/"
 # Defaul target folder names from ONT
 DEFAULT_TARGETS = {"Not_basecalled": ["pod5"], "Basecalled": ["fastq_pass"]}
 
-# Results Folder
-RESULTS_FOLDER = "results"
-
-
-
 
 # Dorado Models
 DORADO_MODELS = {   "fast": "dna_r10.4.1_e8.2_400bps_fast@v4.2.0",  # Fast inference (least accurate)
@@ -46,10 +41,6 @@ DORADO_MODELS = {   "fast": "dna_r10.4.1_e8.2_400bps_fast@v4.2.0",  # Fast infer
 # Medaka Models
 
 MEDAKA_MODELS = { "default" : "r1041_e82_400bps_sup_v4.2.0"}
-
-# Barcodes
-BARCODES = {    "Barcode-kit-FBC" : "FBC-sim",
-                "Barcode-kit-RBC" : "RBC"}
 
 # Codons
 CODONS = {

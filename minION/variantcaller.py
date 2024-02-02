@@ -3,7 +3,7 @@ Script for variant calling
 '''
 
 
-from minION.util.IO_processor import get_barcode_dict, read_fasta_file
+from minION.util.IO_processor import get_barcode_dict, read_fasta_file, get_template_sequence
 import subprocess
 import pysam
 import os
@@ -599,15 +599,3 @@ def get_template_df(plate_numbers : list, barcode_dicts : dict = None, rowwise =
     return pd.DataFrame(template)
 
 
-def get_template_sequence(path : Path) -> str:
-    """
-    Read template sequence fasta file
-        Args:  
-            - path, where the fasta file is located
-        Returns: 
-            - Template sequence
-    """
-    
-    template = read_fasta_file(path)
-    
-    return template["Sequence"][0]

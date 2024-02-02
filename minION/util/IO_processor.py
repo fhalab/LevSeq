@@ -3,12 +3,13 @@
 import os
 import glob
 from minION.util.globals import MINKNOW_PATH
-from minION.variantcaller import get_template_sequence
 from Bio import SeqIO
 from pathlib import Path
 import gzip
 import subprocess
-
+import re
+import numpy as np
+import pandas as pd
 
 class SequenceGenerator:
     """
@@ -21,16 +22,56 @@ class SequenceGenerator:
         self.padding_start = padding_start
         self.padding_end = padding_end
     
-    def generate_sequence(self):
-        """
-        Generate sequence from variant data frame.
+    def get_sequences(self):
+        self.variant_df["Sequence"] = self.variant_df.apply(self.get_sequence, axis = 1)
+        return self.variant_df
 
-        Args:
-        - Sequence: The generated sequence.
+    def get_sequence(self, row):
+        variant = row["Variant"]
+        if pd.isnull(variant):
+            return np.nan
+        else:
+            # Process the variant and generate the sequence
+            seq = self.generate_sequence(str(variant))
+            return seq
 
-        Returns
+    def generate_sequence(self, variant : str, ref_only = True):
         """
-        pass
+        Generate sequence from variant string. E.g "A123T
+        """
+        
+        new_seq = self.reference
+
+
+
+        if isinstance(variant, float):
+            return float('nan')
+
+        elif variant != "#PARENT#":
+            
+            variants = variant.split("_")
+
+            for var in variants:
+                match = re.match(r'[A-Za-z]+(\d+)([A-Za-z]+)', var)
+                if match:
+                    position = int(match.group(1))
+                    adj_pos = position - 1 + self.padding_start
+                    new_nucleotide = match.group(2)
+                else:
+                    raise ValueError(f"Invalid variant format: {var}")
+                if new_nucleotide == "DEL":
+                    new_seq = new_seq[:adj_pos] + "-" +  new_seq[adj_pos + 1:]
+
+                else:
+                    new_seq = new_seq[:adj_pos] + new_nucleotide + new_seq[adj_pos + 1:]
+
+        #Remove "-" from sequence
+        new_seq = new_seq.replace("-", "")
+
+        if ref_only:
+            return new_seq[self.padding_start : -self.padding_end]
+        
+        return new_seq
 
 
         
@@ -425,3 +466,15 @@ def filter_fastq_by_length(result_folder, input_fastq : Path, min_length : int ,
     
 
 
+def get_template_sequence(path : Path) -> str:
+    """
+    Read template sequence fasta file
+        Args:  
+            - path, where the fasta file is located
+        Returns: 
+            - Template sequence
+    """
+    
+    template = read_fasta_file(path)
+    
+    return template["Sequence"][0]
