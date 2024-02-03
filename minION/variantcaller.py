@@ -135,7 +135,7 @@ class VariantCaller:
             return "NA"
 
 
-    def _align_sequences(self, ref: Path, output_dir: Path, scores : list = [4,2,10], fastq_prefix = "demultiplexed", site_saturation: bool = False, alignment_name: str = "alignment_minimap") -> None:
+    def _align_sequences(self, output_dir: Path, scores : list = [4,2,10], fastq_prefix = "demultiplexed", site_saturation: bool = False, alignment_name: str = "alignment_minimap") -> None:
         """
         Aligns sequences using minimap2, converts to BAM, sorts and indexes the BAM file.
 
@@ -164,11 +164,11 @@ class VariantCaller:
             mismatch_score = 2
             gap_opening_penalty = 10
 
-            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {ref} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         else:
-            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 {ref} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         view_cmd = f"samtools view -bS {output_dir}/{alignment_name}.sam > {output_dir}/{alignment_name}.bam"
@@ -235,7 +235,14 @@ class VariantCaller:
         for i, row in tqdm(self.variant_df.iterrows()):
 
             try:
+            
                 bam_file = row["Path"] / self.alignment_name
+
+                #Check if the alignment file exists
+                if not bam_file.exists():
+                    #Try aligning the sequences
+                    print(f"Aligning sequences for {row['Path']}")
+                    self._align_sequences(row["Path"])
 
                 #Check alignment count
                 if row["Alignment_count"] < min_depth or isinstance(bam_file, float):

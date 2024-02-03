@@ -11,6 +11,7 @@ import re
 import numpy as np
 import pandas as pd
 
+
 class SequenceGenerator:
     """
     A class for processing Sequence data. The class uses variant data frame to generate sequences.
@@ -74,9 +75,79 @@ class SequenceGenerator:
         return new_seq
 
 
-        
-        
+class BarcodeProcessor:
+    """
+    A class for processing barcode fasta file. 
+    """
+
+    def __init__(self, barcode_path, front_prefix = "NB", reverse_prefix = "RB"):
+        self.barcode_path = barcode_path
+        self.front_prefix = front_prefix
+        self.reverse_prefix = reverse_prefix
+
     
+
+
+    def filter_barcodes(self, filtered_fasta_file, front_range, reverse_range):
+        """
+        Filters barcodes in the given ranges and writes them to a new fasta file.
+
+        Args:
+        - filtered_fasta_file (str): The path to the filtered fasta file.
+        - front_range (tuple): A tuple of two integers representing the range for front barcodes.
+        - reverse_range (tuple): A tuple of two integers representing the range for reverse barcodes.
+        """
+        records = list(SeqIO.parse(self.barcode_path, "fasta"))
+        min_front, max_front = front_range
+        min_reverse, max_reverse = reverse_range
+
+        filtered_records = [
+            record for record in records
+            if (record.id.startswith(self.front_prefix) and min_front <= int(record.id[len(self.front_prefix):]) <= max_front) or
+            (record.id.startswith(self.reverse_prefix) and min_reverse <= int(record.id[len(self.reverse_prefix):]) <= max_reverse)
+        ]
+
+        with open(filtered_fasta_file, "w") as output_handle:
+            SeqIO.write(filtered_records, output_handle, "fasta")
+    
+
+    def get_barcode_dict(self, demultiplex_folder : Path) -> dict:
+        """
+        Get a dictionary of folder paths, where reverse is the key and forward is stored in a list
+        
+        Args:
+        - demultiplex_folder, where the demultiplex folder is located
+        
+        Returns:
+        - barcode_dict, dictionary of reverse and front barcode paths
+        """
+
+        rbc_folders = get_rbc_barcode_folders(demultiplex_folder, prefix = self.reverse_prefix)
+        fbc_folders = get_fbc_barcode_folders(rbc_folders, prefix = self.front_prefix)
+
+        return fbc_folders
+    
+    def get_rbc_barcode_folders(self, demultiplex_folder: Path) -> list:
+        """
+        Extract the reverse barcode folders (rbc) from the demultiplex folder
+        Args:
+            - demultiplex_folder (Path): Where the demultiplex folder is located.
+        Returns:
+            - reverse_barcodes (list): Where the barcode folders are located. 
+        """
+
+        if not demultiplex_folder.exists():
+            raise FileNotFoundError(f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
+        
+        reverse_barcodes = list(demultiplex_folder.glob(f"{self.reverse_prefix}*"))
+
+        if not reverse_barcodes:
+            # Optionally, use logging here instead of raising an exception
+            raise FileNotFoundError(f"No reverse barcodes found in {demultiplex_folder}. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file.")
+        
+        return reverse_barcodes
+    
+
 
 def find_folder(start_path, target_folder_name):
     """
@@ -406,7 +477,6 @@ def get_fbc_barcode_folders(rbc_barcode_folders : list, prefix = "barcode") -> d
     
     return fbc_folders
     
-    return fbc_folders
 
 def get_barcode_dict(demultiplex_folder : Path, front_prefix = "barcode", reverse_prefix = "barcode") -> dict:
     """
