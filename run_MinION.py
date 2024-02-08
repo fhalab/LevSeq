@@ -44,4 +44,8 @@ def demux_fastq(result_path, ref_csv):
     prompt = f"{path_to_code} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100}"
     subprocess.run(prompt, shell=True)
 
-# 
+# Run MinION
+def run_MinION(cl_args):
+    print('Hello')
+
+    
