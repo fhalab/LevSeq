@@ -73,7 +73,7 @@ class VariantCaller:
         self.alignment_name = "alignment_minimap.bam"
 
         if barcodes:
-            self.demultiplex_folder = experiment_folder / demultiplex_folder_name
+            self.demultiplex_folder = Path(os.path.join(experiment_folder, demultiplex_folder_name))
             self.barcode_dict = get_barcode_dict(self.demultiplex_folder, front_prefix= front_barcode_prefix, reverse_prefix=reverse_barcode_prefix)
             self.variant_df = self._get_sample_name()
             self.variant_df = self._rename_barcodes(rowwise = rowwise, merge=True)
@@ -184,11 +184,15 @@ class VariantCaller:
         os.remove(f"{output_dir}/{alignment_name}.sam")
 
     def _get_highest_non_ref_base_freq(self, bam_file : Path, positions : list, qualities=True, threshold : float = 0.2):
+        """
+        The aim of this function is to get the highest probability non-reference base call.
+        """
         base_frequencies = {position: Counter() for position in positions}
         base_qualities = {position: [] for position in positions} if qualities else None
 
         with pysam.AlignmentFile(bam_file, 'rb') as bam:
-            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions), min_base_quality=0, min_mapping_quality=0, truncate=True):
+            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions), min_base_quality=0,
+                                            min_mapping_quality=0, truncate=True):
                 if pileup_column.pos + 1 in positions:
                     for pileup_read in pileup_column.pileups:
                         if not pileup_read.is_del and not pileup_read.is_refskip:
@@ -249,7 +253,6 @@ class VariantCaller:
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
-                
 
                 variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
                 self.variant_df.at[i, "Variant"] = variant["Variant"].values
@@ -288,7 +291,6 @@ class VariantCaller:
             variants["Probability"].append(float("nan"))
 
             return pd.DataFrame(variants)
-
        
         pileup_df, qual_df = self._get_bases_from_pileup(alignment_file, positions)
         softmax_df = self._get_softmax_count_df(pileup_df, qual_df, positions)
@@ -426,7 +428,6 @@ class VariantCaller:
     
     def _get_softmax_count_df(self, bases_df, qual_df, nb_positions):
 
-
         alphabet = "ACTG-"
 
         softmax_counts = {position: [] for position in nb_positions}
@@ -446,9 +447,10 @@ class VariantCaller:
 
         return softmax_count_df
 
-
     def _call_potential_populations(self, softmax_df, call_threshold : float = 0.1):
+        """
 
+        """
         positions = softmax_df.columns
         top_combinations = []
         
