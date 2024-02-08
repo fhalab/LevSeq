@@ -66,4 +66,5 @@ def execute_MinION():
     result_folder = IO_processor.create_folder(
             CL_ARGS["name"],
             basecall_model,
-            target_path = CL_ARGS["output"])
+            target_path = Path(CL_ARGS["output"]))
+    print(Path(result_folder))
