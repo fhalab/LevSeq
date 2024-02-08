@@ -25,8 +25,8 @@ SW_ALIGN_PARAMS = {
 } # Adapted from Guppy Barcoder
 
 
-# Path where the minION reads are stored: ToDo: update this!
-MINKNOW_PATH = "data/"
+# Path where the minION reads are stored # ToDo: this needs to be made modular!
+MINKNOW_PATH = "/var/lib/minknow/data/"
 
 # Defaul target folder names from ONT
 DEFAULT_TARGETS = {"Not_basecalled": ["pod5"], "Basecalled": ["fastq_pass"]}
