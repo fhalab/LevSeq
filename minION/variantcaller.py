@@ -248,6 +248,8 @@ class VariantCaller:
                     print(f"Aligning sequences for {row['Path']}")
                     self._align_sequences(row["Path"])
 
+                self._apply_alignment_count()
+
                 #Check alignment count
                 if row["Alignment_count"] < min_depth or isinstance(bam_file, float):
                     self.variant_df.at[i, "Variant"] = float("nan")

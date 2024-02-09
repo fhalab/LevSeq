@@ -128,7 +128,7 @@ localAlignmentResult perform_alignment_trim(std::string const & seq1_str, std::s
         {
             // Get edit distance
             double edit_distance = std::abs(static_cast<double>(res.sequence1_end_position() - res.sequence1_begin_position()) - BARCODE_LENGTH);
-            if (edit_distance < 24){
+            if (edit_distance < 5){
                 score = res.score();
                 start_pos = res.sequence1_begin_position();
                 end_pos = res.sequence1_end_position();
