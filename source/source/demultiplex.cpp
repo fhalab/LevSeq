@@ -58,6 +58,8 @@ void printHelp() {
               << "  --barcode_fasta, -b               Required, Path to barcode fasta file, string\n"
               << "  --front_window_size, -w           Required, integer\n"
               << "  --rear_window_size, -r            Required, integer\n"
+              << "  --min_length                    Optional, integer, default: 0\n"
+              << "  --max_length                    Optional, integer, default: 10000\n"
               << "  --match_score                 Optional, integer, default: 1\n"
               << "  --mismatch_score              Optional, integer, default: -1\n"
               << "  -h, --help                   Show this help message and exit\n";
@@ -88,7 +90,11 @@ int main(int argc, char* argv[]) {
         {"-d", "--demultiplexer_folder_path"},
         {"-b", "--barcode_fasta"},
         {"-w", "--front_window_size"},
-        {"-r", "--rear_window_size"}
+        {"-r", "--rear_window_size"},
+        {"-m", "--min_length"},
+        {"-x", "--max_length"},
+        {"-s", "--match_score"},
+        {"-t", "--mismatch_score"}
     };
 
     for (int i = 1; i < argc; i += 2) {
@@ -135,7 +141,33 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Min and Max Length
+    int min_length = 0;
+    int max_length = 10000;
 
+    // Check if arguments are provided
+    if (args.count("--min_length") > 0) {
+        try {
+            min_length = std::stoi(args["--min_length"]);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Invalid min_length provided." << std::endl;
+            return 1;
+        }
+    }
+    if (args.count("--max_length") > 0) {
+        try {
+            max_length = std::stoi(args["--max_length"]);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: Invalid max_length provided." << std::endl;
+            return 1;
+        }
+    }
+
+    // Check if max_length is smaller than min_length
+    if (max_length < min_length) {
+        std::cerr << "Error: max_length cannot be smaller than min_length." << std::endl;
+        return 1;
+    }
 
     // Folder Paths
     fs::path folderPath = fs::path(folderName);
@@ -277,20 +309,24 @@ int main(int argc, char* argv[]) {
                 std::string best_fbc_name;
                 double best_fbc_percent_score = 0;
 
-
-                int maxLength = 1000; // TODO: replace with actual argument
-                int minLength = 750; // TODO: replace with actual argument
-
-                if(entry.sequence.size() < frontWindowSize || 
-                entry.sequence.size() > maxLength || 
-                entry.sequence.size() < minLength) {
-                    continue;
+                if(entry.sequence.size() < frontWindowSize || entry.sequence.size() < rearWindowSize ||
+                entry.sequence.size() > max_length || 
+                entry.sequence.size() < min_length ||
+                (entry.quality_scores.size() != entry.sequence.size())){
+                continue;
                 }
 
 
                 // Get Front and Rear Subsequences
                 std::string forward_subseq = entry.sequence.substr(0, frontWindowSize);
                 std::string rear_subseq = entry.sequence.substr(entry.sequence.size() - rearWindowSize);
+
+                // Check if sizes of front and rear subsequences are correct
+                if (forward_subseq.size() != frontWindowSize || rear_subseq.size() != rearWindowSize) {
+                    std::cerr << "Error: Subsequence sizes are incorrect." << std::endl;
+                    continue;
+                }
+
 
 
                 // Reverse Barcode Demultiplexing
@@ -307,6 +343,7 @@ int main(int argc, char* argv[]) {
 
                     //int score = perform_alignment(sequence_to_align, ref_seq); // Get 
                     score = perform_alignment_trim(sequence_to_align, ref_seq, scoring_matrix2); 
+
 
                     double percent_score = (double)score.score / rbc_sum_score * 100;
 
@@ -327,8 +364,8 @@ int main(int argc, char* argv[]) {
                 int trim_front = 0;
                 int trim_rear = 0;
 
-                if(best_rbc_name.find("-Rev") == std::string::npos) {
 
+                if(best_rbc_name.find("-Rev") == std::string::npos) {
                     entry.sequence = entry.sequence.substr(score.end_pos + trim_rear);
                     entry.quality_scores = entry.quality_scores.substr(score.end_pos + trim_rear); // Trimming new sequence size is sequence.size() - end_pos
                     entry.sequence = get_reverse_complement(entry.sequence);
@@ -339,7 +376,6 @@ int main(int argc, char* argv[]) {
 
                 else {
                     best_rbc_name = best_rbc_name.substr(0, best_rbc_name.size() - 4); // Remove -Rev from the end
-
                     score.start_pos = entry.sequence.size() - rearWindowSize + score.start_pos;
                     score.end_pos = entry.sequence.size() - rearWindowSize + score.end_pos;
                     entry.sequence = entry.sequence.substr(0, score.start_pos - trim_rear);
@@ -350,7 +386,6 @@ int main(int argc, char* argv[]) {
                 if (best_rbc_percent_score < 70) {
                     best_rbc_name = "unclassified";
                     }
-
 
                 if (best_rbc_name != "unclassified") {
                     // Forward Barcode Demultiplexing
@@ -384,6 +419,7 @@ int main(int argc, char* argv[]) {
                             entry.sequence = entry.sequence.substr(fbc_score.end_pos + trim_front);
                             entry.quality_scores = entry.quality_scores.substr(fbc_score.end_pos + trim_front);
                             }
+
 
                         }
                     
