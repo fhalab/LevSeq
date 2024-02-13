@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Import local packages
 from minION.util import IO_processor
-from run_MinION import run_MinION
+from minION.run_MinION import run_MinION
 
 # Get the working directory
 CWD = os.getcwd()
@@ -37,7 +37,8 @@ def build_cli_parser():
             help = "Folder containing fastq.pass or pod5_pass files. Nanopore experiment saved location")
     required_args_group.add_argument("name",
             help = "User defined name of experiment")
-
+    required_args_group.add_argument("barcodes",
+            help = "CSV file containig first and last barcode used, this will decrease burden on demultiplexing")
     # Add optional arguments
     optional_args_group = parser.add_argument_group("Optional Arguments", "Aditional arguments")
     optional_args_group.add_argument("--output",

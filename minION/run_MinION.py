@@ -13,7 +13,18 @@ import importlib
 import tqdm
 
 # Get barcode used
-def barcode_user(front,back):
+def barcode_user(cl_arg):
+    # Set some default values if user did not provide barcodes
+    fmin = 1
+    fmax = 96
+    bmin = 1
+    bmax = 12
+    bc_df = pd.read_csv(cl_arg['barcodes'])
+    fmin = bc_df['NB-min'][0]
+    fmax = bc_df['NB-max'][0]
+    bmin = bc_df['RB-min'][0]
+    bmax = bc_df['RB-max'][0]
+
     return fmin,fmax,bmin,bmax
 
 # Get output directory
@@ -25,15 +36,16 @@ def fastq_path(path):
     return path
 
 # Filter barcode
-def filter_user(csv):
-    fmin,fmax,bmin,bmax = barcode_user(csv)
+def filter_bc(cl_args):
+    front_min,front_max,back_min,back_max = barcode_user(cl_args)
     barcode_path = "minION/barcoding/minion_barcodes.fasta" # Path to standard barcode file
     front_prefix = "NB"
     back_prefix = "RB"
     bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
-    bp_filter = bp.filter_barcodes(barcode_path, (front_min,front_max), (back_min,back_max))
-    return bp_filter
+    bp.filter_barcodes(barcode_path, (front_min,front_max), (back_min,back_max))
 
+# Filter template sequence length
+def filter_seq(cl_args)
 # Get reference fasta (parent sequence)
 def parent_user(csv):
     return fasta
@@ -46,6 +58,5 @@ def demux_fastq(result_path, ref_csv):
 
 # Run MinION
 def run_MinION(cl_args, tqdm_fn = tqdm.tqdm):
-    print('Hello')
-
+    
     
