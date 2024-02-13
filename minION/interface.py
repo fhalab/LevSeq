@@ -67,4 +67,13 @@ def execute_MinION():
             CL_ARGS["name"],
             basecall_model,
             target_path = Path(CL_ARGS["output"]))
-    print(Path(result_folder))
+
+    # Set up progres bar
+    tqdm_fn = tqdm.tqdm
+
+    # Run MinION
+    try:
+        run_MinION(CL_ARG, tqdm_fn)
+    except Exception as e:
+        print("Add log error")
+    print("Run Complete, add log info")

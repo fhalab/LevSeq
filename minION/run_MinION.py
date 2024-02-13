@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import subprocess
 import sys
 import importlib
-importlib.reload(IO_processor)
+import tqdm
 
 # Get barcode used
 def barcode_user(front,back):
@@ -45,7 +45,7 @@ def demux_fastq(result_path, ref_csv):
     subprocess.run(prompt, shell=True)
 
 # Run MinION
-def run_MinION(cl_args):
+def run_MinION(cl_args, tqdm_fn = tqdm.tqdm):
     print('Hello')
 
     
