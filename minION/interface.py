@@ -45,7 +45,7 @@ def build_cli_parser():
             help="Save location for run. Defaults to current working directory.",
             required=False,
             default=CWD)
-    optional_args_group.add_argument("--skip_basecalling",
+    optional_args_group.add_argument("--perform_basecalling",
             action = "store_true",
             help = "Skip the basecalling step, default is false")
     optional_args_group.add_argument("--skip_demultiplexing",
