@@ -11,39 +11,18 @@ dependencies:
   - python=3.9.18
   - biopandas
   - biopython
-  - ipython
-  - jupyter
+  - ipykernel
+  - ipympl
+  - ipywidgets
   - jupyterlab
+  - matplotlib
+  - numpy
+  - pandas
+  - panel
+  - pillow
   - pip
   - pysam
+  - samtools
 
-  - pip:  
-    - htslib
+  - pip:
     - igv-notebook
-    - samtools
-
-# _libgcc_mutex=0.1=main
-# bzip2=1.0.8=h7b6447c_0
-# c-ares=1.18.1=h7f8727e_0
-# ca-certificates=2023.12.12=h06a4308_0
-# htslib=1.12=hd3b49d5_0
-# krb5=1.19.2=hac12032_0
-# ld_impl_linux-64=2.38=h1181459_1
-# libcurl=7.82.0=h0b77cf5_0
-# libdeflate=1.8=h7f8727e_5
-# libedit=3.1.20210714=h7f8727e_0
-# libev=4.33=h7f8727e_1
-# libffi=3.3=he6710b0_2
-# libgcc-ng=9.1.0=hdf63c60_0
-# libnghttp2=1.46.0=hce63b2e_0
-# libssh2=1.10.0=h8f2d780_0
-# libstdcxx-ng=9.1.0=hdf63c60_0
-# ncurses=6.2=he6710b0_1
-# openssl=1.1.1w=h7f8727e_0
-# readline=8.1=h27cfd23_0
-# setuptools=68.2.2=py38h06a4308_0
-# sqlite=3.38.5=hc218d9a_0
-# tk=8.6.12=h1ccaba5_0
-# wheel=0.41.2=py38h06a4308_0
-# xz=5.2.5=h7f8727e_1
-# zlib=1.2.12=h7f8727e_2
