@@ -10,8 +10,8 @@ from time import strftime
 from pathlib import Path
 
 # Import local packages
-from minION.util import IO_processor
-from minION.run_MinION import run_MinION
+from MinION.minION.util import IO_processor
+from MinION.minION.run_MinION import run_MinION
 
 # Get the working directory
 CWD = os.getcwd()
@@ -63,18 +63,12 @@ def execute_MinION():
 
     # Parse the arguments
     CL_ARGS = vars(parser.parse_args())
-    # Use experiment name to create output directory
-    result_folder = IO_processor.create_folder(
-            CL_ARGS["name"],
-            basecall_model,
-            target_path = Path(CL_ARGS["output"]))
 
     # Set up progres bar
     tqdm_fn = tqdm.tqdm
-
     # Run MinION
     try:
-        run_MinION(CL_ARG, tqdm_fn)
+        run_MinION(CL_ARGS, tqdm_fn)
     except Exception as e:
-        print("Add log error")
+        print(e)
     print("Run Complete, add log info")

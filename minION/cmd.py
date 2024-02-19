@@ -1,4 +1,4 @@
-from minION.interface import execute_MinION
+from MinION.minION.interface import execute_MinION
 def main():
     execute_MinION()
                 

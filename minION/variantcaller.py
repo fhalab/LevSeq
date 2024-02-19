@@ -3,7 +3,7 @@ Script for variant calling
 '''
 
 
-from minION.util.IO_processor import get_barcode_dict, read_fasta_file, get_template_sequence
+from MinION.minION.util.IO_processor import get_barcode_dict, read_fasta_file, get_template_sequence
 import subprocess
 import pysam
 import os
@@ -251,7 +251,7 @@ class VariantCaller:
                 self._apply_alignment_count()
 
                 #Check alignment count
-                if row["Alignment_count"] < min_depth or isinstance(bam_file, float):
+                if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
