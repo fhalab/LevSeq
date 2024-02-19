@@ -403,8 +403,6 @@ def generate_platemaps(
     return hm_holomap
 
 
-# In[92]:
-
 
 def save_platemap_to_file(heatmaps, outputdir, name):
     if not os.path.exists(os.path.join(outputdir, "Platemaps")):
