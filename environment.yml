@@ -374,4 +374,4 @@ dependencies:
       - werkzeug==2.3.7
       - widgetsnbextension==4.0.9
       - xarray==2023.8.0
-prefix: /home/emre/miniconda3/envs/minion
+prefix: /Users/ariane/opt/miniconda3/envs/minion

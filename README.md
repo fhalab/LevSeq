@@ -23,3 +23,12 @@ After sequencing, variants are identified. For simple applications, we recommend
 2. **Demultiplexing**: After sequencing, the reads, stored as bulk FASTQ files, are sorted. During demultiplexing, each read is assigned to its correct plate/well combination and stored as a FASTQ file.
 
 3. **Variant Calling**: For each sample, the consensus sequence is compared to the reference sequence. A variant is called if it differs from the reference sequence. The success of variant calling depends on the number of reads sequenced and their quality.
+
+
+### Installation
+
+To install from the environment.yml file: 
+
+```
+conda env update --file  environment.yml --name minion 
+```
