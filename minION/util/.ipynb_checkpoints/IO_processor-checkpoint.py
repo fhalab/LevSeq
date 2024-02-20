@@ -2,7 +2,7 @@
 
 import os
 import glob
-from MinION.minION.util.globals import MINKNOW_PATH
+from minION.util.globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip
@@ -17,7 +17,7 @@ class SequenceGenerator:
     A class for processing Sequence data. The class uses variant data frame to generate sequences.
     """
 
-    def __init__(self, variant_df, reference_path, padding_start = 50, padding_end = 50):
+    def __init__(self, variant_df, reference_path, padding_start = 0, padding_end = 0):
         self.variant_df = variant_df
         self.reference = get_template_sequence(reference_path)
         self.padding_start = padding_start

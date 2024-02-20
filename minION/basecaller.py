@@ -1,4 +1,4 @@
-from minION.util.globals import DORADO_MODELS, MINKNOW_PATH
+from MinION.minION.util.globals import DORADO_MODELS, MINKNOW_PATH
 import os
 import glob
 import subprocess

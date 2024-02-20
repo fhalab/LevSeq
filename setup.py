@@ -57,7 +57,7 @@ setup(name='llm',
       packages=['llm'],
       entry_points={
           'console_scripts': [
-              'minION = minION.__main__:app'
+              'minION = minION.cmd:main'
           ]
       },
       install_requires=['pandas', 'numpy', 'pyfaidx', 'scipy', 'sklearn', 'matplotlib', 'statsmodels', 'seaborn',
