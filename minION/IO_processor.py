@@ -2,7 +2,7 @@
 
 import os
 import glob
-from MinION.minION.util.globals import MINKNOW_PATH
+from minION.globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip

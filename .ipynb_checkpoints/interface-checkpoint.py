@@ -3,15 +3,12 @@ Contain argument parsers used for command line interface and web interface
 """
 # Import packages
 import os
-import tqdm
 import argparse
-from time import strftime
 
 from pathlib import Path
 
 # Import local packages
-from minION.util import IO_processor
-from run_MinION import run_MinION
+from minION import IO_processor
 
 # Get the working directory
 CWD = os.getcwd()

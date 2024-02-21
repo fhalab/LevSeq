@@ -51,9 +51,6 @@ RUN make install
 WORKDIR /samtools-1.15.1
 RUN make install
 
-# Install differr
-RUN pip install /software/differr_nanopore_DRS/dist/differr-0.2.tar.gz
-
 # Change back
 WORKDIR /
 
@@ -68,10 +65,11 @@ RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/mini
 RUN cp -r /software/minimap2/* /usr/local/bin
 
 # Install minION via pip and remove these two steps
-COPY dist/minION-0.0.1.tar.gz /
-COPY dist/minION-0.0.1-py3-none-any.whl /
+COPY dist/minION-0.1.0.tar.gz /
+COPY dist/minION-0.1.0-py3-none-any.whl /
 
 # Add in some sample data ToDo.!
+RUN pip install minION-0.1.0.tar.gz
 
 # Set an entry point to CLI for pipeline
 COPY minION /minION

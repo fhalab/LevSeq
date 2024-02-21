@@ -25,10 +25,20 @@ After sequencing, variants are identified. For simple applications, we recommend
 3. **Variant Calling**: For each sample, the consensus sequence is compared to the reference sequence. A variant is called if it differs from the reference sequence. The success of variant calling depends on the number of reads sequenced and their quality.
 
 
-### Installation
+### Installation:
 
-To install from the environment.yml file: 
+Installation via pip:
 
 ```
-conda env update --file  environment.yml --name minion 
+pip install minION
 ```
+
+For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
+operating system (https://docs.docker.com/engine/install/).
+```
+
+```
+### Development
+
+Needed to install specific version of cmake for mac
+brew install gcc@7 based on https://docs.seqan.de/seqan3/3.0.0/setup.html

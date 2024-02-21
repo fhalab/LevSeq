@@ -1,7 +1,9 @@
+Bio
 biopython
 fsspec
 h5py
 holoviews
+jupyterlab
 mappy
 matplotlib
 ninetysix

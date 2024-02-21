@@ -3,7 +3,7 @@ Script for variant calling
 '''
 
 
-from minION.util.IO_processor import get_barcode_dict, read_fasta_file, get_template_sequence
+from minION.IO_processor import get_barcode_dict, get_template_sequence
 import subprocess
 import pysam
 import os

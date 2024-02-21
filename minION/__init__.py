@@ -22,3 +22,12 @@ __version__ = '0.1.0'
 __author__ = 'Yueming Long, Emreay Gursoy'
 __author_email__ = 'ylong@caltech.edu'
 __license__ = 'GPL3'
+
+from minION.globals import *
+from minION.IO_processor import *
+from minION.parser import *
+from minION.variantcaller import *
+from minION.visualization import *
+from minION.interface import *
+from minION.cmd import *
+from minION.basecaller import *

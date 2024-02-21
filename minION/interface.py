@@ -10,8 +10,8 @@ from time import strftime
 from pathlib import Path
 
 # Import local packages
-from MinION.minION.util import IO_processor
-from MinION.minION.run_MinION import run_MinION
+from minION import IO_processor
+from minION import run_MinION
 
 # Get the working directory
 CWD = os.getcwd()

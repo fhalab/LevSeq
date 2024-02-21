@@ -26,7 +26,9 @@ SW_ALIGN_PARAMS = {
 
 
 # Path where the minION reads are stored # ToDo: this needs to be made modular!
-MINKNOW_PATH = "/var/lib/minknow/data/"
+#MINKNOW_PATH = "/var/lib/minknow/data/"
+MINKNOW_PATH = "/Users/ariane/Documents/code/MinION/data/"
+
 
 # Defaul target folder names from ONT
 DEFAULT_TARGETS = {"Not_basecalled": ["pod5"], "Basecalled": ["fastq_pass"]}

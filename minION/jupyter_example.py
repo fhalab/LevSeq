@@ -31,33 +31,25 @@
 import sys
 sys.path.append("/home/emre/github_repo/MinION")
 
-from minION.util import IO_processor
+from minION import IO_processor
 from minION.basecaller import Basecaller
 
 from minION.variantcaller import *
 
 from pathlib import Path
 import pandas as pd
-import matplotlib.pyplot as plt
-import subprocess
 import importlib
 importlib.reload(IO_processor)
 
-import pickle
 from Bio import SeqIO
-import gzip
 import subprocess
-import mappy as mp
-import holoviews as hv
 import re
 
 import ninetysix as ns
 import colorcet as cc
-import warnings
 
 import bokeh.io
 import holoviews as hv
-from holoviews import opts
 
 hv.extension('bokeh')
 bokeh.io.output_notebook()
@@ -431,9 +423,9 @@ def save_csv(df,outputdir,name):
 result_path = Path("/home/longy/")
 experiment_name = "20240208-JR"
 basecall_model_type = "sup"
-result_folder = IO_processor.create_folder( experiment_name,
-                                            basecall_model_type, 
-                                            target_path=result_path)
+result_folder = IO_processor.create_folder(experiment_name,
+                                           basecall_model_type,
+                                           target_path=result_path)
 
 
 

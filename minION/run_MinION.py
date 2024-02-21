@@ -1,8 +1,7 @@
 # Import MinION objects
-from MinION.minION.util import IO_processor
-from MinION.minION.basecaller import Basecaller
-from MinION.minION.variantcaller import *
-from MinION.minION.visualization import *
+from minION import IO_processor
+from minION.basecaller import Basecaller
+from minION import *
 
 # Import external packages
 from pathlib import Path

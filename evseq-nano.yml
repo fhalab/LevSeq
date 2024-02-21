@@ -1,11 +1,11 @@
 name: evseq-nano
+
 channels:
   - pyviz
   - jmcmurray
   - bioconda
   - conda-forge
   - defaults
-
 
 dependencies:
 

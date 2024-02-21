@@ -2,9 +2,8 @@
 
 import unittest
 import os
-import glob
-from minION.util.globals import MINKNOW_PATH, MEDAKA_MODELS
-from minION.util.IO_processor import find_experiment_folder, find_file, get_fbc_barcode_folders, get_rbc_barcode_folders, get_barcode_dict
+from minION.globals import MINKNOW_PATH
+from minION.IO_processor import find_experiment_folder, find_file, get_fbc_barcode_folders, get_rbc_barcode_folders, get_barcode_dict
 from minION.consensus import process_fastq, consensus_prompt, run_medaka, medeka_stitch_prompt
 from minION.util.json_processor import read_json
 

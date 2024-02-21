@@ -8,10 +8,12 @@ def read_version():
     with open(path, 'r') as fh:
         return re.search(r'__version__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
+
 def read_author():
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
     with open(path, 'r') as fh:
         return re.search(r'__author__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
+
 
 def read_email():
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
@@ -24,12 +26,13 @@ def read_git():
     with open(path, 'r') as fh:
         return re.search(r'__url__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
+
 def readme():
     with open('README.md') as f:
         return f.read()
 
 
-setup(name='llm',
+setup(name='minION',
       version=read_version(),
       description='',
       long_description=readme(),
@@ -53,16 +56,36 @@ setup(name='llm',
           'Programming Language :: Python :: 3.8',
           'Topic :: Scientific/Engineering :: Bio-Informatics',
       ],
-      keywords= ['Nanopore', 'ONT', 'evSeq'],
-      packages=['llm'],
+      keywords=['Nanopore', 'ONT', 'evSeq'],
+      packages=['minION'],
       entry_points={
           'console_scripts': [
               'minION = minION.cmd:main'
           ]
       },
-      install_requires=['pandas', 'numpy', 'pyfaidx', 'scipy', 'sklearn', 'matplotlib', 'statsmodels', 'seaborn',
+      install_requires=['Bio',
                         'biopython',
-                        'h5py', 'sciutil', 'scipy', 'pycoQC', 'biopython', 'dask', 'sklearn'],
+                        'fsspec',
+                        'h5py',
+                        'holoviews',
+                        'jupyterlab',
+                        'mappy',
+                        'matplotlib',
+                        'ninetysix',
+                        'numpy',
+                        'pandas',
+                        'pybedtools',
+                        'pycoQC',
+                        'pyfaidx',
+                        'pyparsing',
+                        'pysam',
+                        'rpy2',
+                        'scipy',
+                        'sciutil',
+                        'seaborn',
+                        'scikit-learn',
+                        'statsmodels',
+                        'tqdm'],
       python_requires='>=3.8',
       data_files=[("", ["LICENSE"])]
       )

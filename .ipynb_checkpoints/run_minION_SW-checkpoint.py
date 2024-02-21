@@ -31,14 +31,12 @@
 import sys
 sys.path.append("/home/longy/git/MinION")
 
-from minION.util import IO_processor
+from minION import IO_processor
 from minION.basecaller import Basecaller
 
 from minION.variantcaller import *
 
 from pathlib import Path
-import pandas as pd
-import matplotlib.pyplot as plt
 import subprocess
 import importlib
 importlib.reload(IO_processor)
@@ -58,9 +56,9 @@ importlib.reload(IO_processor)
 result_path = Path("/home/longy/")
 experiment_name = "20240126-RL-8-63"
 basecall_model_type = "sup"
-result_folder = IO_processor.create_folder( experiment_name,
-                                            basecall_model_type, 
-                                            target_path=result_path)
+result_folder = IO_processor.create_folder(experiment_name,
+                                           basecall_model_type,
+                                           target_path=result_path)
 
 
 
