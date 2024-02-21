@@ -40,5 +40,29 @@ operating system (https://docs.docker.com/engine/install/).
 ```
 ### Development
 
+To build the package via pip you need to run:
+```
+python setup.py sdist bdist_wheel
+```
+
+To then install locally:
+```
+ pip install dist/minION-0.1.0.tar.gz
+```
+
+To build the docker image run (within the main folder that contains the `Dockerfile`):
+
+```
+ docker build -t minion .
+```
+
+This gives us the access to the minION command line interface via:
+
+```
+docker run minion
+```
+
+
+### ToDo: rebuilding the C++
 Needed to install specific version of cmake for mac
 brew install gcc@7 based on https://docs.seqan.de/seqan3/3.0.0/setup.html
