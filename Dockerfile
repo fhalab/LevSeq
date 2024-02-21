@@ -28,8 +28,15 @@ ENV PATH=$CONDA_DIR/bin:$PATH
 ADD environment.yml environment.yml
 RUN conda env create -f environment.yml
 
-RUN conda activate minion
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
+RUN source /opt/conda/bin/activate
+RUN conda init bash
+RUN exec bash
+RUN conda init bash
+RUN source ~/.bashrc
+RUN conda create --name minion2 python=3.9.18
+RUN activate minion2
 # Install all the software
 COPY software /software
 
@@ -62,7 +69,7 @@ RUN mkdir /examples
 RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/minimap2:$PATH"
 
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
-RUN cp -r /software/minimap2/* /usr/local/bin
+RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 
 # Install minION via pip and remove these two steps
 COPY dist/minION-0.1.0.tar.gz /
@@ -76,6 +83,9 @@ COPY minION /minION
 COPY setup.py /
 COPY README.md /
 COPY LICENSE /
+RUN mkdir /source
+COPY source /source
+RUN apt install g++ build-essential
 WORKDIR /
 RUN python setup.py install
 ENTRYPOINT ["minION"]
