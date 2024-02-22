@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import pysam
+import subprocess
 
 from copy import deepcopy
 
@@ -31,6 +32,8 @@ class VisAln:
 
         self._fasta_path = fasta_path
         self._bam_path = bam_path
+
+        self._processed_bam_path, self._processed_bam_index_path = self._process_bam()
         
         igv_notebook.init()
         self._view()
@@ -79,8 +82,15 @@ class VisAln:
                     # Copy the alignments from the original BAM file to the temporary BAM file
                     for read in original_bam:
                         processed_bam.write(read)
-                
-            return processed_bam_path
+
+            processed_bam_index_path = processed_bam_path + ".bai"
+            if os.path.exists(processed_bam_index_path):
+                os.remove(processed_bam_index_path)
+            
+            # Use subprocess to call samtools index
+            subprocess.run(["samtools", "index", processed_bam_path])
+
+            return processed_bam_path, processed_bam_index_path
 
     def _view(self) -> None:
 
@@ -103,9 +113,17 @@ class VisAln:
             {
                 "name": self.fasta_seq_name,
                 "path": self.processed_bam_path,
+                # "indexPath": self.processed_bam_index_path,
                 "format": "bam",
                 "type": "alignment",
                 "sourceType": "file",
+                "color": "#D3D3D3",
+                "coverageColor": "#D3D3D3",
+                "colorBy": "tlen",
+                "posStrandColor": "#D3D3D3",
+                "negStrandColor": "#D3D3D3",
+                "pairConnectorColor": "#D3D3D3",
+                "indexed": "true",
             })
     
 
@@ -127,7 +145,12 @@ class VisAln:
     @property
     def processed_bam_path(self) -> str:
         """Return the path to the processed BAM file."""
-        return self._process_bam()
+        return self._processed_bam_path
+    
+    @property
+    def processed_bam_index_path(self) -> str:
+        """Return the path to the processed BAM index file."""
+        return self._processed_bam_index_path
     
 
 
