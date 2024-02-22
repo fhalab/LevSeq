@@ -1,4 +1,4 @@
-# Install script for directory: /home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src
+# Install script for directory: /Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
     string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
            CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
   else()
-    set(CMAKE_INSTALL_CONFIG_NAME "")
+    set(CMAKE_INSTALL_CONFIG_NAME "Release")
   endif()
   message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
 endif()
@@ -27,42 +27,42 @@ if(NOT CMAKE_INSTALL_COMPONENT)
   endif()
 endif()
 
-# Install shared libraries without execute permission?
-if(NOT DEFINED CMAKE_INSTALL_SO_NO_EXE)
-  set(CMAKE_INSTALL_SO_NO_EXE "1")
-endif()
-
 # Is this installation the result of a crosscompile?
 if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "FALSE")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+# Set default install directory permissions.
+if(NOT DEFINED CMAKE_OBJDUMP)
+  set(CMAKE_OBJDUMP "/usr/bin/objdump")
+endif()
+
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/doc/seqan3" TYPE FILE FILES
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/CHANGELOG.md"
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/CODE_OF_CONDUCT.md"
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/CONTRIBUTING.md"
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/LICENSE.md"
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/README.md"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/CHANGELOG.md"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/CODE_OF_CONDUCT.md"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/CONTRIBUTING.md"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/LICENSE.md"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/README.md"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/cmake/seqan3" TYPE FILE FILES
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/build_system/seqan3-config.cmake"
-    "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/build_system/seqan3-config-version.cmake"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/build_system/seqan3-config.cmake"
+    "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/build_system/seqan3-config-version.cmake"
     )
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE DIRECTORY FILES "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/include/seqan3")
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE DIRECTORY FILES "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/include/seqan3")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/seqan3/submodules/sdsl-lite" TYPE DIRECTORY FILES "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/submodules/sdsl-lite/include")
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/seqan3/submodules/sdsl-lite" TYPE DIRECTORY FILES "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/submodules/sdsl-lite/include")
 endif()
 
-if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/seqan3/submodules/cereal" TYPE DIRECTORY FILES "/home/emre/github_repo/MinION/source/build/_deps/seqan3_fetch_content-src/submodules/cereal/include")
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include/seqan3/submodules/cereal" TYPE DIRECTORY FILES "/Users/JLoong8/git/MinION/source/build/_deps/seqan3_fetch_content-src/submodules/cereal/include")
 endif()
 

@@ -57,11 +57,11 @@ def basecall_reads(cl_args):
 def filter_bc(cl_args, result_folder):
     front_min,front_max,back_min,back_max = barcode_user(cl_args)
     # Obtain path of executable from package
-    with resources.path('MinION.minION.barcoding', 'minion_barcodes.fasta') as barcode_path:
+    print('break1')
+    with resources.path('minION.barcoding', 'minion_barcodes.fasta') as barcode_path:
         front_prefix = "NB"
         back_prefix = "RB"
         bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
-    
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
     bp.filter_barcodes(barcode_path_filter, (1, 96), (9, 12))
     return barcode_path
@@ -77,8 +77,10 @@ def parent_fasta(cl_args):
 
 # Demultiplex the basecalled fastq into plate-well folders
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
+    # Plan B to locate using relative path relying on the git folder
+    current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    with resources.path('MinION.source.source', 'demultiplex') as executable_path:
+    with resources.path('minION.barcoding', 'demultiplex') as executable_path:
         # Get min and max sequence length if user specified, otherwise use default
         seq_min = 800
         seq_max = 5000
@@ -195,23 +197,21 @@ def create_df_v(variants_df, template_fasta):
 def run_MinION(cl_args, tqdm_fn = tqdm.tqdm):
     # Find specific experiment in the upper directory of nanopore data
     experiment_folder = get_input_folder(cl_args)
-
+    
     # Find fastq from experiment folder
     file_to_fastq = fastq_path(experiment_folder)
-
+    
     # Create result folder
     result_folder = create_result_folder(cl_args)
     
     # Get template sequence
     template_fasta = parent_fasta(cl_args)
-
     # Basecall if asked
     if cl_args["perform_basecalling"]:
         basecall_reads(cl_args)
 
     # Filter barcodes and store new barcode file 
     barcode_path = filter_bc(cl_args, result_folder)
-
     # Demultiplex if not skipped
     if not cl_args['skip_demultiplexing']:
         demux_fastq(file_to_fastq, result_folder, barcode_path)

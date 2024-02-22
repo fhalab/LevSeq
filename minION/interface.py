@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Import local packages
 from minION import IO_processor
-from minION import run_MinION
+from minION.run_MinION import run_MinION
 
 # Get the working directory
 CWD = os.getcwd()
@@ -60,10 +60,8 @@ def build_cli_parser():
 def execute_MinION():
     # Build parser
     parser = build_cli_parser()
-
     # Parse the arguments
     CL_ARGS = vars(parser.parse_args())
-
     # Set up progres bar
     tqdm_fn = tqdm.tqdm
     # Run MinION
