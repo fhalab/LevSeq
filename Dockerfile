@@ -25,7 +25,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     /bin/bash ~/miniconda.sh -b -p /opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
 # -c conda-forge r-base
-ADD environment.yml environment.yml
+ADD archive/environment.yml environment.yml
 RUN conda env create -f environment.yml
 
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh

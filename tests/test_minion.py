@@ -44,7 +44,7 @@ class TestClass(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
 
-class TestMionIon(TestClass):
+class TestMinIon(TestClass):
 
     def test_find(self):
         return 0
