@@ -1,8 +1,25 @@
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 # This script contains function to check for input data and process it for downstream analysis.
 
 import os
 import glob
-from minION.globals import MINKNOW_PATH
+from globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip
@@ -17,14 +34,14 @@ class SequenceGenerator:
     A class for processing Sequence data. The class uses variant data frame to generate sequences.
     """
 
-    def __init__(self, variant_df, reference_path, padding_start = 50, padding_end = 50):
+    def __init__(self, variant_df, reference_path, padding_start=50, padding_end=50):
         self.variant_df = variant_df
         self.reference = get_template_sequence(reference_path)
         self.padding_start = padding_start
         self.padding_end = padding_end
-    
+
     def get_sequences(self):
-        self.variant_df["Sequence"] = self.variant_df.apply(self.get_sequence, axis = 1)
+        self.variant_df["Sequence"] = self.variant_df.apply(self.get_sequence, axis=1)
         return self.variant_df
 
     def get_sequence(self, row):
@@ -36,20 +53,18 @@ class SequenceGenerator:
             seq = self.generate_sequence(str(variant))
             return seq
 
-    def generate_sequence(self, variant : str, ref_only = True):
+    def generate_sequence(self, variant: str, ref_only=True):
         """
         Generate sequence from variant string. E.g "A123T
         """
-        
+
         new_seq = self.reference
-
-
 
         if isinstance(variant, float):
             return float('nan')
 
         elif variant != "#PARENT#":
-            
+
             variants = variant.split("_")
 
             for var in variants:
@@ -61,17 +76,17 @@ class SequenceGenerator:
                 else:
                     raise ValueError(f"Invalid variant format: {var}")
                 if new_nucleotide == "DEL":
-                    new_seq = new_seq[:adj_pos] + "-" +  new_seq[adj_pos + 1:]
+                    new_seq = new_seq[:adj_pos] + "-" + new_seq[adj_pos + 1:]
 
                 else:
                     new_seq = new_seq[:adj_pos] + new_nucleotide + new_seq[adj_pos + 1:]
 
-        #Remove "-" from sequence
+        # Remove "-" from sequence
         new_seq = new_seq.replace("-", "")
 
         if ref_only:
-            return new_seq[self.padding_start : -self.padding_end]
-        
+            return new_seq[self.padding_start: -self.padding_end]
+
         return new_seq
 
 
@@ -80,13 +95,10 @@ class BarcodeProcessor:
     A class for processing barcode fasta file. 
     """
 
-    def __init__(self, barcode_path, front_prefix = "NB", reverse_prefix = "RB"):
+    def __init__(self, barcode_path, front_prefix="NB", reverse_prefix="RB"):
         self.barcode_path = barcode_path
         self.front_prefix = front_prefix
         self.reverse_prefix = reverse_prefix
-
-    
-
 
     def filter_barcodes(self, filtered_fasta_file, front_range, reverse_range):
         """
@@ -103,15 +115,16 @@ class BarcodeProcessor:
 
         filtered_records = [
             record for record in records
-            if (record.id.startswith(self.front_prefix) and min_front <= int(record.id[len(self.front_prefix):]) <= max_front) or
-            (record.id.startswith(self.reverse_prefix) and min_reverse <= int(record.id[len(self.reverse_prefix):]) <= max_reverse)
+            if (record.id.startswith(self.front_prefix) and min_front <= int(
+                record.id[len(self.front_prefix):]) <= max_front) or
+               (record.id.startswith(self.reverse_prefix) and min_reverse <= int(
+                   record.id[len(self.reverse_prefix):]) <= max_reverse)
         ]
 
         with open(filtered_fasta_file, "w") as output_handle:
             SeqIO.write(filtered_records, output_handle, "fasta")
-    
 
-    def get_barcode_dict(self, demultiplex_folder : Path) -> dict:
+    def get_barcode_dict(self, demultiplex_folder: Path) -> dict:
         """
         Get a dictionary of folder paths, where reverse is the key and forward is stored in a list
         
@@ -122,11 +135,11 @@ class BarcodeProcessor:
         - barcode_dict, dictionary of reverse and front barcode paths
         """
 
-        rbc_folders = get_rbc_barcode_folders(demultiplex_folder, prefix = self.reverse_prefix)
-        fbc_folders = get_fbc_barcode_folders(rbc_folders, prefix = self.front_prefix)
+        rbc_folders = get_rbc_barcode_folders(demultiplex_folder, prefix=self.reverse_prefix)
+        fbc_folders = get_fbc_barcode_folders(rbc_folders, prefix=self.front_prefix)
 
         return fbc_folders
-    
+
     def get_rbc_barcode_folders(self, demultiplex_folder: Path) -> list:
         """
         Extract the reverse barcode folders (rbc) from the demultiplex folder
@@ -137,16 +150,17 @@ class BarcodeProcessor:
         """
 
         if not demultiplex_folder.exists():
-            raise FileNotFoundError(f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
-        
+            raise FileNotFoundError(
+                f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
+
         reverse_barcodes = list(demultiplex_folder.glob(f"{self.reverse_prefix}*"))
 
         if not reverse_barcodes:
             # Optionally, use logging here instead of raising an exception
-            raise FileNotFoundError(f"No reverse barcodes found in {demultiplex_folder}. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file.")
-        
+            raise FileNotFoundError(
+                f"No reverse barcodes found in {demultiplex_folder}. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file.")
+
         return reverse_barcodes
-    
 
 
 def find_folder(start_path, target_folder_name):
@@ -166,7 +180,8 @@ def find_folder(start_path, target_folder_name):
             return os.path.join(path, target_folder_name)
     raise Exception(f"{target_folder_name} folder does not exist. Please check if you have chosen the right name.")
 
-def check_data_folder(path : Path) -> None:
+
+def check_data_folder(path: Path) -> None:
     """
     Check if minknown data folder exists. If not, assert an error.
 
@@ -177,9 +192,11 @@ def check_data_folder(path : Path) -> None:
     - FileNotFoundError: If the minknow data folder does not exist.
     """
     if not path.exists():
-        raise FileNotFoundError(f"MinKNOW data folder '{path}' does not exist. Please check if you have installed MinKNOW and if the path is correct. If you replaced the default path, please specify in the TOML file.")
+        raise FileNotFoundError(
+            f"MinKNOW data folder '{path}' does not exist. Please check if you have installed MinKNOW and if the path is correct. If you replaced the default path, please specify in the TOML file.")
 
-def find_experiment_folder(experiment_name : str, minknow_path : Path = MINKNOW_PATH) -> None:
+
+def find_experiment_folder(experiment_name: str, minknow_path: Path = MINKNOW_PATH) -> None:
     """Find the experiment folder in the minknow data folder. Access the name from Meta File.
     
     Args:
@@ -195,8 +212,7 @@ def find_experiment_folder(experiment_name : str, minknow_path : Path = MINKNOW_
     for (path, dirs, files) in os.walk(minknow_path, topdown=True):
         if experiment_name in dirs:
             return os.path.join(path, experiment_name)
-        
-    
+
     raise Exception("Experiment folder does not exist. Please check if you have chosen the right experiment name.")
 
 
@@ -218,7 +234,7 @@ def find_folder(start_path, target_folder_name):
     raise Exception(f"{target_folder_name} folder does not exist. Please check if you have chosen the right name.")
 
 
-def find_experiment_files(start_path : Path, target_folder_name : list) -> Path or None:
+def find_experiment_files(start_path: Path, target_folder_name: list) -> Path or None:
     """
     Check if the experimenter has already basecalled before. If pod5_pass or fastq_pass folder exists, the function returns True.
 
@@ -237,15 +253,16 @@ def find_experiment_files(start_path : Path, target_folder_name : list) -> Path 
             return find_folder(start_path, value)
         except:
             continue
-      
+
     return None
 
-def extract_files_from_folder(path : Path) -> list:
+
+def extract_files_from_folder(path: Path) -> list:
     """Extract all files from a folder"""
     return [file for file in path.iterdir() if file.is_file()]
 
 
-def filter_fastq_by_length(input_fastq : Path, output_fastq : Path, min_length : int , max_length : int):
+def filter_fastq_by_length(input_fastq: Path, output_fastq: Path, min_length: int, max_length: int):
     """
     Filter a FASTQ file based on read length and write to a new FASTQ file.
 
@@ -261,7 +278,7 @@ def filter_fastq_by_length(input_fastq : Path, output_fastq : Path, min_length :
     with gzip.open(input_fastq, 'r') as infile, open(output_fastq, 'w') as outfile:
 
         while True:
-            
+
             header = infile.readline().strip()
             sequence = infile.readline().strip()
             plus_sign = infile.readline().strip()
@@ -276,10 +293,11 @@ def filter_fastq_by_length(input_fastq : Path, output_fastq : Path, min_length :
                 outfile.write(f"{plus_sign}\n")
                 outfile.write(f"{quality_scores}\n")
                 N_reads += 1
-    
+
     return N_reads
 
-def find_file(start_path : Path, prefix : str, extension : str) -> Path:
+
+def find_file(start_path: Path, prefix: str, extension: str) -> Path:
     """
     Find a file in the given start_path that matches the specified prefix and extension.
     
@@ -294,14 +312,13 @@ def find_file(start_path : Path, prefix : str, extension : str) -> Path:
     Raises:
     - Exception: If no matching file is found.
     """
-    
+
     for dirpath, _, filenames in os.walk(start_path):
         for filename in filenames:
             if filename.startswith(prefix) and filename.endswith(extension):
                 return os.path.join(dirpath, filename)
-    
-    raise Exception(f"No file with prefix '{prefix}' and extension '{extension}' was not found in {start_path}.")
 
+    raise Exception(f"No file with prefix '{prefix}' and extension '{extension}' was not found in {start_path}.")
 
 
 def concatenate_fastq_files(path: Path, filename: str = "concatenated", prefix: str = "*", delete: bool = True) -> str:
@@ -328,7 +345,7 @@ def concatenate_fastq_files(path: Path, filename: str = "concatenated", prefix: 
 
         if single_file.name != f"{filename}.fastq":
             target_path = path / f"{filename}.fastq"
-            
+
             if target_path.exists():
                 return f"Target file {target_path} already exists. Rename operation aborted."
 
@@ -354,7 +371,7 @@ def concatenate_fastq_files(path: Path, filename: str = "concatenated", prefix: 
         return "Concatenation successful."
 
 
-def read_fasta_file(path : Path, score = False) -> dict:
+def read_fasta_file(path: Path, score=False) -> dict:
     """
     Read fasta file from an input path
 
@@ -367,7 +384,7 @@ def read_fasta_file(path : Path, score = False) -> dict:
     """
 
     if score:
-        sequences_and_scores = {"Sequence" : [], "Quality-Score" : []}
+        sequences_and_scores = {"Sequence": [], "Quality-Score": []}
 
         for record in SeqIO.parse(path, "fastq"):
             sequences_and_scores["Sequence"].append(str(record.seq))
@@ -376,15 +393,14 @@ def read_fasta_file(path : Path, score = False) -> dict:
         return sequences_and_scores
 
     else:
-        sequences = {"Sequence" : []}
+        sequences = {"Sequence": []}
 
-        file_extension = os.path.splitext(path)[1][1:] # Get file extension
-        
+        file_extension = os.path.splitext(path)[1][1:]  # Get file extension
+
         for record in SeqIO.parse(path, "fasta"):
             sequences["Sequence"].append(str(record.seq))
 
         return sequences
-
 
 
 def create_folder(experiment_name: str, dorado_model, target_path: Path = None, output_name: str = None) -> Path:
@@ -402,7 +418,7 @@ def create_folder(experiment_name: str, dorado_model, target_path: Path = None, 
     - Path object representing the experiment folder
     - Raises Exception if the folder could not be created or path is invalid
     """
-    
+
     if target_path is None:
         # Get current working directory
         curr_dir = Path.cwd()
@@ -410,11 +426,11 @@ def create_folder(experiment_name: str, dorado_model, target_path: Path = None, 
         if not target_path.exists():
             raise Exception("Target path does not exist. Please check if you have chosen the right path.")
         curr_dir = target_path
-    
+
     # Create minION_results folder if it doesn't exist
     minION_results_dir = curr_dir / "minION_results"
     minION_results_dir.mkdir(exist_ok=True)
-    
+
     # Create experiment folder
 
     experiment_name = f"{experiment_name}_{dorado_model}"
@@ -429,8 +445,8 @@ def create_folder(experiment_name: str, dorado_model, target_path: Path = None, 
 
     return result_folder
 
-    
-def get_rbc_barcode_folders(demultiplex_folder: Path, prefix = "barcode") -> list:
+
+def get_rbc_barcode_folders(demultiplex_folder: Path, prefix="barcode") -> list:
     """Extract the reverse barcode folders (rbc) from the demultiplex folder
     Args:
     - demultiplex_folder (Path): Where the demultiplex folder is located.
@@ -439,17 +455,20 @@ def get_rbc_barcode_folders(demultiplex_folder: Path, prefix = "barcode") -> lis
     """
 
     if not demultiplex_folder.exists():
-        raise FileNotFoundError(f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
-    
+        raise FileNotFoundError(
+            f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
+
     reverse_barcodes = list(demultiplex_folder.glob(f"{prefix}*"))
 
     if not reverse_barcodes:
         # Optionally, use logging here instead of raising an exception
-        raise FileNotFoundError(f"No reverse barcodes found in {demultiplex_folder}. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file.")
-    
+        raise FileNotFoundError(
+            f"No reverse barcodes found in {demultiplex_folder}. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file.")
+
     return reverse_barcodes
 
-def get_fbc_barcode_folders(rbc_barcode_folders : list, prefix = "barcode") -> dict:
+
+def get_fbc_barcode_folders(rbc_barcode_folders: list, prefix="barcode") -> dict:
     """Extract the forward barcode folders (fbc) within the reverse barcode folders
 
     Args:  
@@ -464,21 +483,21 @@ def get_fbc_barcode_folders(rbc_barcode_folders : list, prefix = "barcode") -> d
 
     if rbc_barcode_folders is None:
         raise Exception("Reverse barcode folders are not given. Please check if you have chosen the right path.")
-    
+
     for folder in rbc_barcode_folders:
-        
         fbc_folders[folder] = list(folder.glob(f"{prefix}*"))
 
     if not fbc_folders:
-        raise Exception(f"Forward barcodes in {rbc_barcode_folders} do not exist. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file. ")
-    
+        raise Exception(
+            f"Forward barcodes in {rbc_barcode_folders} do not exist. Either no barcodes were found or the barcode score is too high. Rerun the experiment or adapt the barcode score in the TOML file. ")
+
     if not any(fbc_folders.values()):
         raise Exception(f"Forward barcodes in {rbc_barcode_folders} do not exist. Please check the folders.")
-    
-    return fbc_folders
-    
 
-def get_barcode_dict(demultiplex_folder : Path, front_prefix = "barcode", reverse_prefix = "barcode") -> dict:
+    return fbc_folders
+
+
+def get_barcode_dict(demultiplex_folder: Path, front_prefix="barcode", reverse_prefix="barcode") -> dict:
     """
     Get a dictionary of folder paths, where reverse is the key and forward is stored in a list
     
@@ -489,10 +508,11 @@ def get_barcode_dict(demultiplex_folder : Path, front_prefix = "barcode", revers
     - barcode_dict, dictionary of reverse and front barcode paths
     """
 
-    rbc_folders = get_rbc_barcode_folders(demultiplex_folder, prefix = reverse_prefix)
-    fbc_folders = get_fbc_barcode_folders(rbc_folders, prefix = front_prefix)
+    rbc_folders = get_rbc_barcode_folders(demultiplex_folder, prefix=reverse_prefix)
+    fbc_folders = get_fbc_barcode_folders(rbc_folders, prefix=front_prefix)
 
     return fbc_folders
+
 
 def trim_fasta(input_file, output_file, trim_length=12):
     with open(input_file, 'r') as in_fasta, open(output_file, 'w') as out_fasta:
@@ -502,8 +522,7 @@ def trim_fasta(input_file, output_file, trim_length=12):
             SeqIO.write(record, out_fasta, 'fasta')
 
 
-
-def filter_fastq_by_length(result_folder, input_fastq : Path, min_length : int , max_length : int, ind : int):
+def filter_fastq_by_length(result_folder, input_fastq: Path, min_length: int, max_length: int, ind: int):
     """
     Filter a FASTQ file based on read length and write to a new FASTQ file. Currently we use fastq-filter.
 
@@ -516,16 +535,15 @@ def filter_fastq_by_length(result_folder, input_fastq : Path, min_length : int ,
         - Fastq file with reads between min_length and max_length.
         - N_reads
     """
-    
+
     if input_fastq.is_dir():
         input_files = f'{input_fastq}/*.fastq'
 
     elif input_fastq.is_file():
         input_files = input_fastq
-    
+
     else:
         raise Exception("Input file is not a file or a folder. Please check if you have chosen the right path.")
-    
 
     basecall_folder = os.path.join(result_folder, "basecalled_filtered")
     Path(basecall_folder).mkdir(parents=True, exist_ok=True)
@@ -533,10 +551,9 @@ def filter_fastq_by_length(result_folder, input_fastq : Path, min_length : int ,
     prompt = f'fastq-filter -o {basecall_folder}/basecalled_filtered{ind}.fastq.gz -l {min_length} -L {max_length} {input_files} --quiet'
 
     subprocess.run(prompt, shell=True)
-    
 
 
-def get_template_sequence(path : Path) -> str:
+def get_template_sequence(path: Path) -> str:
     """
     Read template sequence fasta file
         Args:  
@@ -544,7 +561,7 @@ def get_template_sequence(path : Path) -> str:
         Returns: 
             - Template sequence
     """
-    
+
     template = read_fasta_file(path)
-    
+
     return template["Sequence"][0]

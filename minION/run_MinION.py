@@ -1,20 +1,33 @@
+###############################################################################
+#                                                                             #
+#    This program is free software: you can redistribute it and/or modify     #
+#    it under the terms of the GNU General Public License as published by     #
+#    the Free Software Foundation, either version 3 of the License, or        #
+#    (at your option) any later version.                                      #
+#                                                                             #
+#    This program is distributed in the hope that it will be useful,          #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of           #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            #
+#    GNU General Public License for more details.                             #
+#                                                                             #
+#    You should have received a copy of the GNU General Public License        #
+#    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
+#                                                                             #
+###############################################################################
+
 # Import MinION objects
-from minION import IO_processor
-from minION.basecaller import Basecaller
 from minION import *
 
 # Import external packages
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from importlib import resources
 import subprocess
 from Bio import SeqIO
-import sys
-import importlib
 import tqdm
 import os
+
 
 # Get barcode used
 def barcode_user(cl_args):
@@ -29,33 +42,38 @@ def barcode_user(cl_args):
     bmin = bc_df["RB-min"][0]
     bmax = bc_df["RB-max"][0]
 
-    return int(fmin),int(fmax),int(bmin),int(bmax)
+    return int(fmin), int(fmax), int(bmin), int(bmax)
+
 
 # Get output directory
 def get_input_folder(cl_args):
     input_folder = IO_processor.find_experiment_folder(cl_args['name'], cl_args['folder'])
     return input_folder
 
+
 # Get fastq input directory, this is the basecalled folder
 def fastq_path(folder):
     return IO_processor.find_folder(folder, "fastq_pass")
+
 
 # Create result folder
 def create_result_folder(cl_args):
     basecall_model = 'sup'
     result_folder = IO_processor.create_folder(
-            cl_args['name'],
-            basecall_model,
-            target_path = Path(cl_args['output']))
+        cl_args['name'],
+        basecall_model,
+        target_path=Path(cl_args['output']))
     return result_folder
+
 
 # Basecall reads
 def basecall_reads(cl_args):
     print('basecalling')
 
+
 # Filter barcode
 def filter_bc(cl_args, result_folder):
-    front_min,front_max,back_min,back_max = barcode_user(cl_args)
+    front_min, front_max, back_min, back_max = barcode_user(cl_args)
     # Obtain path of executable from package
     print('break1')
     with resources.path('minION.barcoding', 'minion_barcodes.fasta') as barcode_path:
@@ -66,14 +84,17 @@ def filter_bc(cl_args, result_folder):
     bp.filter_barcodes(barcode_path_filter, (1, 96), (9, 12))
     return barcode_path
 
+
 # Filter template sequence length
 def filter_seq(cl_args):
     return seq_min, seq_max
+
 
 # Get reference fasta (parent sequence)
 def parent_fasta(cl_args):
     template_fasta = cl_args['refseq']
     return template_fasta
+
 
 # Demultiplex the basecalled fastq into plate-well folders
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
@@ -88,18 +109,20 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         prompt = f"{str(executable_path)} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100} -m {seq_min} -x {seq_max}"
         subprocess.run(prompt, shell=True)
 
+
 # Variant calling using VariantCaller class and generate dataframe
 def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
-    vc = VariantCaller(experiment_folder, 
-            template_fasta, 
-            demultiplex_folder_name = demultiplex_folder_name,
-            padding_start = 0,
-            padding_end = 0)
-    
-    variant_df = vc.get_variant_df(qualities = True,
-            threshold = 0.2,
-            min_depth = 5)
+    vc = VariantCaller(experiment_folder,
+                       template_fasta,
+                       demultiplex_folder_name=demultiplex_folder_name,
+                       padding_start=0,
+                       padding_end=0)
+
+    variant_df = vc.get_variant_df(qualities=True,
+                                   threshold=0.2,
+                                   min_depth=5)
     return variant_df
+
 
 # Saving heatmaps and csv in the results folder
 def save_platemap_to_file(heatmaps, outputdir, name):
@@ -108,11 +131,13 @@ def save_platemap_to_file(heatmaps, outputdir, name):
     file_path = os.path.join(outputdir, "Platemaps", name)
     hv.renderer('bokeh').save(heatmaps, file_path)
 
-def save_csv(df,outputdir,name):
+
+def save_csv(df, outputdir, name):
     if not os.path.exists(os.path.join(outputdir, "Results")):
         os.makedirs(os.path.join(outputdir, "Results"))
     file_path = os.path.join(outputdir, "Results", name + ".csv")
     df.to_csv(file_path)
+
 
 # Generate dataframe for visualization
 def create_df_v(variants_df, template_fasta):
@@ -121,18 +146,18 @@ def create_df_v(variants_df, template_fasta):
     # Add template fasta to dataframe 
     for seq_record in SeqIO.parse(open(template_fasta), 'fasta'):
         temp_seq = str(seq_record.seq).upper()
-    df_variants_.insert(0,'template',temp_seq)
+    df_variants_.insert(0, 'template', temp_seq)
 
     # Fill in empty cells
     df_variants_['Variant'].tolist()
-    df_variants_['Variant'].fillna('',inplace = True)
+    df_variants_['Variant'].fillna('', inplace=True)
 
     # Loop through dataframe and replace mutations
     mut_ls = []
     for i in df_variants_.index:
-        if isinstance(df_variants_['Variant'][i], np.ndarray): 
-            df_variants_['Variant'][i] =  df_variants_['Variant'][i].tolist()
-        
+        if isinstance(df_variants_['Variant'][i], np.ndarray):
+            df_variants_['Variant'][i] = df_variants_['Variant'][i].tolist()
+
         if df_variants_['Variant'][i] == '':
             mut_ls.append('NA')
 
@@ -147,10 +172,10 @@ def create_df_v(variants_df, template_fasta):
             val_new = [x[-1] for x in df_variants_['Variant'][i].split('_')]
             index = [int(s) for s in re.findall(r'\d+', df_variants_['Variant'][i])]
             index_bp = []
-            var_seq = temp_seq   
+            var_seq = temp_seq
             for m in range(len(index)):
-                index_bp.append(index[m]-1)
-                var_seq = var_seq[:index_bp[m]] + val_new[m]+ var_seq[index_bp[m] + 1:]
+                index_bp.append(index[m] - 1)
+                var_seq = var_seq[:index_bp[m]] + val_new[m] + var_seq[index_bp[m] + 1:]
             mut_ls.append(var_seq)
     # Translate mutated sequence to protein
     aa_ls = []
@@ -160,7 +185,7 @@ def create_df_v(variants_df, template_fasta):
         else:
             aa_ls.append('NAN')
     df_variants_['Protein Sequence'] = aa_ls
-    
+
     # Compare to template sequence and get mutations
     mut = []
     temp_aa = translate(temp_seq)
@@ -185,25 +210,26 @@ def create_df_v(variants_df, template_fasta):
     row = [Well[i].rstrip('0123456789') for Well[i] in Well]
     df_variants_['Row'] = row
     df_variants_['Column'] = column
-    df_variants_['Plate'] = df_variants_['Plate'].astype(str) # TODO Change to user input plate name with cl_args
+    df_variants_['Plate'] = df_variants_['Plate'].astype(str)  # TODO Change to user input plate name with cl_args
 
     # Update 'Plate' column from '1'-'9' to '01'-'09'
     df_variants_['Plate'] = df_variants_['Plate'].apply(lambda x: f'0{x}' if len(x) == 1 else x)
-    
+
     return df_variants_
+
 
 # Run MinION
 
-def run_MinION(cl_args, tqdm_fn = tqdm.tqdm):
+def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     # Find specific experiment in the upper directory of nanopore data
     experiment_folder = get_input_folder(cl_args)
-    
+
     # Find fastq from experiment folder
     file_to_fastq = fastq_path(experiment_folder)
-    
+
     # Create result folder
     result_folder = create_result_folder(cl_args)
-    
+
     # Get template sequence
     template_fasta = parent_fasta(cl_args)
     # Basecall if asked
@@ -219,10 +245,10 @@ def run_MinION(cl_args, tqdm_fn = tqdm.tqdm):
     # Call Variants if not skipped
     if not cl_args['skip_variantcalling']:
         variant_df = call_variant(experiment_folder, template_fasta, result_folder)
-        variant_df.to_csv(os.path.join(result_folder,"variant_df.csv"), index=False)  
-    
-    # Check if variant_df exist in result folder
-    variant_csv = os.path.join(result_folder,"variant_df.csv")
+        variant_df.to_csv(os.path.join(result_folder, "variant_df.csv"), index=False)
+
+        # Check if variant_df exist in result folder
+    variant_csv = os.path.join(result_folder, "variant_df.csv")
     if os.path.exists(variant_csv):
         variant_df = pd.read_csv(variant_csv)
 
