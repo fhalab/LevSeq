@@ -1,0 +1,3 @@
+[console_scripts]
+minION = minION.cmd:main
+
