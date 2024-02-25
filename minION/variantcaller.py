@@ -15,7 +15,7 @@
 #                                                                             #
 ###############################################################################
 
-from IO_processor import get_barcode_dict, get_template_sequence
+from minION.IO_processor import get_barcode_dict, get_template_sequence
 import subprocess
 import pysam
 import os
@@ -250,10 +250,10 @@ class VariantCaller:
 
             try:
 
-                bam_file = row["Path"] / self.alignment_name
+                bam_file = os.path.join(row["Path"], self.alignment_name)
 
                 # Check if the alignment file exists
-                if not bam_file.exists():
+                if not os.path.exists(bam_file):
                     # Try aligning the sequences
                     print(f"Aligning sequences for {row['Path']}")
                     self._align_sequences(row["Path"])
@@ -262,6 +262,7 @@ class VariantCaller:
 
                 # Check alignment count
                 if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
+                    print(self.variant_df["Alignment_count"][i])
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
@@ -337,15 +338,19 @@ class VariantCaller:
         if not isinstance(sample_folder_path, Path):
             return 0
 
-        bam_file = sample_folder_path / self.alignment_name
+        bam_file = os.path.join(sample_folder_path, self.alignment_name)
 
-        if not bam_file.exists():
+        if not os.path.exists(bam_file):
             return 0
 
-        alignment_count = int(
-            subprocess.run(f"samtools view -c {bam_file}", shell=True, capture_output=True).stdout.decode(
-                "utf-8").strip())
-
+        try:
+            alignment_count = int(
+                subprocess.run(f"samtools view -c {bam_file}", shell=True, capture_output=True).stdout.decode(
+                    "utf-8").strip())
+        except:
+            # ToDo: Return a meaningful error here
+            print(f'Warning! your bamfile: {bam_file} had no counts! Check the header manually.')
+            return 0
         return alignment_count
 
     def _apply_alignment_count(self):

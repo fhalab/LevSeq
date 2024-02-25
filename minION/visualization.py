@@ -22,7 +22,7 @@ import numpy as np
 import holoviews as hv
 import ninetysix as ns
 import colorcet as cc
-from util import *
+from minION.utils import *
 hv.extension('bokeh')
 
 

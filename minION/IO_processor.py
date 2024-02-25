@@ -19,7 +19,7 @@
 
 import os
 import glob
-from globals import MINKNOW_PATH
+from minION.globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip

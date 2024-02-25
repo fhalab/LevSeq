@@ -572,7 +572,6 @@ class VariantCaller:
         return np.sum([np.log(softmax_df.at[combination[i], positions[i]]) for i in range(len(positions))])
 
 
-
 def get_template_df(plate_numbers : list, barcode_dicts : dict = None, rowwise = True):
     """
     To have coherent df for each experiment, a template df is created. The template also have the desired plates and columns in the desired order

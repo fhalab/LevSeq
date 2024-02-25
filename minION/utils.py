@@ -16,11 +16,6 @@
 ###############################################################################
 # Import all packages
 
-from minION.variantcaller import *
-import ninetysix as ns
-import colorcet as cc
-
-
 def translate(seq):
     table = {
         'ATA': 'I', 'ATC': 'I', 'ATT': 'I', 'ATG': 'M',
@@ -46,6 +41,7 @@ def translate(seq):
             codon = seq[i:i + 3]
             protein += table[codon]
     return protein
+
 
 # Get mutated sequence by splitting template sequence
 def get_mut(temp_seq, aa_seq):
