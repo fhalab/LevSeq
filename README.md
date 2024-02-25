@@ -63,6 +63,29 @@ docker run minion
 ```
 
 
-### ToDo: rebuilding the C++
-Needed to install specific version of cmake for mac
+### Steps to rebuild the C++ executables
+
+### Mac intel chip
+To rebuild on mac move into the `source/source` folder and execute the following command:
+
+```
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/local/bin/gcc-13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-13 ../source
+```
+
+Note it expects c to be installed in `/usr/local/bin` if this is not the case on your machine you will need to update 
+accordingly. 
+
+After building you need to make the make file with the following command:
+
+```
+make -j
+```
+
+The demultiplex file should now function!
+
+### Mac M1 chip (toDo)
+
+### Linux (toDo)
+
+
 brew install gcc@7 based on https://docs.seqan.de/seqan3/3.0.0/setup.html

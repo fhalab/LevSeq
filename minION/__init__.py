@@ -31,3 +31,4 @@ from minION.visualization import *
 from minION.interface import *
 from minION.cmd import *
 from minION.basecaller import *
+from minION.util import *

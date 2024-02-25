@@ -1,5 +1,6 @@
 # ---------------- data ignores
 *data
+*software
 
 # ---------------- specific ignores
 *.idea
