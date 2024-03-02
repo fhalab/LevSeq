@@ -268,18 +268,24 @@ class VariantCaller:
                     continue
 
                 seq_df = self._get_seq_df([self.ref_name], bam_file, str(self.reference_path), msa_path='msa_file.fa')
+                seq_df.to_csv('/Users/ariane/Documents/code/MinION/tests/seq_df.csv')
 
                 variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
+                print(variant["Variant"].values)
+                print(variant["Probability"].values)
                 self.variant_df.at[i, "Variant"] = variant["Variant"].values
                 self.variant_df.at[i, "Probability"] = variant["Probability"].values
+
+                self.variant_df.to_csv('/Users/ariane/Documents/code/MinION/tests/variant_df.csv')
+                break
 
             except Exception as e:
                 print(e)
                 self.variant_df.at[i, "Variant"] = float("nan")
                 self.variant_df.at[i, "Probability"] = float("nan")
-                continue
 
-        return self.variant_df, seq_df
+
+        return self.variant_df
 
     def call_variant(self, alignment_file: Path, qualities=True, threshold: float = 0.2, top_N: int = 1):
         """
@@ -455,8 +461,11 @@ class VariantCaller:
                 # Check if we want to write a MSA
                 if msa_path is not None:
                     with open(msa_path, 'w+') as fout:
+                        # Write the reference first
+                        fout.write(f'>{self.ref_name}\n{ref_str}\n')
+
                         for i, seq in enumerate(seqs):
-                            fout.write(f'>{read_ids[i]}\n{seq}\n')
+                            fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
 
         bam.close()
         fasta.close()

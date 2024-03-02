@@ -115,10 +115,9 @@ class TestMinIon(TestClass):
                            padding_start=0,
                            padding_end=0)
 
-        variant_df, seq_df = vc.get_variant_df(qualities=True,
+        variant_df = vc.get_variant_df(qualities=True,
                                        threshold=0.2,
                                        min_depth=5)
-        seq_df.to_csv('seq_df.csv', index=False)
         seq_gen = IO_processor.SequenceGenerator(variant_df, template_fasta)
         variant_df = seq_gen.get_sequences()
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
