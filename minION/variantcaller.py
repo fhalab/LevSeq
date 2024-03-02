@@ -267,6 +267,8 @@ class VariantCaller:
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
 
+                seq_df = self._get_seq_df([self.ref_name], bam_file, str(self.reference_path), msa_path='msa_file.fa')
+
                 variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
                 self.variant_df.at[i, "Variant"] = variant["Variant"].values
                 self.variant_df.at[i, "Probability"] = variant["Probability"].values
@@ -277,7 +279,7 @@ class VariantCaller:
                 self.variant_df.at[i, "Probability"] = float("nan")
                 continue
 
-        return self.variant_df
+        return self.variant_df, seq_df
 
     def call_variant(self, alignment_file: Path, qualities=True, threshold: float = 0.2, top_N: int = 1):
         """
@@ -299,7 +301,7 @@ class VariantCaller:
             # Choose 3 random positions
             positions = np.random.choice(nb_positions, 3, replace=False)
 
-        elif len(positions) > 10:
+        elif len(positions) > 1000000:
             print(f"Too many positions: {len(positions)}, Skipping...")
             # Append nan
             variants["Variant"].append(float("nan"))
@@ -313,6 +315,154 @@ class VariantCaller:
         variants = pd.DataFrame(variants).nlargest(top_N, "Probability")
 
         return variants
+
+    @staticmethod
+    def _alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: list) -> tuple[
+        str, str, list, list]:
+        """
+        Generate the alignment from the cigar string.
+        Operation	Description	Consumes query	Consumes reference
+        0 M	alignment match (can be a sequence match or mismatch)	yes	yes
+        1 I	insertion to the reference	yes	no
+        2 D	deletion from the reference	no	yes
+        3 N	skipped region from the reference	no	yes
+        4 S	soft clipping (clipped sequences present in SEQ)	yes	no
+        5 H	hard clipping (clipped sequences NOT present in SEQ)	no	no
+        6 P	padding (silent deletion from padded reference)	no	no
+        7 =	sequence match	yes	yes
+        8 X	sequence mismatch	yes	yes
+
+        Parameters
+        ----------
+        cigar: 49S9M1I24M2D9M2I23M1I3M1D13M1D10M1D13M3D12M1D23M1
+        alignment: GCTGATCACAACGAGAGCTCTCGTTGCTCATTACCCCTAAGGAACTCAAATGACGGTTAAAAACTTGTTTTGCT
+        ref: reference string (as above but from reference)
+
+        Returns
+        -------
+
+        """
+        new_seq = ''
+        ref_seq = ''
+        qual = []
+        inserts = []
+        pos = 0
+        ref_pos = 0
+        for op, op_len in cigar:
+            if op == 0:  # alignment match (can be a sequence match or mismatch)
+                new_seq += alignment[pos:pos + op_len]
+                qual += query_qualities[pos:pos + op_len]
+
+                ref_seq += ref[ref_pos:ref_pos + op_len]
+                pos += op_len
+                ref_pos += op_len
+            elif op == 1:  # insertion to the reference
+                inserts.append(alignment[pos - 1:pos + op_len])
+                pos += op_len
+            elif op == 2:  # deletion from the reference
+                new_seq += '-' * op_len
+                qual += [-1] * op_len
+                ref_seq += ref[ref_pos:ref_pos + op_len]
+                ref_pos += op_len
+            elif op == 3:  # skipped region from the reference
+                new_seq += '*' * op_len
+                qual += [-2] * op_len
+                ref_pos += op_len
+            elif op == 4:  # soft clipping (clipped sequences present in SEQ)
+                inserts.append(alignment[pos:pos + op_len])
+                pos += op_len
+            elif op == 5:  # hard clipping (clipped sequences NOT present in SEQ)
+                continue
+            elif op == 6:  # padding (silent deletion from padded reference)
+                continue
+            elif op == 7:  # sequence mismatch
+                new_seq += alignment[pos:pos + op_len]
+                ref_seq += ref[ref_pos:ref_pos + op_len]
+                qual += query_qualities[pos:pos + op_len]
+                pos += op_len
+                ref_pos += op_len
+        return new_seq, ref_seq, qual, inserts
+
+    def _get_seq_df(self, positions: dict, bam:str, ref:str, min_coverage=20, k=8, msa_path=None):
+        """
+        Makes a pileup over a gene.
+
+        Rows are the reads, columns are the columns in the reference. Insertions are ignored.
+        Parameters
+        ----------
+        gene_location: location (chr:start-end) note start might need to be -1 depending on how the transcriptome was created
+        bam: bam file read in by pysam, pysam.AlignmentFile(f'data/SRR13212638.sorted.bam', "rb")
+        ref: fasta file read in by pysam, pysam.FastaFile(sam/bam file)
+        output_filename
+
+        Returns
+        -------
+
+        """
+        bam = pysam.AlignmentFile(bam, "rb")
+        fasta = pysam.FastaFile(ref)
+        rows_all = []
+        for pos in tqdm(positions):
+            reads = []
+            try:
+                for read in bam.fetch(pos):
+                    # Check if we want this read
+                    reads.append(read)
+            except:
+                x = 1
+
+            if len(reads) > min_coverage:
+                ref_str = fasta[pos]
+                seqs = []
+                read_ids = []
+                for read in reads:
+                    if read.query_sequence is not None:
+                        seq, ref, qual, ins = self._alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
+                                                                         read.query_qualities)
+                        # Make it totally align
+                        seq = "-" * read.reference_start + seq + "-" * (
+                                len(ref_str) - (read.reference_start + len(seq)))
+                        seqs.append(list(seq))
+                        read_ids.append(f'{read.query_name}')
+
+                # Again check that we actually had enough!
+                if len(seqs) > min_coverage:
+
+                    seq_df = pd.DataFrame(seqs)
+                    for col in seq_df:
+                        if col - k / 2 > 0:
+                            vc = seq_df[col].values
+                            ref_seq = ref_str[col]  # Keep track of the reference
+                            if ref_seq != '-':
+                                # Check if there are at least 25% with a different value compared to the reference.
+                                values = vc[vc != '-']
+                                non_ref = len(values)
+                                other = len(values[values != ref_seq])
+                                a = len(vc[vc == 'A'])
+                                t = len(vc[vc == 'T'])
+                                g = len(vc[vc == 'G'])
+                                c = len(vc[vc == 'C'])
+                                nn = len(vc[vc == '-'])
+                                km = int(k / 2)
+                                kmer = ref_str[col - km:col + km]
+                                if other == 0:
+                                    val = 0.0  # i.e. they were 100% the reference
+                                elif non_ref == 0:
+                                    val = 1.0  # i.e. they were 100% not reference
+                                else:
+                                    val = other / non_ref
+                                rows_all.append([pos, col, ref_seq, val, a, t, g, c, nn, kmer])
+                # Check if we want to write a MSA
+                if msa_path is not None:
+                    with open(msa_path, 'w+') as fout:
+                        for i, seq in enumerate(seqs):
+                            fout.write(f'>{read_ids[i]}\n{seq}\n')
+
+        bam.close()
+        fasta.close()
+        seq_df = pd.DataFrame(rows_all)
+        seq_df.columns = ['gene_name', 'position', 'ref', 'percent_nonRef', 'A', 'T', 'G', 'C', 'N', 'kmer']
+        return seq_df
 
     def _get_ref_name(self):
         with open(self.reference_path, "r") as f:
