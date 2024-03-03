@@ -236,7 +236,7 @@ class VariantCaller:
 
         return highest_non_ref_base_freq, mean_quality_score if qualities else highest_non_ref_base_freq
 
-    def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5):
+    def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5, output_dir=''):
         """
         Get Variant Data Frame for all samples in the experiment
 
@@ -245,9 +245,16 @@ class VariantCaller:
             - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
             - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
         """
-
+        variants = []
+        plates = []
+        wells = []
+        alignment_counts = []
+        probabilities = []
+        a_values = []
+        t_values = []
+        c_values = []
+        g_values = []
         for i, row in tqdm(self.variant_df.iterrows()):
-
             try:
 
                 bam_file = os.path.join(row["Path"], self.alignment_name)
@@ -266,18 +273,17 @@ class VariantCaller:
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
-
-                seq_df = self._get_seq_df([self.ref_name], bam_file, str(self.reference_path), msa_path='msa_file.fa')
-                seq_df.to_csv('/Users/ariane/Documents/code/MinION/tests/seq_df.csv')
+                fname = '_'.join(bam_file.split("/")[1:3])
+                seq_df = self._get_seq_df([self.ref_name], bam_file, str(self.reference_path),
+                                          msa_path=f'{output_dir}msa_{fname}.fa')
+                seq_df.to_csv(f'{output_dir}seq_{fname}.csv')
+                # Now use the filter to assign the probabilty that we have larger than the threshold a variant
 
                 variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
                 print(variant["Variant"].values)
                 print(variant["Probability"].values)
                 self.variant_df.at[i, "Variant"] = variant["Variant"].values
                 self.variant_df.at[i, "Probability"] = variant["Probability"].values
-
-                self.variant_df.to_csv('/Users/ariane/Documents/code/MinION/tests/variant_df.csv')
-                break
 
             except Exception as e:
                 print(e)

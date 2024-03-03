@@ -49,7 +49,7 @@ max_size = 5000
 bp.filter_barcodes(barcode_path, (front_min,front_max), (back_min,back_max))
 
 file_to_experiment = f"test_data/{experiment_name}"
-template_fasta = "test_data/pga9-4.fasta"
+template_fasta = "data/20220216-ZZ_sup/zz_parent.fasta"
 
 # Basecalling
 basecall_folder = os.path.join(result_folder, "basecalled")
@@ -117,8 +117,9 @@ class TestMinIon(TestClass):
 
         variant_df = vc.get_variant_df(qualities=True,
                                        threshold=0.2,
-                                       min_depth=5)
+                                       min_depth=5, output_dir='test_ZZ/')
         seq_gen = IO_processor.SequenceGenerator(variant_df, template_fasta)
+        variant_df.to_csv('test_ZZ/variant.csv')
         variant_df = seq_gen.get_sequences()
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
 
