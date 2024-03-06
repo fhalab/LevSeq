@@ -251,6 +251,8 @@ class VariantCaller:
 
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
+        self.variant_df['P adj. value'] = [1 if x > 1 else x for x in self.variant_df["P adj. value"].values]
+
         return self.variant_df
 
     @staticmethod
