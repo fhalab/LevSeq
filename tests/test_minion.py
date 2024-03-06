@@ -116,11 +116,9 @@ class TestMinIon(TestClass):
                            padding_end=0)
 
         variant_df = vc.get_variant_df(qualities=True,
-                                       threshold=0.2,
+                                       threshold=0.5,
                                        min_depth=5, output_dir='test_ZZ/')
-        seq_gen = IO_processor.SequenceGenerator(variant_df, template_fasta)
-        variant_df.to_csv('test_ZZ/variant.csv')
-        variant_df = seq_gen.get_sequences()
+        variant_df.to_csv('test_ZZ/variant_new_0.5.csv')
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
 
     def test_probabilities(self):

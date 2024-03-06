@@ -26,6 +26,8 @@ import re
 import itertools
 import numpy as np
 from tqdm import tqdm
+from scipy.stats import binomtest, combine_pvalues
+from statsmodels.stats.multitest import multipletests
 
 '''
 Script for variant calling
@@ -191,51 +193,6 @@ class VariantCaller:
         # Remove SAM file
         os.remove(f"{output_dir}/{alignment_name}.sam")
 
-    def _get_highest_non_ref_base_freq(self, bam_file: Path, positions: list, qualities=True, threshold: float = 0.2):
-        """
-        The aim of this function is to get the highest probability non-reference base call.
-        """
-        base_frequencies = {position: Counter() for position in positions}
-        base_qualities = {position: [] for position in positions} if qualities else None
-
-        with pysam.AlignmentFile(bam_file, 'rb') as bam:
-            for pileup_column in bam.pileup(self.ref_name, min(positions) - 1, max(positions), min_base_quality=0,
-                                            min_mapping_quality=0, truncate=True):
-                if pileup_column.pos + 1 in positions:
-                    for pileup_read in pileup_column.pileups:
-                        if not pileup_read.is_del and not pileup_read.is_refskip:
-                            base = pileup_read.alignment.query_sequence[pileup_read.query_position].upper()
-                            base_frequencies[pileup_column.pos + 1].update([base])
-                            if qualities:
-                                base_quality = pileup_read.alignment.query_qualities[pileup_read.query_position]
-                                base_qualities[pileup_column.pos + 1].append(base_quality)
-                        elif pileup_read.is_del:
-                            base_frequencies[pileup_column.pos + 1].update(["-"])
-                            if qualities:
-                                base_qualities[pileup_column.pos + 1].append(0)
-
-        highest_non_ref_base_freq = {}
-        mean_quality_score = {position: 0 for position in positions} if qualities else None
-        for position in positions:
-            counts = base_frequencies[position]
-            ref_base = self.reference[position - 1].upper()
-            total_bases = sum(counts.values())
-            if total_bases > 0:
-                non_ref_bases = {base: count for base, count in counts.items() if base != ref_base}
-                if non_ref_bases:
-                    max_base = max(non_ref_bases, key=non_ref_bases.get)
-                    max_freq = non_ref_bases[max_base] / total_bases
-                    if max_freq > threshold:  # Add only if frequency is above threshold
-                        highest_non_ref_base_freq[position] = (max_base, max_freq)
-
-                        if qualities:
-                            max_base_qualities = [qual for base, qual in
-                                                  zip(counts.elements(), base_qualities[position]) if base == max_base]
-                            mean_quality_score[position] = int(
-                                sum(max_base_qualities) / len(max_base_qualities)) if max_base_qualities else 0
-
-        return highest_non_ref_base_freq, mean_quality_score if qualities else highest_non_ref_base_freq
-
     def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5, output_dir=''):
         """
         Get Variant Data Frame for all samples in the experiment
@@ -245,18 +202,9 @@ class VariantCaller:
             - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
             - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
         """
-        variants = []
-        plates = []
-        wells = []
-        alignment_counts = []
-        probabilities = []
-        a_values = []
-        t_values = []
-        c_values = []
-        g_values = []
+        self.variant_df['P value'] = 1.0
         for i, row in tqdm(self.variant_df.iterrows()):
-            try:
-
+            if isinstance(row["Path"], os.PathLike):
                 bam_file = os.path.join(row["Path"], self.alignment_name)
 
                 # Check if the alignment file exists
@@ -269,64 +217,41 @@ class VariantCaller:
 
                 # Check alignment count
                 if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
-                    print(self.variant_df["Alignment_count"][i])
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
                     continue
                 fname = '_'.join(bam_file.split("/")[1:3])
                 seq_df = self._get_seq_df([self.ref_name], bam_file, str(self.reference_path),
                                           msa_path=f'{output_dir}msa_{fname}.fa')
-                seq_df.to_csv(f'{output_dir}seq_{fname}.csv')
-                # Now use the filter to assign the probabilty that we have larger than the threshold a variant
+                if seq_df is not None:
+                    seq_df.to_csv(f'{output_dir}seq_{fname}.csv')
+                    # Now use the filter to assign the probabilty that we have larger than the threshold a variant
+                    non_refs = seq_df[seq_df['percent_nonRef'] > threshold].sort_values(by='position')
+                    if len(non_refs) > 0:
+                        positions = non_refs['position'].values
+                        refs = non_refs['ref'].values
+                        label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
+                        label = '_'.join(label)
+                        probability = np.mean([x for x in non_refs['percent_nonRef'].values])
+                        # Combine the values
+                        chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value'].values],
+                                                                           method='fisher')
 
-                variant = self.call_variant(bam_file, qualities=qualities, threshold=threshold)
-                print(variant["Variant"].values)
-                print(variant["Probability"].values)
-                self.variant_df.at[i, "Variant"] = variant["Variant"].values
-                self.variant_df.at[i, "Probability"] = variant["Probability"].values
+                    else:
+                        label = '#PARENT#'
+                        probability = np.mean([1 - x for x in non_refs['percent_nonRef'].values])
+                        combined_p_value = float("nan")
+                    self.variant_df.at[i, "Variant"] = label
+                    self.variant_df.at[i, "Probability"] = probability
+                    self.variant_df.at[i, "P value"] = combined_p_value
 
-            except Exception as e:
-                print(e)
-                self.variant_df.at[i, "Variant"] = float("nan")
-                self.variant_df.at[i, "Probability"] = float("nan")
+                else:
+                    self.variant_df.at[i, "Variant"] = float("nan")
+                    self.variant_df.at[i, "Probability"] = float("nan")
 
-
+        # Adjust p-values using bonferroni make it simple
+        self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
         return self.variant_df
-
-    def call_variant(self, alignment_file: Path, qualities=True, threshold: float = 0.2, top_N: int = 1):
-        """
-        Call Variant for a given alignment file
-
-        Args:
-            - alignment_file (Path): Path to the alignment file (.bam).
-            - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True. Currently only true works
-            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
-        """
-        variants = {"Variant": [], "Probability": []}
-        nb_positions = self._get_postion_range(self.padding_start, self.padding_end)
-        freq_dist = \
-            self._get_highest_non_ref_base_freq(alignment_file, nb_positions, threshold=threshold, qualities=qualities)[
-                0]
-        positions = self._get_nb_positions(freq_dist)
-
-        if not positions:  # TODO: Generate 3 random positions before calling parent
-            # Choose 3 random positions
-            positions = np.random.choice(nb_positions, 3, replace=False)
-
-        elif len(positions) > 1000000:
-            print(f"Too many positions: {len(positions)}, Skipping...")
-            # Append nan
-            variants["Variant"].append(float("nan"))
-            variants["Probability"].append(float("nan"))
-
-            return pd.DataFrame(variants)
-
-        pileup_df, qual_df = self._get_bases_from_pileup(alignment_file, positions)
-        softmax_df = self._get_softmax_count_df(pileup_df, qual_df, positions)
-        variants = self._call_potential_populations(softmax_df, call_threshold=0.1)
-        variants = pd.DataFrame(variants).nlargest(top_N, "Probability")
-
-        return variants
 
     @staticmethod
     def _alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: list) -> tuple[
@@ -395,17 +320,16 @@ class VariantCaller:
                 ref_pos += op_len
         return new_seq, ref_seq, qual, inserts
 
-    def _get_seq_df(self, positions: dict, bam:str, ref:str, min_coverage=20, k=8, msa_path=None):
+    def _get_seq_df(self, positions: dict, bam: str, ref: str, min_coverage=20, k=8, msa_path=None):
         """
         Makes a pileup over a gene.
 
         Rows are the reads, columns are the columns in the reference. Insertions are ignored.
         Parameters
         ----------
-        gene_location: location (chr:start-end) note start might need to be -1 depending on how the transcriptome was created
+        positions: positions
         bam: bam file read in by pysam, pysam.AlignmentFile(f'data/SRR13212638.sorted.bam', "rb")
         ref: fasta file read in by pysam, pysam.FastaFile(sam/bam file)
-        output_filename
 
         Returns
         -------
@@ -427,6 +351,7 @@ class VariantCaller:
                 ref_str = fasta[pos]
                 seqs = []
                 read_ids = []
+                read_quals = []
                 for read in reads:
                     if read.query_sequence is not None:
                         seq, ref, qual, ins = self._alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
@@ -436,20 +361,32 @@ class VariantCaller:
                                 len(ref_str) - (read.reference_start + len(seq)))
                         seqs.append(list(seq))
                         read_ids.append(f'{read.query_name}')
+                        read_quals.append(read.qual)
 
                 # Again check that we actually had enough!
                 if len(seqs) > min_coverage:
-
                     seq_df = pd.DataFrame(seqs)
+                    # Also add in the read_ids and sort by the quality to only take the highest quality one
+                    seq_df['read_id'] = read_ids
+                    seq_df['read_qual'] = read_quals
+                    seq_df['seqs'] = seqs
+
+                    seq_df = seq_df.sort_values(by='read_qual', ascending=False)
+                    # Should now be sorted by the highest quality
+                    seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
+                    # Reset these guys
+                    read_ids = seq_df['read_id'].values
+                    seqs = seq_df['seqs'].values
+
+                    seq_df = seq_df.drop(columns=['read_qual', 'read_id', 'seqs'])
                     for col in seq_df:
                         if col - k / 2 > 0:
                             vc = seq_df[col].values
                             ref_seq = ref_str[col]  # Keep track of the reference
                             if ref_seq != '-':
                                 # Check if there are at least 25% with a different value compared to the reference.
-                                values = vc[vc != '-']
-                                non_ref = len(values)
-                                other = len(values[values != ref_seq])
+                                values = len(vc)
+                                other = len(vc[vc != ref_seq])
                                 a = len(vc[vc == 'A'])
                                 t = len(vc[vc == 'T'])
                                 g = len(vc[vc == 'G'])
@@ -457,13 +394,37 @@ class VariantCaller:
                                 nn = len(vc[vc == '-'])
                                 km = int(k / 2)
                                 kmer = ref_str[col - km:col + km]
+                                val = 0.0
+                                actual_seq = ref_seq
                                 if other == 0:
                                     val = 0.0  # i.e. they were 100% the reference
-                                elif non_ref == 0:
-                                    val = 1.0  # i.e. they were 100% not reference
                                 else:
-                                    val = other / non_ref
-                                rows_all.append([pos, col, ref_seq, val, a, t, g, c, nn, kmer])
+                                    p_b = other/values
+                                    if a > 0 and 'A' != ref_seq and a/values > val:
+                                        val = a/values
+                                        actual_seq = 'A'
+                                    if t > 0 and 'T' != ref_seq and t/values > val:
+                                        val = t/values
+                                        actual_seq = 'T'
+                                    if g > 0 and 'G' != ref_seq and g/values > val:
+                                        val = g/values
+                                        actual_seq = 'G'
+                                    if c > 0 and 'C' != ref_seq and c/values > val:
+                                        val = c/values
+                                        actual_seq = 'C'
+                                    if nn > 0 and '-' != ref_seq and nn/values > val:
+                                        val = nn/values
+                                        actual_seq = 'DEL'
+                                # Calculate significance
+                                p_a = val
+                                # Example values
+                                number_of_successes = int(val * values)  # The observed number of changes
+                                total_trials = values  # The total number of sequences observed
+                                background_error_rate = 0.1  # Background error rate
+
+                                # Perform the binomial test and only check for higher than expected chance
+                                p_value = binomtest(number_of_successes, total_trials, background_error_rate, 'greater')
+                                rows_all.append([pos, col, ref_seq, actual_seq, p_value.pvalue, val, a, t, g, c, nn, kmer])
                 # Check if we want to write a MSA
                 if msa_path is not None:
                     with open(msa_path, 'w+') as fout:
@@ -475,9 +436,11 @@ class VariantCaller:
 
         bam.close()
         fasta.close()
-        seq_df = pd.DataFrame(rows_all)
-        seq_df.columns = ['gene_name', 'position', 'ref', 'percent_nonRef', 'A', 'T', 'G', 'C', 'N', 'kmer']
-        return seq_df
+        if len(rows_all) > 1:  # Check if we have anything to return
+            seq_df = pd.DataFrame(rows_all)
+            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'p_value', 'percent_nonRef', 'A', 'T', 'G', 'C', 'N',
+                              'kmer']
+            return seq_df
 
     def _get_ref_name(self):
         with open(self.reference_path, "r") as f:
@@ -542,93 +505,6 @@ class VariantCaller:
         """
 
         return range(padding_start + 1, len(self.reference) - padding_end + 1)
-
-    def _get_nb_positions(self, base_dict: dict):
-        """
-        Get the positions of the non-reference bases in the reference sequence.
-
-        Returns:
-            - list: List of positions of the non-reference bases in the reference sequence.
-        """
-        if not base_dict:
-            return []
-        else:
-            return list(base_dict.keys())
-
-    def _get_bases_from_pileup(self, bam_file, positions, n_neighbours: int = 2):
-        all_positions = []  # Include neighbouring positions as well
-
-        for position in positions:
-            all_positions.extend(self._get_neighbouring_position(position, neighbour_range=n_neighbours))
-
-        bases_dict = {position: {} for position in all_positions}
-        qualities_dict = {position: {} for position in all_positions}
-        with pysam.AlignmentFile(bam_file, 'rb') as bam:
-            for pileup_column in bam.pileup(self.ref_name, min(all_positions) - 1, max(all_positions) + 1,
-                                            min_base_quality=0,
-                                            min_mapping_quality=0,
-                                            truncate=True,
-                                            max_depth=500):
-                pos = pileup_column.pos + 1
-                if pos in all_positions:
-                    for pileup_read in pileup_column.pileups:
-                        read_name = pileup_read.alignment.query_name
-                        if pileup_read.is_del:
-                            base = '-'
-                            quality = 0  # Assign a default quality for deletions
-                        elif not pileup_read.is_refskip:
-                            base = pileup_read.alignment.query_sequence[pileup_read.query_position]
-                            quality = pileup_read.alignment.query_qualities[pileup_read.query_position]
-                        else:
-                            continue
-
-                        if read_name not in bases_dict[pos]:
-                            bases_dict[pos][read_name] = base
-                            qualities_dict[pos][read_name] = quality
-
-        read_names = sorted(set().union(*[bases_dict[pos].keys() for pos in bases_dict]))
-        df_bases = pd.DataFrame(index=read_names, columns=positions)  # Only include original positions
-        df_qualities = pd.DataFrame(index=read_names, columns=positions)  # Include all positions
-
-        for pos in all_positions:  # Include all positions
-            for read_name in bases_dict[pos]:
-                df_bases.at[read_name, pos] = bases_dict[pos][read_name]
-                df_qualities.at[read_name, pos] = qualities_dict[pos][read_name]
-
-        # Drop NAs
-        df_bases = df_bases.dropna()
-        df_qualities = df_qualities.dropna()
-
-        # Calculate average quality for each position based on its neighboring positions
-        for pos in positions:
-            neighbors = self._get_neighbouring_position(pos)
-            df_qualities[pos] = df_qualities[neighbors].mean(axis=1)
-
-        df_qualities = df_qualities[positions]
-        df_bases = df_bases[positions]
-
-        return df_bases, df_qualities
-
-    def _get_softmax_count_df(self, bases_df, qual_df, nb_positions):
-
-        alphabet = "ACTG-"
-
-        softmax_counts = {position: [] for position in nb_positions}
-
-        for position in nb_positions:
-            for base in alphabet:
-                base_mask = bases_df[position] == base
-                base_counts = base_mask.sum()
-
-                soft_count = sum(base_mask * qual_df[position].apply(VariantCaller._get_non_error_prop))
-                softmax_counts[position].append(soft_count)
-
-        softmax_count_df = pd.DataFrame(softmax_counts, columns=nb_positions, index=list(alphabet))
-
-        # Apply softmax to each column (position)
-        softmax_count_df = softmax_count_df.apply(lambda x: x / x.sum(), axis=0)
-
-        return softmax_count_df
 
     def _call_potential_populations(self, softmax_df, call_threshold: float = 0.1):
         """
