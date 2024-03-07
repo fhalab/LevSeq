@@ -203,6 +203,8 @@ class VariantCaller:
             - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
         """
         self.variant_df['P value'] = 1.0
+        self.variant_df['Mixed Well'] = False
+
         for i, row in tqdm(self.variant_df.iterrows()):
             if isinstance(row["Path"], os.PathLike):
                 bam_file = os.path.join(row["Path"], self.alignment_name)
@@ -231,10 +233,19 @@ class VariantCaller:
                         positions = non_refs['position'].values
                         refs = non_refs['ref'].values
                         label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
+                        # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
+                        padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.']].values
+                        for p in padj_vals:
+                            c_sig = 0
+                            for padj in p:
+                                if padj < 0.05: # Have this as a variable
+                                    c_sig += 1
+                            if c_sig > 1: # potential mixed well
+                                self.variant_df.at[i, "Mixed Well"] = True
                         label = '_'.join(label)
                         probability = np.mean([x for x in non_refs['percent_nonRef'].values])
                         # Combine the values
-                        chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value'].values],
+                        chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values],
                                                                            method='fisher')
 
                     else:
@@ -252,7 +263,7 @@ class VariantCaller:
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
         self.variant_df['P adj. value'] = [1 if x > 1 else x for x in self.variant_df["P adj. value"].values]
-
+        self.variant_df.rename(columns={'Probability': "Average mutation frequency"}, inplace=True)
         return self.variant_df
 
     @staticmethod
@@ -322,7 +333,8 @@ class VariantCaller:
                 ref_pos += op_len
         return new_seq, ref_seq, qual, inserts
 
-    def _get_seq_df(self, positions: dict, bam: str, ref: str, min_coverage=20, k=8, msa_path=None):
+    def _get_seq_df(self, positions: dict, bam: str, ref: str, min_coverage=20, k=8, msa_path=None,
+                    background_error_rate = 0.1):
         """
         Makes a pileup over a gene.
 
@@ -398,35 +410,39 @@ class VariantCaller:
                                 kmer = ref_str[col - km:col + km]
                                 val = 0.0
                                 actual_seq = ref_seq
+                                p_a = binomtest(a, values, background_error_rate, 'greater').pvalue
+                                p_t = binomtest(t, values, background_error_rate, 'greater').pvalue
+                                p_g = binomtest(g, values, background_error_rate, 'greater').pvalue
+                                p_c = binomtest(c, values, background_error_rate, 'greater').pvalue
+                                p_n = binomtest(nn, values, background_error_rate, 'greater').pvalue
+                                p_value = 1.0
                                 if other == 0:
                                     val = 0.0  # i.e. they were 100% the reference
+                                    p_value = 0.0  # i.e. they are all this
                                 else:
-                                    p_b = other/values
                                     if a > 0 and 'A' != ref_seq and a/values > val:
                                         val = a/values
                                         actual_seq = 'A'
+                                        p_value = p_a
                                     if t > 0 and 'T' != ref_seq and t/values > val:
                                         val = t/values
                                         actual_seq = 'T'
+                                        p_value = p_t
                                     if g > 0 and 'G' != ref_seq and g/values > val:
                                         val = g/values
                                         actual_seq = 'G'
+                                        p_value = p_g
                                     if c > 0 and 'C' != ref_seq and c/values > val:
                                         val = c/values
                                         actual_seq = 'C'
+                                        p_value = p_c
                                     if nn > 0 and '-' != ref_seq and nn/values > val:
                                         val = nn/values
                                         actual_seq = 'DEL'
-                                # Calculate significance
-                                p_a = val
-                                # Example values
-                                number_of_successes = int(val * values)  # The observed number of changes
-                                total_trials = values  # The total number of sequences observed
-                                background_error_rate = 0.1  # Background error rate
+                                        p_value = p_n
 
-                                # Perform the binomial test and only check for higher than expected chance
-                                p_value = binomtest(number_of_successes, total_trials, background_error_rate, 'greater')
-                                rows_all.append([pos, col, ref_seq, actual_seq, p_value.pvalue, val, a, t, g, c, nn, kmer])
+                                rows_all.append([pos, col, ref_seq, actual_seq, p_value, val, a, p_a, t, p_t, g, p_g,
+                                                 c, p_c, nn, p_n, kmer])
                 # Check if we want to write a MSA
                 if msa_path is not None:
                     with open(msa_path, 'w+') as fout:
@@ -440,8 +456,14 @@ class VariantCaller:
         fasta.close()
         if len(rows_all) > 1:  # Check if we have anything to return
             seq_df = pd.DataFrame(rows_all)
-            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'p_value', 'percent_nonRef', 'A', 'T', 'G', 'C', 'N',
-                              'kmer']
+            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'p_value', 'percent_nonRef', 'A',
+                              'p(a)', 'T', 'p(t)', 'G', 'p(g)', 'C', 'p(c)', 'N', 'p(n)', 'kmer']
+            # Do bonferoni correction to each of the pvalues
+            for p in ['p_value', 'p(a)', 'p(t)', 'p(g)', 'p(c)', 'p(n)']:
+                # Do B.H which is the simplest
+                padjs = multipletests(seq_df[p].values, alpha=0.05, method='fdr_bh')
+                seq_df[f'{p} adj.'] = padjs[1]
+
             return seq_df
 
     def _get_ref_name(self):
