@@ -19,7 +19,7 @@ from minION.IO_processor import get_barcode_dict, get_template_sequence
 import subprocess
 import pysam
 import os
-from collections import Counter
+from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 import pandas as pd
 import re
@@ -193,19 +193,12 @@ class VariantCaller:
         # Remove SAM file
         os.remove(f"{output_dir}/{alignment_name}.sam")
 
-    def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5, output_dir=''):
+    def _run_variant_thread(self, args):
         """
-        Get Variant Data Frame for all samples in the experiment
-
-        Args:
-            - alignment_file (Path): Path to the alignment file (.bam).
-            - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
-            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
+        Runs a thread of variant calling.
         """
-        self.variant_df['P value'] = 1.0
-        self.variant_df['Mixed Well'] = False
-
-        for i, row in tqdm(self.variant_df.iterrows()):
+        data, threshold, min_depth, output_dir = args[0], args[1], args[2], args[3]
+        for i, row in tqdm(data.iterrows()):
             if isinstance(row["Path"], os.PathLike):
                 bam_file = os.path.join(row["Path"], self.alignment_name)
 
@@ -232,15 +225,16 @@ class VariantCaller:
                     if len(non_refs) > 0:
                         positions = non_refs['position'].values
                         refs = non_refs['ref'].values
-                        label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
+                        label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in
+                                 enumerate(non_refs['most_frequent'].values)]
                         # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
                         padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.']].values
                         for p in padj_vals:
                             c_sig = 0
                             for padj in p:
-                                if padj < 0.05: # Have this as a variable
+                                if padj < 0.05:  # Have this as a variable
                                     c_sig += 1
-                            if c_sig > 1: # potential mixed well
+                            if c_sig > 1:  # potential mixed well
                                 self.variant_df.at[i, "Mixed Well"] = True
                         label = '_'.join(label)
                         probability = np.mean([x for x in non_refs['percent_nonRef'].values])
@@ -259,6 +253,30 @@ class VariantCaller:
                 else:
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
+
+    def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5, output_dir='', num_threads=10):
+        """
+        Get Variant Data Frame for all samples in the experiment
+
+        Args:
+            - alignment_file (Path): Path to the alignment file (.bam).
+            - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
+            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
+        """
+        self.variant_df['P value'] = 1.0
+        self.variant_df['Mixed Well'] = False
+        pool = ThreadPool(num_threads)
+        data = []
+        num = int(len(self.variant_df) / num_threads)
+        self.variant_df.reset_index(inplace=True)
+        for i in range(0, len(self.variant_df), num):
+            end_i = i + num if i + num < len(self.variant_df) else len(self.variant_df)
+            sub_df = self.variant_df.iloc[i: end_i]
+            sub_data = [sub_df, threshold, min_depth, output_dir]
+            data.append(sub_data)
+
+        # Thread it!
+        pool.map(self._run_variant_thread, data)
 
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
@@ -515,137 +533,6 @@ class VariantCaller:
         self.variant_df["Alignment_count"] = self.variant_df["Path"].apply(self._get_alignment_count)
 
         return self.variant_df
-
-    def _get_postion_range(self, padding_start: int = 0, padding_end: int = 0):
-        """
-        Get the positions of the non-reference bases in the reference sequence.
-
-        Args:
-            - padding_start (int, optional): Number of bases to pad at the start of the reference sequence. Defaults to 0.
-            - padding_end (int, optional): Number of bases to pad at the end of the reference sequence. Defaults to 0.
-        
-        Returns:
-            - list: List of positions of the non-reference bases in the reference sequence.
-        """
-
-        return range(padding_start + 1, len(self.reference) - padding_end + 1)
-
-    def _call_potential_populations(self, softmax_df, call_threshold: float = 0.1):
-        """
-
-        """
-        positions = softmax_df.columns
-        top_combinations = []
-
-        # Get the top 2 variants for each position
-        for position in positions:
-            top_variants = softmax_df[position].nlargest(2)
-
-            if top_variants.iloc[1] < call_threshold:
-                top_combinations.append([top_variants.index[0]])
-
-            else:
-                top_combinations.append(top_variants.index.tolist())
-
-            potential_combinations = list(itertools.product(*top_combinations))
-
-        variants = {"Variant": [], "Probability": []}
-
-        for combination in potential_combinations:
-            final_variant = []
-            for i, pos in enumerate(positions):
-
-                if combination[i] == self.reference[pos - 1]:
-                    continue
-
-                elif combination[i] == "-":
-                    var = f"{self.reference[pos - 1]}{pos}DEL"
-                    final_variant.append(var)
-                else:
-                    var = f"{self.reference[pos - 1]}{pos}{combination[i]}"
-                    final_variant.append(var)
-
-            final_variant = '_'.join(final_variant)
-            if final_variant == "":
-                final_variant = "#PARENT#"
-
-            joint_prob = VariantCaller.joint_probability_score(softmax_df, combination, positions)
-            # TODO: Add calculate score function, so different type of scores can be used:
-            # Input: Softmax_df
-            # Output: Variant name with Score
-
-            variants["Variant"].append(final_variant)
-            variants["Probability"].append(joint_prob)
-
-        return variants
-
-    def _get_neighbouring_position(self, position: int, neighbour_range: int = 2):
-        """
-        Get the neighbouring positions of the non-reference bases in the reference sequence.
-
-        Args:
-            - positions (list): List of positions of the non-reference bases in the reference sequence.
-            - neighbour_range (int, optional): Range of neighbouring positions to consider. Defaults to 2.
-        
-        Returns:
-            - list: List of neighbouring positions of the non-reference bases in the reference sequence.
-        """
-
-        # Get min range and max range
-
-        pos_range = self._get_postion_range(padding_start=self.padding_start, padding_end=self.padding_end)
-
-        min_range = min(pos_range)
-        max_range = max(pos_range)
-
-        if position < min_range or position > max_range:
-            raise ValueError(
-                f"Position {position} is out of range. The position should be between {min_range} and {max_range}.")
-
-        neighbouring_positions = list(range(position - neighbour_range, position + neighbour_range + 1))
-
-        neighbouring_positions = [pos for pos in neighbouring_positions if pos >= min_range and pos <= max_range]
-
-        return neighbouring_positions
-
-    @staticmethod
-    def _get_non_error_prop(quality_score):
-        """
-        Convert quality score to non-error probability.
-        
-        Args:
-            - Phred quality_score (int): Quality score.
-        
-        Returns:
-            - float: Non-error probability.
-        """
-        return 1 - 10 ** (-quality_score / 10)
-
-    @staticmethod
-    def joint_probability_score(softmax_df, combination, positions):
-        """
-        Calculate the joint probability score for a given combination of variants.
-
-        Args:
-            - softmax_df (pd.DataFrame): Softmax count dataframe.
-        
-        Returns:
-            - float: Joint probability score.
-        """
-        return np.prod([softmax_df.at[combination[i], positions[i]] for i in range(len(positions))])
-
-    @staticmethod
-    def joint_log_probability_score(softmax_df, combination, positions):
-        """
-        Calculate the joint probability score for a given combination of variants.
-
-        Args:
-            - softmax_df (pd.DataFrame): Softmax count dataframe.
-        
-        Returns:
-            - float: Joint probability score.
-        """
-        return np.sum([np.log(softmax_df.at[combination[i], positions[i]]) for i in range(len(positions))])
 
 
 def get_template_df(plate_numbers: list, barcode_dicts: dict = None, rowwise=True):
