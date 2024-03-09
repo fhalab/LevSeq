@@ -220,8 +220,8 @@ class VariantCaller:
                                           msa_path=f'{output_dir}msa_{fname}.fa')
                 if seq_df is not None:
                     seq_df.to_csv(f'{output_dir}seq_{fname}.csv')
-                    # Now use the filter to assign the probabilty that we have larger than the threshold a variant
-                    non_refs = seq_df[seq_df['percent_nonRef'] > threshold].sort_values(by='position')
+                    # Now use the filter for wells which have a certain threshold of non-reference mutations
+                    non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
                     if len(non_refs) > 0:
                         positions = non_refs['position'].values
                         refs = non_refs['ref'].values
@@ -237,14 +237,15 @@ class VariantCaller:
                             if c_sig > 1:  # potential mixed well
                                 self.variant_df.at[i, "Mixed Well"] = True
                         label = '_'.join(label)
-                        probability = np.mean([x for x in non_refs['percent_nonRef'].values])
+                        # Only keep the frequency of the most frequent mutation
+                        probability = np.mean([x for x in non_refs['percent_most_freq_mutation'].values])
                         # Combine the values
                         chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values],
                                                                            method='fisher')
 
                     else:
                         label = '#PARENT#'
-                        probability = np.mean([1 - x for x in non_refs['percent_nonRef'].values])
+                        probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
                         combined_p_value = float("nan")
                     self.variant_df.at[i, "Variant"] = label
                     self.variant_df.at[i, "Probability"] = probability
@@ -263,7 +264,7 @@ class VariantCaller:
             - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
             - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
         """
-        self.variant_df['P value'] = 1.0
+        self.variant_df['P value'] = float("nan")
         self.variant_df['Mixed Well'] = False
         pool = ThreadPool(num_threads)
         data = []
@@ -351,8 +352,43 @@ class VariantCaller:
                 ref_pos += op_len
         return new_seq, ref_seq, qual, inserts
 
-    def _get_seq_df(self, positions: dict, bam: str, ref: str, min_coverage=20, k=8, msa_path=None,
-                    background_error_rate = 0.1):
+    def _calc_mutation_significance(self, ref_seq, num_a, num_t, num_g, num_c, num_dels, num_reads,
+                                    num_total_non_ref_reads, background_error_rate):
+        p_a = binomtest(num_a, num_reads, background_error_rate, 'greater').pvalue
+        p_t = binomtest(num_t, num_reads, background_error_rate, 'greater').pvalue
+        p_g = binomtest(num_g, num_reads, background_error_rate, 'greater').pvalue
+        p_c = binomtest(num_c, num_reads, background_error_rate, 'greater').pvalue
+        p_n = binomtest(num_dels, num_reads, background_error_rate, 'greater').pvalue
+        val = 0
+        actual_seq = ref_seq
+        p_value = float('nan')  # Could also use 0 not sure what is optimal here!
+        if num_total_non_ref_reads == 0:
+            val = 0.0  # i.e. they were 100% the reference
+            p_value = 1.0  # i.e. they are all this
+        else:
+            if num_a > 0 and 'A' != ref_seq and num_a / num_reads > val:
+                val = num_a / num_reads
+                actual_seq = 'A'
+                p_value = p_a
+            if num_t > 0 and 'T' != ref_seq and num_t / num_reads > val:
+                val = num_t / num_reads
+                actual_seq = 'T'
+                p_value = p_t
+            if num_g > 0 and 'G' != ref_seq and num_g / num_reads > val:
+                val = num_g / num_reads
+                actual_seq = 'G'
+                p_value = p_g
+            if num_c > 0 and 'C' != ref_seq and num_c / num_reads > val:
+                val = num_c / num_reads
+                actual_seq = 'C'
+                p_value = p_c
+            if num_dels > 0 and '-' != ref_seq and num_dels / num_reads > val:
+                val = num_dels / num_reads
+                actual_seq = 'DEL'
+                p_value = p_n
+        return actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n
+
+    def _get_seq_df(self, positions: dict, bam: str, ref: str, min_coverage=20, k=8, msa_path=None):
         """
         Makes a pileup over a gene.
 
@@ -389,8 +425,7 @@ class VariantCaller:
                         seq, ref, qual, ins = self._alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
                                                                          read.query_qualities)
                         # Make it totally align
-                        seq = "-" * read.reference_start + seq + "-" * (
-                                len(ref_str) - (read.reference_start + len(seq)))
+                        seq = "-" * read.reference_start + seq + "-" * (len(ref_str) - (read.reference_start + len(seq)))
                         seqs.append(list(seq))
                         read_ids.append(f'{read.query_name}')
                         read_quals.append(read.qual)
@@ -417,50 +452,19 @@ class VariantCaller:
                             ref_seq = ref_str[col]  # Keep track of the reference
                             if ref_seq != '-':
                                 # Check if there are at least 25% with a different value compared to the reference.
-                                values = len(vc)
-                                other = len(vc[vc != ref_seq])
+                                total_reads = len(vc)
+                                total_other = len(vc[vc != ref_seq])
+                                freq_non_ref = total_other/total_reads
                                 a = len(vc[vc == 'A'])
                                 t = len(vc[vc == 'T'])
                                 g = len(vc[vc == 'G'])
                                 c = len(vc[vc == 'C'])
                                 nn = len(vc[vc == '-'])
-                                km = int(k / 2)
-                                kmer = ref_str[col - km:col + km]
                                 val = 0.0
                                 actual_seq = ref_seq
-                                p_a = binomtest(a, values, background_error_rate, 'greater').pvalue
-                                p_t = binomtest(t, values, background_error_rate, 'greater').pvalue
-                                p_g = binomtest(g, values, background_error_rate, 'greater').pvalue
-                                p_c = binomtest(c, values, background_error_rate, 'greater').pvalue
-                                p_n = binomtest(nn, values, background_error_rate, 'greater').pvalue
-                                p_value = 1.0
-                                if other == 0:
-                                    val = 0.0  # i.e. they were 100% the reference
-                                    p_value = 0.0  # i.e. they are all this
-                                else:
-                                    if a > 0 and 'A' != ref_seq and a/values > val:
-                                        val = a/values
-                                        actual_seq = 'A'
-                                        p_value = p_a
-                                    if t > 0 and 'T' != ref_seq and t/values > val:
-                                        val = t/values
-                                        actual_seq = 'T'
-                                        p_value = p_t
-                                    if g > 0 and 'G' != ref_seq and g/values > val:
-                                        val = g/values
-                                        actual_seq = 'G'
-                                        p_value = p_g
-                                    if c > 0 and 'C' != ref_seq and c/values > val:
-                                        val = c/values
-                                        actual_seq = 'C'
-                                        p_value = p_c
-                                    if nn > 0 and '-' != ref_seq and nn/values > val:
-                                        val = nn/values
-                                        actual_seq = 'DEL'
-                                        p_value = p_n
-
-                                rows_all.append([pos, col, ref_seq, actual_seq, p_value, val, a, p_a, t, p_t, g, p_g,
-                                                 c, p_c, nn, p_n, kmer])
+                                # Dummy values that will be filled in later once we calculate the background error rate
+                                rows_all.append([pos, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads,
+                                                 1.0, val, a, 1.0, t, 1.0, g, 1.0, c, 1.0, nn, 1.0])
                 # Check if we want to write a MSA
                 if msa_path is not None:
                     with open(msa_path, 'w+') as fout:
@@ -472,11 +476,35 @@ class VariantCaller:
 
         bam.close()
         fasta.close()
+
         if len(rows_all) > 1:  # Check if we have anything to return
             seq_df = pd.DataFrame(rows_all)
-            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'p_value', 'percent_nonRef', 'A',
-                              'p(a)', 'T', 'p(t)', 'G', 'p(g)', 'C', 'p(c)', 'N', 'p(n)', 'kmer']
-            # Do bonferoni correction to each of the pvalues
+            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
+                              'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
+                              'C', 'p(c)', 'N', 'p(n)']
+            # Calculate the background error as just the mean frequency of non-reference sequneces (here we "smooth"
+            # out the induced mutations.
+            mean_error = np.mean(seq_df['freq_non_ref'].values)
+            seq_df.reset_index(inplace=True)
+            i = 0
+            # Using this we can calculate the significance of the different errors
+            for ref_seq, num_a, num_t, num_g, num_c, num_dels, num_reads, num_total_non_ref_reads in seq_df[['ref', 'A', 'T', 'G', 'C', 'N', 'total_reads', 'total_other']].values:
+                actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n = self._calc_mutation_significance(ref_seq, num_a,
+                                                                                                 num_t, num_g, num_c,
+                                                                                                 num_dels, num_reads,
+                                                                                                 num_total_non_ref_reads,
+                                                                                                 mean_error)
+                seq_df.at[i, 'p(a)'] = p_a
+                seq_df.at[i, 'p(t)'] = p_t
+                seq_df.at[i, 'p(g)'] = p_g
+                seq_df.at[i, 'p(c)'] = p_c
+                seq_df.at[i, 'p(n)'] = p_n
+                seq_df.at[i, 'p_value'] = p_value
+                seq_df.at[i, 'percent_most_freq_mutation'] = val
+                seq_df.at[i, 'most_frequent'] = actual_seq
+                i += 1
+
+            # Do multiple test correction to correct each of the pvalues
             for p in ['p_value', 'p(a)', 'p(t)', 'p(g)', 'p(c)', 'p(n)']:
                 # Do B.H which is the simplest
                 padjs = multipletests(seq_df[p].values, alpha=0.05, method='fdr_bh')

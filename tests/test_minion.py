@@ -119,7 +119,7 @@ class TestMinIon(TestClass):
                                        threshold=0.5,
                                        min_depth=5,
                                        output_dir='test_ZZ/',
-                                       num_threads=10)
+                                       num_threads=20)
         variant_df.to_csv('test_ZZ/variant_new_0.5_v2.csv')
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
 
