@@ -110,6 +110,6 @@ class TestMinIonJR(TestClass):
                            padding_start=0,
                            padding_end=0)
         df = pd.read_csv('test_data/JR/output/variant_new_0.5_v2.csv')
-        position_mapping = vc.postprocess_variant_df(df)
+        position_mapping = vc.postprocess_variant_df(df, output_path='test_data/JR/output/')
         position_mapping.to_csv('test_data/JR/output/plates.csv')
         # Save as a csv for each position in the seqeunce and the number of times that position was mutated

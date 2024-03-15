@@ -336,7 +336,8 @@ class VariantCaller:
             p_df['C'] = c
             p_df['DEL'] = n
             if output_path:
-                p_df.to_csv(f'{output_path}{plate}.csv', index=False)
+                # Save QC file if the user specifies a path.
+                p_df.to_csv(f'{output_path}Plate_{plate}_QC.csv', index=False)
             p_df['Plate'] = plate
             all_plates = pd.concat([all_plates, p_df])
         all_plates = all_plates.sort_values(by='Total wells mutated in', ascending=False)
