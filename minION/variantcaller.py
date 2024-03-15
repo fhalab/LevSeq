@@ -23,7 +23,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 import pandas as pd
 import re
-import itertools
+from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 from scipy.stats import binomtest, combine_pvalues
@@ -242,7 +242,6 @@ class VariantCaller:
                         # Combine the values
                         chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values],
                                                                            method='fisher')
-
                     else:
                         label = '#PARENT#'
                         probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
@@ -255,7 +254,7 @@ class VariantCaller:
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
 
-    def get_variant_df(self, qualities=True, threshold: float = 0.2, min_depth: int = 5, output_dir='', num_threads=10):
+    def get_variant_df(self, qualities=True, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=10):
         """
         Get Variant Data Frame for all samples in the experiment
 
@@ -283,7 +282,65 @@ class VariantCaller:
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
         self.variant_df['P adj. value'] = [1 if x > 1 else x for x in self.variant_df["P adj. value"].values]
         self.variant_df.rename(columns={'Probability': "Average mutation frequency"}, inplace=True)
+        # ToDo: make this nicer, but ok for now, postprocess to identify if any mutations appear multiple times
         return self.variant_df
+
+    def postprocess_variant_df(self, df, cutoff=5, output_path=None):
+        mutation_map = defaultdict(lambda: defaultdict(int))
+        all_plates = pd.DataFrame()
+        for plate in set(df['Plate'].values):
+            plate_df = df[df['Plate'] == plate]
+            positions = []
+            for m in plate_df['Variant'].values:
+                if str(m) != 'nan':
+                    m = m.split('_')
+                    for mutation in m:
+                        if 'DEL' not in mutation:
+                            position = mutation[1:-1] # i.e. trim off what it was
+                            # Get the position and also keep what it was mutated to
+                            mutation_map[position][mutation[-1]] += 1 # get what it was mutated too
+                        else:
+                            position = mutation[1:].replace('DEL', '')  # i.e. trim off what it was
+                            # Get the position and also keep what it was mutated to
+                            mutation_map[position]['DEL'] += 1  # get what it was mutated too
+                        positions.append(position)
+            # Make into a DF that has positions and then the number and types of muattions
+            positions = list(set(positions))
+            positions.sort()
+            totals, p, a, t, g, c, n = [], [], [], [], [], [], []
+            for ps in positions:
+                pos = mutation_map[ps]
+                a_= pos['A'] or 0
+                t_ = pos['T'] or 0
+                c_ = pos['C'] or 0
+                g_ = pos['G'] or 0
+                del_ = pos['DEL'] or 0
+                a.append(a_)
+                t.append(t_)
+                g.append(g_)
+                c.append(c_)
+                n.append(del_)
+
+                total = a_ + t_ + g_ + c_ + del_
+                totals.append(total)
+                p.append(ps)
+                # CHeck if the well has a problem at a specific position
+                if total > cutoff:
+                    print(f"Warning! Position {ps} in plate {plate} was mutated: {total} times. This may be an error with your parent.")
+            p_df = pd.DataFrame()
+            p_df['Position'] = p
+            p_df['Total wells mutated in'] = totals
+            p_df['A'] = a
+            p_df['T'] = t
+            p_df['G'] = g
+            p_df['C'] = c
+            p_df['DEL'] = n
+            if output_path:
+                p_df.to_csv(f'{output_path}{plate}.csv', index=False)
+            p_df['Plate'] = plate
+            all_plates = pd.concat([all_plates, p_df])
+        all_plates = all_plates.sort_values(by='Total wells mutated in', ascending=False)
+        return all_plates # this gives an idea about what might be mutated.
 
     @staticmethod
     def _alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: list) -> tuple[
@@ -437,7 +494,6 @@ class VariantCaller:
                     seq_df['read_id'] = read_ids
                     seq_df['read_qual'] = read_quals
                     seq_df['seqs'] = seqs
-
                     seq_df = seq_df.sort_values(by='read_qual', ascending=False)
                     # Should now be sorted by the highest quality
                     seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
