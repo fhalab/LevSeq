@@ -22,6 +22,17 @@ from collections import defaultdict
 from scipy.stats import binomtest
 from statsmodels.stats.multitest import multipletests
 from pathlib import Path
+from scipy.stats import combine_pvalues
+import random
+
+
+amino_acid_to_codon = {
+    'A': 'GCT', 'R': 'CGT', 'N': 'AAT', 'D': 'GAT', 'C': 'TGT',
+    'Q': 'CAA', 'E': 'GAA', 'G': 'GGT', 'H': 'CAT', 'I': 'ATT',
+    'L': 'CTT', 'K': 'AAA', 'M': 'ATG', 'F': 'TTT', 'P': 'CCT',
+    'S': 'TCT', 'T': 'ACT', 'W': 'TGG', 'Y': 'TAT', 'V': 'GTT',
+    '*': 'TAA'
+}
 
 
 def translate(seq):
@@ -129,7 +140,7 @@ def make_well_df_from_reads(seqs, read_ids, read_quals):
     Make a dataframe in a specific format taking the reads and read IDs and filtering duplicates based on the
     read quality. Keeps the highest quality scoring read for a given read ID.
     """
-    seq_df = pd.DataFrame(seqs)
+    seq_df = pd.DataFrame([list(s) for s in seqs]) # Convert each string to a list so that we get positions nicely
     # Also add in the read_ids and sort by the quality to only take the highest quality one
     seq_df['read_id'] = read_ids
     seq_df['read_qual'] = read_quals
@@ -174,7 +185,7 @@ def calculate_mutation_significance_across_well(seq_df):
     return seq_df
 
 
-def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=20, k=8, msa_path=None):
+def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=20, msa_path=None):
     """
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """
@@ -395,3 +406,134 @@ def postprocess_variant_df(df, cutoff=5, output_path=None):
         all_plates = pd.concat([all_plates, p_df])
     all_plates = all_plates.sort_values(by='Total wells mutated in', ascending=False)
     return all_plates  # this gives an idea about what might be mutated.
+
+
+def get_variant_label_for_well(seq_df, threshold):
+    """
+    Classify/label the variants and identify whether there is a mixed well at position i.
+    """
+    # Now use the filter for wells which have a certain threshold of non-reference mutations
+    non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
+    mixed_well = False
+    if len(non_refs) > 0:
+        positions = non_refs['position'].values
+        refs = non_refs['ref'].values
+        label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
+        # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
+        padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.']].values
+        for p in padj_vals:
+            c_sig = 0
+            for padj in p:
+                if padj < 0.05:  # Have this as a variable
+                    c_sig += 1
+            if c_sig > 1:  # potential mixed well
+                mixed_well = True
+        label = '_'.join(label)
+        # Only keep the frequency of the most frequent mutation
+        probability = np.mean([x for x in non_refs['percent_most_freq_mutation'].values])
+        # Combine the values
+        chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values],
+                                                           method='fisher')
+    else:
+        label = '#PARENT#'
+        probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
+        combined_p_value = float("nan")
+
+    return label, probability, combined_p_value, mixed_well
+
+
+def mutate_sequence(sequence, mutation_frequency, bases=None):
+    """
+    Mutates a given nucleotide sequence at a specified mutation frequency.
+    """
+    bases = bases if bases is not None else ['A', 'T', 'G', 'C', '-']  # Inlucde deletions
+
+    sequence_list = list(sequence)
+
+    # Iterate over the sequence and mutate bases with the given probability
+    for i, base in enumerate(sequence_list):
+        if random.random() < mutation_frequency:
+            # Choose a new base different from the current one (possibly extend this to have a preference?)
+            new_base = random.choice([b for b in bases if b != base])
+            sequence_list[i] = new_base
+
+    # Convert the list back to a string
+    mutated_sequence = ''.join(sequence_list)
+    return mutated_sequence
+
+
+def insert_nt(original_nt_seq, protein_mutations, codon_usage):
+    nt_seq_list = list(original_nt_seq)
+    for pos, new_aa in protein_mutations:
+        # Convert protein position to nucleotide position
+        nt_pos = pos * 3  # Assuming the codon starts at this position
+
+        # Select a codon for the new amino acid
+        new_codon = codon_usage[new_aa]
+
+        # Replace the original codon in the nucleotide sequence
+        nt_seq_list[nt_pos:nt_pos + 3] = list(new_codon)
+
+    # Convert the list back to a string
+    mutated_nt_seq = ''.join(nt_seq_list)
+    return mutated_nt_seq
+
+
+def generate_ssm_library(positions, parent_sequence_aa, parent_sequence_nt, codon_usage):
+    """
+    For each position, generate a SSM library for a given parent and a set of positions.
+    """
+    amino_acids = 'ACDEFGHIKLMNPQRSTVWY'  # 20 standard amino acids
+    library = []
+    nt_seq_list = list(parent_sequence_nt)
+    for position in positions:
+        for aa in amino_acids:
+            if parent_sequence_aa[position] != aa:  # i.e. don't dup the original
+                nt_pos = position * 3  # Assuming the codon starts at this position
+
+                # Select a codon for the new amino acid
+                new_codon = codon_usage[aa]
+                nt_seq_list[nt_pos:nt_pos + 3] = list(new_codon)
+
+                # Convert the list back to a string
+                mutated_nt_seq = ''.join(nt_seq_list)
+                library.append(mutated_nt_seq)
+
+    return library
+
+
+def generate_epcr_library(parent_sequence, mutation_rate, library_number):
+    """
+    For a parent make a number of sequenes using the error prone PCR.
+    """
+    return [mutate_sequence(parent_sequence, mutation_rate, ['A', 'T', 'G', 'C']) for c in range(0, library_number)]
+
+
+def make_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number, epcr_mutation_rate):
+    """
+    library_number would normally be the number of wells for example.
+    """
+    # Simulate the mutation frequncey
+    # First make the library
+    library = generate_epcr_library(parent_sequence, epcr_mutation_rate, library_number)
+    # For this library for each one, simulate the number of reads with a sequencing error rate
+    reads_per_well = {}
+    for seq in library:
+        reads_per_well[seq] = [mutate_sequence(seq, sequencing_error_rate) for i in range(0, read_depth)]
+    return reads_per_well
+
+
+def make_ssm_de_experiment(read_depth, sequencing_error_rate, parent_sequence, positions, parent_sequence_aa,
+                           codon_usage):
+    """
+    library_number would normally be the number of wells for example.
+    """
+    # Simulate the mutation freq
+    library = generate_ssm_library(positions, parent_sequence_aa, parent_sequence, codon_usage)
+    # For this library for each one, simulate the number of reads with a sequencing error rate
+    reads_per_well = {}
+    for seq in library:
+        # i.e. the key is the seq and the value is the mutated reads
+        reads_per_well[seq] = [mutate_sequence(seq, sequencing_error_rate) for i in range(0, read_depth)]
+    return reads_per_well
+

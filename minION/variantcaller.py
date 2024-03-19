@@ -22,9 +22,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 import pandas as pd
 import re
-import numpy as np
 from tqdm import tqdm
-from scipy.stats import combine_pvalues
 
 '''
 Script for variant calling
@@ -165,39 +163,6 @@ class VariantCaller:
         # Remove SAM file
         os.remove(f"{output_dir}/{alignment_name}.sam")
 
-    def _get_variant_label_for_well(self, seq_df, threshold, i):
-        """
-        Classify/label the variants and identify whether there is a mixed well at position i.
-        """
-        # Now use the filter for wells which have a certain threshold of non-reference mutations
-        non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
-        if len(non_refs) > 0:
-            positions = non_refs['position'].values
-            refs = non_refs['ref'].values
-            label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in
-                     enumerate(non_refs['most_frequent'].values)]
-            # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
-            padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.']].values
-            for p in padj_vals:
-                c_sig = 0
-                for padj in p:
-                    if padj < 0.05:  # Have this as a variable
-                        c_sig += 1
-                if c_sig > 1:  # potential mixed well
-                    self.variant_df.at[i, "Mixed Well"] = True
-            label = '_'.join(label)
-            # Only keep the frequency of the most frequent mutation
-            probability = np.mean([x for x in non_refs['percent_most_freq_mutation'].values])
-            # Combine the values
-            chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values],
-                                                               method='fisher')
-        else:
-            label = '#PARENT#'
-            probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
-            combined_p_value = float("nan")
-
-        return label, probability, combined_p_value
-
     def _run_variant_thread(self, args):
         """
         Runs a thread of variant calling.
@@ -225,7 +190,8 @@ class VariantCaller:
                                              msa_path=f'{output_dir}msa_{fname}.fa')
                 if well_df is not None:
                     well_df.to_csv(f'{output_dir}seq_{fname}.csv')
-                    label, probability, combined_p_value = self._get_variant_label_for_well(well_df, threshold, i)
+                    label, probability, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
+                    self.variant_df.at[i, "Mixed Well"] = mixed_well
                     self.variant_df.at[i, "Variant"] = label
                     self.variant_df.at[i, "Probability"] = probability
                     self.variant_df.at[i, "P value"] = combined_p_value
