@@ -7,9 +7,9 @@ minION/basecaller.py
 minION/cmd.py
 minION/globals.py
 minION/interface.py
-minION/jupyter_example.py
 minION/parser.py
 minION/run_MinION.py
+minION/utils.py
 minION/variantcaller.py
 minION/visualization.py
 minION.egg-info/PKG-INFO
@@ -18,3 +18,5 @@ minION.egg-info/dependency_links.txt
 minION.egg-info/entry_points.txt
 minION.egg-info/requires.txt
 minION.egg-info/top_level.txt
+tests/test_minion.py
+tests/test_minion_JR.py

@@ -14,9 +14,7 @@
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
 #                                                                             #
 ###############################################################################
-import asyncio
-import os
-import pandas as pd
+
 import shutil
 import tempfile
 import unittest
@@ -109,19 +107,17 @@ class TestMinIon(TestClass):
 
     def test_variant_calling(self):
         # To run this will need to update to having stuff not using subprocess...
-        vc = VariantCaller(Path('test_data/'),
+        vc = VariantCaller(Path('test_data/RL/'),
                            Path(template_fasta),
                            demultiplex_folder_name='',
                            padding_start=0,
                            padding_end=0)
 
-        variant_df = vc.get_variant_df(qualities=True,
-                                       threshold=0.5,
+        variant_df = vc.get_variant_df(threshold=0.5,
                                        min_depth=5,
                                        output_dir='test_ZZ/',
                                        num_threads=20)
-        variant_df.to_csv('test_ZZ/variant_new_0.5_v2.csv')
-        # TODO: Save the variant_df to a file after running. Currently it is not saved.
+        variant_df.to_csv('test_ZZ/variant_new_0.5_v6.csv')
 
     def test_probabilities(self):
         return 0

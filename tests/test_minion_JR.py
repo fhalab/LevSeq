@@ -94,8 +94,7 @@ class TestMinIonJR(TestClass):
                            padding_start=0,
                            padding_end=0)
 
-        variant_df = vc.get_variant_df(qualities=True,
-                                       threshold=0.2,
+        variant_df = vc.get_variant_df(threshold=0.2,
                                        min_depth=5,
                                        output_dir='test_data/JR/output/',
                                        num_threads=20)
@@ -103,13 +102,7 @@ class TestMinIonJR(TestClass):
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
 
     def test_postprocess_variant_df(self):
-        # Just pass the df through
-        vc = VariantCaller(Path('test_data/JR/'),
-                           Path(template_fasta),
-                           demultiplex_folder_name='',
-                           padding_start=0,
-                           padding_end=0)
         df = pd.read_csv('test_data/JR/output/variant_new_0.5_v2.csv')
-        position_mapping = vc.postprocess_variant_df(df, output_path='test_data/JR/output/')
+        position_mapping = postprocess_variant_df(df, output_path='test_data/JR/output/')
         position_mapping.to_csv('test_data/JR/output/plates.csv')
         # Save as a csv for each position in the seqeunce and the number of times that position was mutated
