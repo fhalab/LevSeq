@@ -150,12 +150,10 @@ class TestVariantCalling(TestClass):
 
         parent_sequence = "ATGAGT"
         mutant = 'ACTAGT'
-        parent_sequence_aa = 'MS'
         sequencing_error_rate = 0.5
         library_number = 100000  # Do it v big so we do actually get the mutant lol
         epcr_mutation_rate = 0.8
         read_depth = 100
-        positions = [0]
 
         mutated_sequence = make_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence,
                                                    library_number,
@@ -190,6 +188,8 @@ class TestVariantCalling(TestClass):
         assert count_errors / (len(mutant) * read_depth) < 0.2
 
     def test_making_well_df_from_reads(self):
+        u.dp(["Testing calling variants using SSM with no error"])
+
         parent_sequence = "ATGAGT"
         mutant = 'ACTAGT'
         parent_sequence_aa = 'MS'
@@ -215,10 +215,54 @@ class TestVariantCalling(TestClass):
                            'p(g)',
                            'C', 'p(c)', 'N', 'p(n)']
         well_df = calculate_mutation_significance_across_well(well_df)
-        well_df.to_csv('welldf.csv')
-        label, probability, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
+        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
         # This should be mutated at 100% - the rate of our sequencing errror
-        print(label, probability, combined_p_value, mixed_well)
+        u.dp([f"Input parent: {parent_sequence}", f"Variant: {mutant}"])
+        u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well, ])
+
         assert label == 'T2C_G3T'  # Second position has been changed to a C from a T and the third from a G to a T
+        assert frequency == 1.0
+        assert combined_p_value < 0.05
+        assert mixed_well is False
+
+    def test_calling_variant_with_error(self):
+        u.dp(["Testing calling variants using SSM with error"])
+
+        parent_sequence = "ATGAGT"
+        mutant = 'ACTAGT'
+        parent_sequence_aa = 'MS'
+        sequencing_error_rate = 0.1
+        read_depth = 100
+        positions = [0]
+        mutated_sequence = make_ssm_de_experiment(read_depth, sequencing_error_rate, parent_sequence, positions,
+                                                  parent_sequence_aa, amino_acid_to_codon)
+        parent_name = 'parent'
+        reads = []
+        read_ids = []
+        quals = []
+        for i, seq in enumerate(mutated_sequence[mutant]):
+            read_ids.append(f'read_{i}')
+            reads.append(seq)
+            quals.append(100)  # Dummy don't need
+
+        well_df = make_well_df_from_reads(reads, read_ids, quals)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        well_df = pd.DataFrame(rows_all)
+        well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
+                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
+                           'p(g)',
+                           'C', 'p(c)', 'N', 'p(n)']
+        well_df = calculate_mutation_significance_across_well(well_df)
+        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
+        # This should be mutated at 100% - the rate of our sequencing errror
+        u.dp([f"Input parent: {parent_sequence}", f"Variant: {mutant}"])
+        u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well, ])
+
+        assert label == 'T2C_G3T'  # Second position has been changed to a C from a T and the third from a G to a T
+        assert frequency != 1.0
+        assert combined_p_value < 0.05
+        assert mixed_well is False
+
+
 
 
