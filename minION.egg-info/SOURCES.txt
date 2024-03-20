@@ -20,3 +20,5 @@ minION.egg-info/requires.txt
 minION.egg-info/top_level.txt
 tests/test_minion.py
 tests/test_minion_JR.py
+tests/test_minion_RL.py
+tests/test_variant_calling.py

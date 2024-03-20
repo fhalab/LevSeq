@@ -24,6 +24,7 @@ u = SciUtil()
 
 from minION.variantcaller import *
 
+
 class TestClass(unittest.TestCase):
 
     @classmethod
@@ -256,7 +257,7 @@ class TestVariantCalling(TestClass):
         label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
         # This should be mutated at 100% - the rate of our sequencing errror
         u.dp([f"Input parent: {parent_sequence}", f"Variant: {mutant}"])
-        u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well, ])
+        u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well])
 
         assert label == 'T2C_G3T'  # Second position has been changed to a C from a T and the third from a G to a T
         assert frequency != 1.0

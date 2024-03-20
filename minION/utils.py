@@ -135,6 +135,27 @@ def get_template_df(plate_numbers: list, barcode_dicts: dict = None, rowwise=Tru
     return pd.DataFrame(template)
 
 
+def get_dummy_plate_df(plate_name='Plate', well_name='Well', number_of_wells=96):
+    """
+    Make a dummy plate.
+    Plate	Well	Path	Alignment_count	P value	Mixed Well	Variant	Average mutation frequency	P adj. value
+    """
+    df = pd.DataFrame([i for i in range(0, number_of_wells)], columns=['index'])
+    df['Plate'] = plate_name
+    df['Well'] = well_name
+    df['Path'] = ''
+    df['Alignment_count'] = 0
+    df['P value'] = 1.0
+    df['Mixed Well'] = False
+    df['Variant'] = ''
+    df['mutation'] = ''
+    df['frequency'] = 0
+    df['P adj.'] = 0
+    df['value'] = 0
+    df.set_index('index', inplace=True)
+    return df
+
+
 def make_well_df_from_reads(seqs, read_ids, read_quals):
     """
     Make a dataframe in a specific format taking the reads and read IDs and filtering duplicates based on the
