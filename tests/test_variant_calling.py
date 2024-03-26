@@ -203,9 +203,6 @@ class TestVariantCalling(TestClass):
             run_df.reset_index(inplace=True)
             experiment_df = pd.concat([experiment_df, run_df])
 
-        # Also plot each one
-        experiment_df.to_csv(f'Experiment2_position.csv', index=False)
-
     def test_making_well_df_from_reads(self):
         u.dp(["Testing calling variants using SSM with no error"])
 
