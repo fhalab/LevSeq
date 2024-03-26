@@ -188,6 +188,24 @@ class TestVariantCalling(TestClass):
         assert count_errors / (len(mutant) * read_depth) > 0
         assert count_errors / (len(mutant) * read_depth) < 0.2
 
+    def test_make_epcr_experiment(self):
+        experiment_df = pd.DataFrame()
+        read_depth = 20
+        number_of_wells = 96
+        epcr_mutation_rate = 0.02
+        frequency_cutoff = 0.5
+        library_number = 96  # Usually do a 96 well plate
+        parent_sequence = 'ATGACTCCCTCGGACATCCCGGGATATGATTATGGGCGTGTCGAGAAGTCACCCATCACGGACCTTGAGTTTGACCTTCTGAAGAAGACTGTCATGTTAGGTGAAAAGGACGTAATGTACTTGAAAAAGGCGTGTGACGTTCTGAAAGATCAAGTTGATGAGATCCTTGACTTGGCGGGTGGTTGGGTAGCATCAAATGAGCATTTGATTTATTACTTCTCCAATCCGGATACAGGAGAGCCTATTAAGGAATACCTGGAACGTGTACGCGCTCGCTTTGGAGCCTGGATTCTGGACACTACCTGCCGCGACTATAACCGTGAATGGTTAGACTACCAGTACGAAGTTGGGCTTCGTCATCACCGTTCAAAGAAAGGGGTCACAGACGGAGTACGCACCGTGCCCCATATCCCACTTCGTTATCTTATCGCATGGATCTATCCTATCACCGCCACTATCAAGCCATTTTTGGCTAAGAAAGGTGGCTCTCCGGAAGACATCGAAGGGATGTACAACGCTTGGTTCAAGTCTGTAGTTTTACAAGTTGCCATCTGGTCACACCCTTATACTAAGGAGAATGACTGGCTCGAGCACCACCACCACCACCACTGA'
+        for sequencing_error in range(0, 100, 50):
+            sequencing_error_rate = sequencing_error / 100.0
+            run_df = make_experiment(f'SeqError_{sequencing_error}', read_depth, sequencing_error_rate, parent_sequence,
+                                     library_number, number_of_wells, epcr_mutation_rate, frequency_cutoff)
+            run_df.reset_index(inplace=True)
+            experiment_df = pd.concat([experiment_df, run_df])
+
+        # Also plot each one
+        experiment_df.to_csv(f'Experiment2_position.csv', index=False)
+
     def test_making_well_df_from_reads(self):
         u.dp(["Testing calling variants using SSM with no error"])
 

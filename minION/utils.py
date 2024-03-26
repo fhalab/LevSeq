@@ -24,6 +24,7 @@ from statsmodels.stats.multitest import multipletests
 from pathlib import Path
 from scipy.stats import combine_pvalues
 import random
+from tqdm import tqdm
 
 
 amino_acid_to_codon = {
@@ -521,6 +522,48 @@ def generate_ssm_library(positions, parent_sequence_aa, parent_sequence_nt, codo
                 library.append(mutated_nt_seq)
 
     return library
+
+
+def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequence, library_number,
+                    number_of_wells, epcr_mutation_rate, frequency_cutoff=0.5):
+    # Make a full experiment setup
+    mutated_sequence = make_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number,
+                                               epcr_mutation_rate)
+
+    variant_df = get_dummy_plate_df(run_label, 'Well', number_of_wells)
+    mutant_to_well_df = {}
+    current_well = 0
+    for mutant in tqdm(mutated_sequence):
+        parent_name = 'Parent'
+        reads = []
+        read_ids = []
+        quals = []
+        for i, seq in enumerate(mutated_sequence[mutant]):
+            read_ids.append(f'read_{i}')
+            reads.append(seq)
+            quals.append(100)  # Dummy don't need
+
+        well_df = make_well_df_from_reads(reads, read_ids, quals)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        well_df = pd.DataFrame(rows_all)
+        well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
+                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
+                           'p(g)',
+                           'C', 'p(c)', 'N', 'p(n)']
+        well_df = calculate_mutation_significance_across_well(well_df)
+        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, frequency_cutoff)
+        mutant_to_well_df[f'{mutant}_{current_well}'] = well_df
+        variant_df.at[current_well, "Mixed Well"] = mixed_well
+        variant_df.at[current_well, "Variant"] = label
+        variant_df.at[current_well, "frequency"] = frequency
+        variant_df.at[current_well, "P value"] = combined_p_value
+        variant_df.at[current_well, "Well"] = f'Well {current_well}'
+        variant_df.at[current_well, "Alignment_count"] = read_depth
+        current_well += 1
+
+    # Before returning adjust the pvalues
+    variant_df['P adj.'] = multipletests(list(variant_df["P value"].values), alpha=0.05, method='fdr_bh')[1]
+    return variant_df
 
 
 def generate_epcr_library(parent_sequence, mutation_rate, library_number):
