@@ -264,23 +264,34 @@ def check_variants(variant_df, parent_sequence):
         count_correct = 0
         count_incorrect = 0
         for mutation in predicted_variant.split('_'):
-
-            # true_variant is a sequence while predicated variant is just the mutations
-            if 'DEL' not in mutation:
-                mut_pos = int(mutation[1:-1])  # A1T
-                mut = mutation[-1]
-            else:
-                mut_pos = int(mutation[1:].replace('DEL', ''))
-                mut = 'DEL'
-            if true_variant[mut_pos - 1] == mut:
-                count_correct += 1
-            else:
-                count_incorrect += 1
             try:
-                if parent_sequence[mut_pos - 1] != mutation[0]:
-                    print("WARNING!")
+                if 'PARENT' in mutation:
+                    # Check that the two seqeunces are correct
+                    for i in range(0, len(true_variant)):
+                        if true_variant[i] == parent_sequence[i]:
+                            count_correct += 1
+                        else:
+                            count_incorrect += 1
+                else:
+                    # true_variant is a sequence while predicated variant is just the mutations
+                    if 'DEL' not in mutation:
+                        mut_pos = int(mutation[1:-1])  # A1T
+                        mut = mutation[-1]
+                    else:
+                        mut_pos = int(mutation[1:].replace('DEL', ''))
+                        mut = 'DEL'
+                    if true_variant[mut_pos - 1] == mut:
+                        count_correct += 1
+                    else:
+                        count_incorrect += 1
+                    try:
+                        if parent_sequence[mut_pos - 1] != mutation[0]:
+                            print("WARNING!")
+                    except:
+                        print(mut_pos, len(parent_sequence))
             except:
-                print(mut_pos, len(parent_sequence))
+                #count_incorrect += 1
+                print(mutation)
         corrects.append(count_correct)
         incorrects.append(count_incorrect)
     variant_df['correct'] = corrects
