@@ -180,6 +180,11 @@ def calculate_mutation_significance_across_well(seq_df):
     mean_error = np.mean(seq_df['freq_non_ref'].values)
     seq_df.reset_index(inplace=True)
     i = 0
+    if mean_error > 0.4:
+        print('-----------------------------------------')
+        print("WARNING!!! Your mean error rate across was too high!!! It was: ", mean_error)
+        print('-----------------------------------------')
+
     # Using this we can calculate the significance of the different errors
     for ref_seq, num_a, num_t, num_g, num_c, num_dels, num_reads, num_total_non_ref_reads in seq_df[
         ['ref', 'A', 'T', 'G', 'C', 'N', 'total_reads', 'total_other']].values:
@@ -434,7 +439,7 @@ def get_variant_label_for_well(seq_df, threshold):
     Classify/label the variants and identify whether there is a mixed well at position i.
     """
     # Now use the filter for wells which have a certain threshold of non-reference mutations
-    non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
+    non_refs = seq_df[seq_df['freq_non_ref'] > 0].sort_values(by='position')
     mixed_well = False
     if len(non_refs) > 0:
         positions = non_refs['position'].values

@@ -135,8 +135,8 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
             # Save QC data
             qc_well_df = make_well_df_for_saving(reads, read_ids, quals)
             write_msa_for_df(qc_well_df, well_df, parent_name, parent_sequence,
-                             os.path.join(qc_files_path, f'{run_label}_{mutant}.fa'),
-                             os.path.join(qc_files_path, f'{run_label}_{mutant}.csv'))
+                             os.path.join(qc_files_path, f'{run_label}_{current_well}.fa'),
+                             os.path.join(qc_files_path, f'{run_label}_{current_well}.csv'))
         label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, frequency_cutoff)
         mutant_to_well_df[f'{mutant}_{current_well}'] = well_df
         variant_df.at[current_well, "Mixed Well"] = mixed_well
