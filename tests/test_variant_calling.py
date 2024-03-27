@@ -23,6 +23,7 @@ from sciutil import *
 u = SciUtil()
 
 from minION.variantcaller import *
+from minION.simulation import *
 
 
 class TestClass(unittest.TestCase):
@@ -279,6 +280,23 @@ class TestVariantCalling(TestClass):
         assert combined_p_value < 0.05
         assert mixed_well is False
 
+    def test_mixed_wells(self):
+        # Test whether we're able to call mixed well populations
+        u.dp(["Testing ePCR with error"])
 
+        parent_sequence = "ATGAGT"
+        sequencing_error_rate = 0.1
+        library_number = 10
+        epcr_mutation_rate = 0.8
+        read_depth = 100
+        number_wells_to_mix = 2
+        mixture_rate = 0.5  # 50%
+        run_label = 'mutations'
+        number_of_wells = 10
+        frequency_cutoff = 0.3
+        df = make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequence, library_number,
+                             number_of_wells, epcr_mutation_rate, frequency_cutoff, number_wells_to_mix, mixture_rate,
+                             qc_files_path='qc_data/')
+        df.to_csv('test.csv')
 
 
