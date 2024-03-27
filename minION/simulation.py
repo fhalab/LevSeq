@@ -16,6 +16,9 @@
 ###############################################################################
 # Import all packages
 import random
+
+import numpy as np
+
 from minION.variantcaller import *
 import math
 
@@ -35,7 +38,7 @@ def get_dummy_plate_df(plate_name='Plate', well_name='Well', number_of_wells=96)
     df['mutation'] = ''
     df['frequency'] = 0
     df['P adj.'] = 0
-    df['value'] = 0
+    df["True Variant"] = ''
     df.set_index('index', inplace=True)
     return df
 
@@ -141,6 +144,7 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
         mutant_to_well_df[f'{mutant}_{current_well}'] = well_df
         variant_df.at[current_well, "Mixed Well"] = mixed_well
         variant_df.at[current_well, "Variant"] = label
+        variant_df.at[current_well, "True Variant"] = mutant
         variant_df.at[current_well, "frequency"] = frequency
         variant_df.at[current_well, "P value"] = combined_p_value
         variant_df.at[current_well, "Well"] = f'Well {current_well}'
@@ -149,7 +153,10 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
 
     # Before returning adjust the pvalues
     variant_df['P adj.'] = multipletests(list(variant_df["P value"].values), alpha=0.05, method='fdr_bh')[1]
+    # Also get the accuracy
+    variant_df = check_variants(variant_df, parent_sequence)
     return variant_df
+
 
 def make_well_df_for_saving(seqs, read_ids, read_quals):
     """
@@ -166,6 +173,7 @@ def make_well_df_for_saving(seqs, read_ids, read_quals):
     seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
     return seq_df
 
+
 def write_msa_for_df(reads_across_well_df, well_df, parent_name, parent_sequence, msa_path, df_path):
     """ This is for checking that we have the correct data."""
     read_ids = reads_across_well_df['read_id']
@@ -179,6 +187,7 @@ def write_msa_for_df(reads_across_well_df, well_df, parent_name, parent_sequence
             for i, seq in enumerate(seqs):
                 fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
     well_df.to_csv(df_path)
+
 
 def generate_epcr_library(parent_sequence, mutation_rate, library_number):
     """
@@ -244,3 +253,37 @@ def make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent
                 reads_per_well[well_seq][read_position] = reads_per_well[dope_in_seq][read_position]
 
     return reads_per_well
+
+
+def check_variants(variant_df, parent_sequence):
+    """ This just checks if the variants are actually correct! """
+
+    corrects = []
+    incorrects = []
+    for predicted_variant, true_variant in variant_df[['Variant', 'True Variant']].values:
+        count_correct = 0
+        count_incorrect = 0
+        for mutation in predicted_variant.split('_'):
+
+            # true_variant is a sequence while predicated variant is just the mutations
+            if 'DEL' not in mutation:
+                mut_pos = int(mutation[1:-1])  # A1T
+                mut = mutation[-1]
+            else:
+                mut_pos = int(mutation[1:].replace('DEL', ''))
+                mut = 'DEL'
+            if true_variant[mut_pos - 1] == mut:
+                count_correct += 1
+            else:
+                count_incorrect += 1
+            try:
+                if parent_sequence[mut_pos - 1] != mutation[0]:
+                    print("WARNING!")
+            except:
+                print(mut_pos, len(parent_sequence))
+        corrects.append(count_correct)
+        incorrects.append(count_incorrect)
+    variant_df['correct'] = corrects
+    variant_df['incorrect'] = incorrects
+    variant_df['accuracy'] = np.array(corrects) / (np.array(corrects) + np.array(incorrects))
+    return variant_df
