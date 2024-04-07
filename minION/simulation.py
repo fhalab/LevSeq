@@ -290,7 +290,6 @@ def check_variants(variant_df, parent_sequence):
                     except:
                         print(mut_pos, len(parent_sequence))
             except:
-                #count_incorrect += 1
                 print(mutation)
         corrects.append(count_correct)
         incorrects.append(count_incorrect)
