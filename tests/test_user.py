@@ -19,6 +19,9 @@ import shutil
 import tempfile
 import unittest
 from sciutil import *
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 u = SciUtil()
 
@@ -64,8 +67,73 @@ CCTATCCTTACACTCAGCCTGGCGACTTTCTCGAGCACCACCACCACCACCACTGA'
 
 class TestUser(TestClass):
 
-    def test_msa(self):
+    def test_get_seqs(self):
         ### tests making a MSA from the variant DF.
         variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
-        seqs, seq_ids = convert_variant_df_to_msa(variant_df, parent)
+        seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         print(seqs, seq_ids)
+        assert 'MPQIPGYTYGDPALPPS' in seqs[0]
+
+    def test_msa(self):
+        variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
+        seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
+        # Using the sequences let's now get the MSA
+        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+
+    def test_encode(self):
+        variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
+        seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
+        # Using the sequences let's now get the MSA
+        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+        # Check how one hot encoding of this works
+        # Accessing individual records
+        encodings = []
+        for record in alignment:
+            print(record.id, record.seq)
+            encoded = one_hot_encode(record.seq)
+            encodings.append(np.array(encoded))
+        encodings = np.array(encodings)
+        # PCA it
+        pca = make_pca(encodings)
+        plt.scatter(pca[:, 0], pca[:, 1], color='blue', label='Transformed Data')
+        plt.xlabel('Principal Component 1')
+        plt.ylabel('Principal Component 2')
+        plt.title('PCA Result')
+        plt.legend()
+        plt.show()
+
+    def test_epcr_pca(self):
+        # read_depth = 20
+        # number_of_wells = 96
+        # epcr_mutation_rate = 0.02
+        # frequency_cutoff = 0.5
+        # library_number = 96  # Usually do a 96 well plate
+        # parent_sequence = 'ATGACTCCCTCGGACATCCCGGGATATGATTATGGGCGTGTCGAGAAGTCACCCATCACGGACCTTGAGTTTGACCTTCTGAAGAAGACTGTCATGTTAGGTGAAAAGGACGTAATGTACTTGAAAAAGGCGTGTGACGTTCTGAAAGATCAAGTTGATGAGATCCTTGACTTGGCGGGTGGTTGGGTAGCATCAAATGAGCATTTGATTTATTACTTCTCCAATCCGGATACAGGAGAGCCTATTAAGGAATACCTGGAACGTGTACGCGCTCGCTTTGGAGCCTGGATTCTGGACACTACCTGCCGCGACTATAACCGTGAATGGTTAGACTACCAGTACGAAGTTGGGCTTCGTCATCACCGTTCAAAGAAAGGGGTCACAGACGGAGTACGCACCGTGCCCCATATCCCACTTCGTTATCTTATCGCATGGATCTATCCTATCACCGCCACTATCAAGCCATTTTTGGCTAAGAAAGGTGGCTCTCCGGAAGACATCGAAGGGATGTACAACGCTTGGTTCAAGTCTGTAGTTTTACAAGTTGCCATCTGGTCACACCCTTATACTAAGGAGAATGACTGGCTCGAGCACCACCACCACCACCACTGA'
+        # sequencing_error = 30
+        # sequencing_error_rate = sequencing_error / 100.0
+        # run_df = make_experiment(f'SeqError_{sequencing_error}', read_depth, sequencing_error_rate, parent_sequence,
+        #                          library_number, number_of_wells, epcr_mutation_rate, frequency_cutoff)
+        # run_df.to_csv('run.csv')
+        run_df = pd.read_csv('run.csv')
+        seqs, seq_ids = convert_variant_df_to_seqs(run_df, parent)
+        # Using the sequences let's now get the MSA
+        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+        # Check how one hot encoding of this works
+        # Accessing individual records
+        encodings = []
+        for record in alignment:
+            print(record.id, record.seq)
+            encoded = one_hot_encode(record.seq)
+            encodings.append(np.array(encoded))
+        encodings = np.array(encodings)
+        # PCA it
+        pca = make_pca(encodings)
+        plt.scatter(pca[:, 0], pca[:, 1], color='blue', label='Transformed Data')
+        plt.xlabel('Principal Component 1')
+        plt.ylabel('Principal Component 2')
+        plt.title('PCA Result')
+        plt.legend()
+        plt.show()
+
+
+
