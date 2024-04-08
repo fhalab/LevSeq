@@ -17,10 +17,9 @@
 # Import all packages
 import random
 
-import numpy as np
-
 from minION.variantcaller import *
 import math
+
 
 def get_dummy_plate_df(plate_name='Plate', well_name='Well', number_of_wells=96):
     """
@@ -228,7 +227,7 @@ def make_ssm_de_experiment(read_depth, sequencing_error_rate, parent_sequence, p
 def make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number,
                                        epcr_mutation_rate, number_wells_to_mix, mixture_rate):
     """
-    Make a
+    Make a mixed well experiment to test code with.
     """
     # Simulate the mutation frequncey
     # First make the library

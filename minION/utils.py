@@ -234,7 +234,7 @@ def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=20, msa_pat
         for read in reads:
             if read.query_sequence is not None:
                 seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
-                                                                 read.query_qualities)
+                                                           read.query_qualities)
                 # Make it totally align
                 seq = "-" * read.reference_start + seq + "-" * (len(ref_str) - (read.reference_start + len(seq)))
                 seqs.append(list(seq))
