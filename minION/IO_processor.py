@@ -193,8 +193,9 @@ def check_data_folder(path: Path) -> None:
     """
     if not path.exists():
         raise FileNotFoundError(
-            f"MinKNOW data folder '{path}' does not exist. Please check if you have installed MinKNOW and if the path is correct. If you replaced the default path, please specify in the TOML file.")
-
+            f"MinKNOW data folder '{path}' does not exist. Please check if the path is correct.")
+    else:
+        return path
 
 def find_experiment_folder(experiment_name: str, minknow_path: Path = MINKNOW_PATH) -> None:
     """Find the experiment folder in the minknow data folder. Access the name from Meta File.
@@ -214,7 +215,6 @@ def find_experiment_folder(experiment_name: str, minknow_path: Path = MINKNOW_PA
             return os.path.join(path, experiment_name)
 
     raise Exception("Experiment folder does not exist. Please check if you have chosen the right experiment name.")
-
 
 def find_folder(start_path, target_folder_name):
     """

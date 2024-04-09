@@ -49,8 +49,8 @@ def build_cli_parser():
     required_args_group = parser.add_argument_group("Required Arguments", "Arguments required for each run")
     required_args_group.add_argument("refseq",
                                      help="fasta file containing reference sequence information.")
-    required_args_group.add_argument("folder",
-                                     help="Folder containing fastq.pass or pod5_pass files. Nanopore experiment saved location")
+    required_args_group.add_argument("path",
+                                     help="Path to folder containing fastq.pass or pod5_pass files. Nanopore experiment saved location")
     required_args_group.add_argument("name",
                                      help="User defined name of experiment")
     required_args_group.add_argument("barcodes",

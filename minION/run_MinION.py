@@ -47,7 +47,7 @@ def barcode_user(cl_args):
 
 # Get output directory
 def get_input_folder(cl_args):
-    input_folder = IO_processor.find_experiment_folder(cl_args['name'], cl_args['folder'])
+    input_folder = IO_processor.check_data_folder(cl_args['path'])
     return input_folder
 
 
@@ -101,7 +101,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Plan B to locate using relative path relying on the git folder
     current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
+    with resources.path('minION.barcoding', 'demultiplex') as executable_path:
         # Get min and max sequence length if user specified, otherwise use default
         seq_min = 800
         seq_max = 5000
