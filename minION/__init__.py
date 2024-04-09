@@ -32,3 +32,6 @@ from minION.interface import *
 from minION.cmd import *
 from minION.basecaller import *
 from minION.utils import *
+from minION.simulation import *
+from minION.user import *
+

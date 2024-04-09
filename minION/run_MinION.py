@@ -150,7 +150,7 @@ def create_df_v(variants_df, template_fasta):
 
     # Fill in empty cells
     df_variants_['Variant'].tolist()
-    df_variants_['Variant'].fillna('', inplace=True)
+    df_variants_['Variant'].fillna('')#, inplace=True)
 
     # Loop through dataframe and replace mutations
     mut_ls = []
@@ -194,12 +194,14 @@ def create_df_v(variants_df, template_fasta):
     df_variants_['Mutations'] = mut
 
     # Fill in empty empty values
-    df_variants_['Alignment Probability'] = df_variants_['Probability'].fillna(0.0)
+    df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
     df_variants_['Alignment Count'] = df_variants_['Alignment_count'].fillna(0.0)
 
     # Fill in parents into mutations Column
     for i in df_variants_.index:
-        if df_variants_['Alignment Probability'].iloc[i] == 0.0 and df_variants_['Mutations'].iloc[i] == '':
+        if mut_ls[i] =='Deletion':
+            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', 'Deletion')
+        if df_variants_['Average mutation frequency'].iloc[i] == 0.0 and df_variants_['Mutations'].iloc[i] == '':
             df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '#N.A.#')
         if df_variants_['Mutations'].iloc[i] == '':
             df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '#PARENT#')

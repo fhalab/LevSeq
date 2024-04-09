@@ -1,7 +1,6 @@
 Metadata-Version: 2.1
 Name: minION
 Version: 0.1.0
-Summary: UNKNOWN
 Home-page: https://github.com/fhalab/MinION/
 Author: Yueming Long, Emreay Gursoy
 Author-email: ylong@caltech.edu
@@ -10,7 +9,6 @@ Project-URL: Bug Tracker, https://github.com/fhalab/MinION/
 Project-URL: Documentation, https://github.com/fhalab/MinION/
 Project-URL: Source Code, https://github.com/fhalab/MinION/
 Keywords: Nanopore,ONT,evSeq
-Platform: UNKNOWN
 Classifier: Development Status :: 5 - Production/Stable
 Classifier: Intended Audience :: Science/Research
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
@@ -23,6 +21,28 @@ Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: Bio
+Requires-Dist: biopython
+Requires-Dist: fsspec
+Requires-Dist: h5py
+Requires-Dist: holoviews
+Requires-Dist: jupyterlab
+Requires-Dist: mappy
+Requires-Dist: matplotlib
+Requires-Dist: ninetysix
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: pybedtools
+Requires-Dist: pycoQC
+Requires-Dist: pyfaidx
+Requires-Dist: pyparsing
+Requires-Dist: pysam
+Requires-Dist: scipy
+Requires-Dist: sciutil
+Requires-Dist: seaborn
+Requires-Dist: scikit-learn
+Requires-Dist: statsmodels
+Requires-Dist: tqdm
 
 # Variant Sequencing with Nanopore
 
@@ -89,8 +109,29 @@ docker run minion
 ```
 
 
-### ToDo: rebuilding the C++
-Needed to install specific version of cmake for mac
+### Steps to rebuild the C++ executables
+
+### Mac intel chip
+To rebuild on mac move into the `source/source` folder and execute the following command:
+
+```
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/local/bin/gcc-13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-13 ../source
+```
+
+Note it expects c to be installed in `/usr/local/bin` if this is not the case on your machine you will need to update 
+accordingly. 
+
+After building you need to make the make file with the following command:
+
+```
+make -j
+```
+
+The demultiplex file should now function!
+
+### Mac M1 chip (toDo)
+
+### Linux (toDo)
+
+
 brew install gcc@7 based on https://docs.seqan.de/seqan3/3.0.0/setup.html
-
-
