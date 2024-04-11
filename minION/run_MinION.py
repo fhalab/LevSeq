@@ -30,19 +30,14 @@ import os
 
 
 # Get barcode used
-def barcode_user(cl_args):
+def barcode_user(cl_args,i):
     # Set some default values if user did not provide barcodes
     fmin = 1
     fmax = 96
-    bmin = 1
-    bmax = 12
-    bc_df = pd.read_csv(cl_args["barcodes"])
-    fmin = bc_df["NB-min"][0]
-    fmax = bc_df["NB-max"][0]
-    bmin = bc_df["RB-min"][0]
-    bmax = bc_df["RB-max"][0]
+    bc_df = pd.read_csv(cl_args["summary"])
+    rbc = bc_df["bc_plate"][i]
 
-    return int(fmin), int(fmax), int(bmin), int(bmax)
+    return int(fmin), int(fmax), int(rbc)
 
 
 # Get output directory
@@ -72,16 +67,15 @@ def basecall_reads(cl_args):
 
 
 # Filter barcode
-def filter_bc(cl_args, result_folder):
-    front_min, front_max, back_min, back_max = barcode_user(cl_args)
+def filter_bc(cl_args, result_folder, i):
+    front_min, front_max, rbc = barcode_user(cl_args, i)
     # Obtain path of executable from package
-    print('break1')
     with resources.path('minION.barcoding', 'minion_barcodes.fasta') as barcode_path:
         front_prefix = "NB"
         back_prefix = "RB"
         bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
-    bp.filter_barcodes(barcode_path_filter, (1, 96), (9, 12))
+    bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
     return barcode_path
 
 
@@ -219,6 +213,46 @@ def create_df_v(variants_df, template_fasta):
 
     return df_variants_
 
+# Process the summary file
+def process_ref_csv(cl_args):
+    ref_df = pd.read_csv(cl_args['summary'])
+    result_folder = create_result_folder(cl_args)
+
+    variant_csv_path = os.path.join(result_folder, "variants.csv")
+    if os.path.exists(variant_csv_path):
+        variant_df = pd.read_csv(variant_csv_path)
+    else:
+        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    for i, row in ref_df.iterrows():
+        barcode_plate = row["barcode_plate"]
+        name = row["name"]
+        refseq = row["refseq"]
+
+        # Create a subfolder for the current iteration using the name value
+        name_folder = os.path.join(result_folder, name)
+        os.makedirs(name_folder, exist_ok=True)
+
+        # Write the refseq to a temporary fasta file
+        temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
+        with open(temp_fasta_path, "w") as f:
+            f.write(f">{name}\n{refseq}\n")
+
+        barcode_path = filter_bc(cl_args, name_folder, i)
+        file_to_fastq = fastq_path(get_input_folder(cl_args))
+        if not cl_args['skip_demultiplexing']: 
+            demux_fastq(file_to_fastq, name_folder, barcode_path)
+        
+        if not cl_args['skip_variantcalling']: 
+            variant_result = call_variant(name_folder, temp_fasta_path, f"demultiplexed_{name}")
+            variant_result["barcode_plate"] = barcode_plate
+            variant_result["name"] = name
+            variant_result["refseq"] = refseq
+
+            variant_df = pd.concat([variant_df, variant_result])
+        
+        # Remove the temporary fasta file
+        os.remove(temp_fasta_path)
+    variant_df.to_csv(variant_csv_path, index=False)
 
 # Run MinION
 
@@ -229,30 +263,13 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     # Find fastq from experiment folder
     file_to_fastq = fastq_path(experiment_folder)
 
-    # Create result folder
-    result_folder = create_result_folder(cl_args)
-
     # Get template sequence
     template_fasta = parent_fasta(cl_args)
     # Basecall if asked
     if cl_args["perform_basecalling"]:
         basecall_reads(cl_args)
-
-    # Filter barcodes and store new barcode file 
-    barcode_path = filter_bc(cl_args, result_folder)
-    # Demultiplex if not skipped
-    if not cl_args['skip_demultiplexing']:
-        demux_fastq(file_to_fastq, result_folder, barcode_path)
-
-    # Call Variants if not skipped
-    if not cl_args['skip_variantcalling']:
-        variant_df = call_variant(experiment_folder, template_fasta, result_folder)
-        variant_df.to_csv(os.path.join(result_folder, "variant_df.csv"), index=False)
-
-        # Check if variant_df exist in result folder
-    variant_csv = os.path.join(result_folder, "variant_df.csv")
-    if os.path.exists(variant_csv):
-        variant_df = pd.read_csv(variant_csv)
+    # Process summary file by row
+    process_ref_csv(cl_args)
 
     # Clean up and prepare dataframe for visualization
     df_variants = create_df_v(variant_df, template_fasta)

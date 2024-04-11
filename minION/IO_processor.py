@@ -100,25 +100,24 @@ class BarcodeProcessor:
         self.front_prefix = front_prefix
         self.reverse_prefix = reverse_prefix
 
-    def filter_barcodes(self, filtered_fasta_file, front_range, reverse_range):
+    def filter_barcodes(self, filtered_fasta_file, front_range, reverse_number):
         """
         Filters barcodes in the given ranges and writes them to a new fasta file.
 
         Args:
         - filtered_fasta_file (str): The path to the filtered fasta file.
         - front_range (tuple): A tuple of two integers representing the range for front barcodes.
-        - reverse_range (tuple): A tuple of two integers representing the range for reverse barcodes.
+        - reverse_number (int): An integer representing the specific reverse barcode number.
         """
         records = list(SeqIO.parse(self.barcode_path, "fasta"))
         min_front, max_front = front_range
-        min_reverse, max_reverse = reverse_range
 
         filtered_records = [
             record for record in records
             if (record.id.startswith(self.front_prefix) and min_front <= int(
                 record.id[len(self.front_prefix):]) <= max_front) or
-               (record.id.startswith(self.reverse_prefix) and min_reverse <= int(
-                   record.id[len(self.reverse_prefix):]) <= max_reverse)
+               (record.id.startswith(self.reverse_prefix) and int(
+                   record.id[len(self.reverse_prefix):]) == reverse_number)
         ]
 
         with open(filtered_fasta_file, "w") as output_handle:
