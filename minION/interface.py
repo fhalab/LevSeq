@@ -47,14 +47,10 @@ def build_cli_parser():
 
     # Add required arguments
     required_args_group = parser.add_argument_group("Required Arguments", "Arguments required for each run")
-    required_args_group.add_argument("refseq",
-                                     help="fasta file containing reference sequence information.")
     required_args_group.add_argument("path",
-                                     help="Path to folder containing fastq.pass or pod5_pass files. Nanopore experiment saved location")
-    required_args_group.add_argument("name",
-                                     help="User defined name of experiment")
-    required_args_group.add_argument("barcodes",
-                                     help="CSV file containig first and last barcode used, this will decrease burden on demultiplexing")
+                                     help="Path to folder containing fastq.pass or pod5_pass files.")
+    required_args_group.add_argument("summary",
+                                     help="CSV file containig barcodes used, name of each plate and reference sequence in string")
     # Add optional arguments
     optional_args_group = parser.add_argument_group("Optional Arguments", "Aditional arguments")
     optional_args_group.add_argument("--output",

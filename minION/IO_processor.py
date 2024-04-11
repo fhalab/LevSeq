@@ -191,7 +191,7 @@ def check_data_folder(path: Path) -> None:
     Returns:
     - FileNotFoundError: If the minknow data folder does not exist.
     """
-    if not path.exists():
+    if not Path(path).exists():
         raise FileNotFoundError(
             f"MinKNOW data folder '{path}' does not exist. Please check if the path is correct.")
     else:
