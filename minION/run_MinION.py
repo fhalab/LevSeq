@@ -35,7 +35,7 @@ def barcode_user(cl_args,i):
     fmin = 1
     fmax = 96
     bc_df = pd.read_csv(cl_args["summary"])
-    rbc = bc_df["bc_plate"][i]
+    rbc = bc_df["barcode_plate"][i]
 
     return int(fmin), int(fmax), int(rbc)
 
@@ -76,7 +76,7 @@ def filter_bc(cl_args, result_folder, i):
         bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
     bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
-    return barcode_path
+    return barcode_path_filter
 
 
 # Filter template sequence length
@@ -95,7 +95,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Plan B to locate using relative path relying on the git folder
     current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    with resources.path('minION.barcoding', 'demultiplex') as executable_path:
+    with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
         # Get min and max sequence length if user specified, otherwise use default
         seq_min = 800
         seq_max = 5000
@@ -112,8 +112,7 @@ def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
                        padding_start=0,
                        padding_end=0)
 
-    variant_df = vc.get_variant_df(qualities=True,
-                                   threshold=0.2,
+    variant_df = vc.get_variant_df(threshold=0.2,
                                    min_depth=5)
     return variant_df
 
@@ -239,11 +238,12 @@ def process_ref_csv(cl_args):
 
         barcode_path = filter_bc(cl_args, name_folder, i)
         file_to_fastq = fastq_path(get_input_folder(cl_args))
+
         if not cl_args['skip_demultiplexing']: 
             demux_fastq(file_to_fastq, name_folder, barcode_path)
         
         if not cl_args['skip_variantcalling']: 
-            variant_result = call_variant(name_folder, temp_fasta_path, f"demultiplexed_{name}")
+            variant_result = call_variant(result_folder, temp_fasta_path, f"{name}")
             variant_result["barcode_plate"] = barcode_plate
             variant_result["name"] = name
             variant_result["refseq"] = refseq
@@ -253,6 +253,7 @@ def process_ref_csv(cl_args):
         # Remove the temporary fasta file
         os.remove(temp_fasta_path)
     variant_df.to_csv(variant_csv_path, index=False)
+    return variant_df
 
 # Run MinION
 
@@ -262,15 +263,13 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
 
     # Find fastq from experiment folder
     file_to_fastq = fastq_path(experiment_folder)
-
-    # Get template sequence
-    template_fasta = parent_fasta(cl_args)
+    
     # Basecall if asked
     if cl_args["perform_basecalling"]:
         basecall_reads(cl_args)
     # Process summary file by row
-    process_ref_csv(cl_args)
-
+    variant_df = process_ref_csv(cl_args)
+    
     # Clean up and prepare dataframe for visualization
     df_variants = create_df_v(variant_df, template_fasta)
     # Generate heatmap
