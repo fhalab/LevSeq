@@ -27,7 +27,7 @@ import subprocess
 from Bio import SeqIO
 import tqdm
 import os
-
+import re
 
 # Get barcode used
 def barcode_user(cl_args,i):
@@ -133,58 +133,24 @@ def save_csv(df, outputdir, name):
 
 
 # Generate dataframe for visualization
-def create_df_v(variants_df, template_fasta):
+def create_df_v(variants_df):
     # Make copy of dataframe
     df_variants_ = variants_df.copy()
-    # Add template fasta to dataframe 
-    for seq_record in SeqIO.parse(open(template_fasta), 'fasta'):
-        temp_seq = str(seq_record.seq).upper()
-    df_variants_.insert(0, 'template', temp_seq)
 
     # Fill in empty cells
     df_variants_['Variant'].tolist()
-    df_variants_['Variant'].fillna('')#, inplace=True)
+    df_variants_['Variant'] = df_variants_['Variant'].replace(np.nan, '', regex=True)
 
-    # Loop through dataframe and replace mutations
-    mut_ls = []
-    for i in df_variants_.index:
-        if isinstance(df_variants_['Variant'][i], np.ndarray):
-            df_variants_['Variant'][i] = df_variants_['Variant'][i].tolist()
+    # Create nc_variant column
+    df_variants_['nc_variant'] = df_variants_.apply(lambda row: create_nc_variant(row['Variant'], row['refseq']), axis=1)
+    
+    # Translate nc_variant to aa_variant
+    df_variants_['aa_variant'] = df_variants_['nc_variant'].apply(lambda x: 'Deletion' if x == 'Deletion' else translate(x))
+    # Fill in 'Deletion' in 'aa_variant' column
+    df_variants_.loc[df_variants_['nc_variant'] == 'Deletion', 'aa_variant'] = 'Deletion'
 
-        if df_variants_['Variant'][i] == '':
-            mut_ls.append('NA')
-
-        elif pd.isnull(df_variants_['Variant'][i]):
-            mut_ls.append('NA')
-        elif df_variants_['Variant'][i] == '#PARENT#':
-            mut_ls.append(df_variants_['template'][i])
-        elif 'DEL' in df_variants_['Variant'][i]:
-            mut_ls.append('Deletion')
-
-        else:
-            val_new = [x[-1] for x in df_variants_['Variant'][i].split('_')]
-            index = [int(s) for s in re.findall(r'\d+', df_variants_['Variant'][i])]
-            index_bp = []
-            var_seq = temp_seq
-            for m in range(len(index)):
-                index_bp.append(index[m] - 1)
-                var_seq = var_seq[:index_bp[m]] + val_new[m] + var_seq[index_bp[m] + 1:]
-            mut_ls.append(var_seq)
-    # Translate mutated sequence to protein
-    aa_ls = []
-    for i in range(len(mut_ls)):
-        if str(mut_ls[i]).upper() != 'NA':
-            aa_ls.append(translate(str(mut_ls[i]).upper()))
-        else:
-            aa_ls.append('NAN')
-    df_variants_['Protein Sequence'] = aa_ls
-
-    # Compare to template sequence and get mutations
-    mut = []
-    temp_aa = translate(temp_seq)
-    for i in range(len(aa_ls)):
-        mut.append('_'.join(get_mut(temp_aa, aa_ls[i])))
-    df_variants_['Mutations'] = mut
+    # Compare aa_variant with translated refseq and generate mutations column
+    df_variants_['Mutations'] = df_variants_.apply(get_mutations, axis=1)
 
     # Fill in empty empty values
     df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
@@ -192,8 +158,8 @@ def create_df_v(variants_df, template_fasta):
 
     # Fill in parents into mutations Column
     for i in df_variants_.index:
-        if mut_ls[i] =='Deletion':
-            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', 'Deletion')
+        if df_variants_['nc_variant'].iloc[i] == 'Deletion':
+            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '-')
         if df_variants_['Average mutation frequency'].iloc[i] == 0.0 and df_variants_['Mutations'].iloc[i] == '':
             df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '#N.A.#')
         if df_variants_['Mutations'].iloc[i] == '':
@@ -205,12 +171,56 @@ def create_df_v(variants_df, template_fasta):
     row = [Well[i].rstrip('0123456789') for Well[i] in Well]
     df_variants_['Row'] = row
     df_variants_['Column'] = column
-    df_variants_['Plate'] = df_variants_['Plate'].astype(str)  # TODO Change to user input plate name with cl_args
-
+    df_variants_['Plate'] = df_variants_['name'].astype(str)
+    
     # Update 'Plate' column from '1'-'9' to '01'-'09'
     df_variants_['Plate'] = df_variants_['Plate'].apply(lambda x: f'0{x}' if len(x) == 1 else x)
 
-    return df_variants_
+    # Select the desired columns in the desired order
+    restructured_df = df_variants_[['barcode_plate', 'Plate', 'Well', 'Variant', 'Alignment Count', 'Average mutation frequency', 'P value', 'P adj. value', 'Mutations', 'nc_variant', 'aa_variant']]
+    # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
+    restructured_df.loc[restructured_df['Alignment Count'] < 10, ['Mutations', 'Variant']] = '#N.A.#'
+
+    return restructured_df, df_variants_
+
+def create_nc_variant(variant, refseq):
+    if isinstance(variant, np.ndarray):
+        variant = variant.tolist()
+    if variant == '' or pd.isnull(variant):
+        return refseq
+    elif variant == '#PARENT#':
+        return refseq
+    elif 'DEL' in variant:
+        return 'Deletion'
+    else:
+        mutations = variant.split('_')
+        nc_variant = list(refseq)
+        for mutation in mutations:
+            if len(mutation) >= 2:
+                position = int(re.findall(r'\d+', mutation)[0]) - 1
+                original = mutation[0]
+                new = mutation[-1]
+            if position < len(nc_variant) and nc_variant[position] == original:
+                nc_variant[position] = new
+        return ''.join(nc_variant)
+
+def get_mutations(row):
+    refseq_aa = translate(row['refseq'])
+    variant_aa = row['aa_variant']
+
+    if variant_aa == 'Deletion':
+        return ''
+    else:
+        mutations = []
+        if len(refseq_aa) == len(variant_aa):
+            for i in range(len(refseq_aa)):
+                if refseq_aa[i] != variant_aa[i]:
+                    mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
+            if not mutations:
+                return '#PARENT#'
+        else:
+            return 'LEN'
+    return '_'.join(mutations) if mutations else ''
 
 # Process the summary file
 def process_ref_csv(cl_args):
@@ -235,7 +245,6 @@ def process_ref_csv(cl_args):
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         with open(temp_fasta_path, "w") as f:
             f.write(f">{name}\n{refseq}\n")
-
         barcode_path = filter_bc(cl_args, name_folder, i)
         file_to_fastq = fastq_path(get_input_folder(cl_args))
 
@@ -255,7 +264,7 @@ def process_ref_csv(cl_args):
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df
 
-# Run MinION
+# Run MinION    
 
 def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     # Find specific experiment in the upper directory of nanopore data
@@ -270,10 +279,20 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     # Process summary file by row
     variant_df = process_ref_csv(cl_args)
     
+    # Check if variants.csv already exist
+    result_folder = create_result_folder(cl_args) 
+    variant_csv_path = os.path.join(result_folder, "variants.csv")
+    if os.path.exists(variant_csv_path):
+        variant_df = pd.read_csv(variant_csv_path)
+        df_variants,df_vis = create_df_v(variant_df)
     # Clean up and prepare dataframe for visualization
-    df_variants = create_df_v(variant_df, template_fasta)
+    else:
+        df_variants,df_vis = create_df_v(variant_df)
+
+    processed_csv = os.path.join(result_folder, 'processed.csv')
+    df_variants.to_csv(processed_csv, index = False)
     # Generate heatmap
-    hm_ = generate_platemaps(df_variants)
+    hm_ = generate_platemaps(df_vis)
 
     # Saving heatmap and csv
     save_platemap_to_file(hm_, result_folder, cl_args['name'])
