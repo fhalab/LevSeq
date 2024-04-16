@@ -25,8 +25,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
     /bin/bash ~/miniconda.sh -b -p /opt/conda
 ENV PATH=$CONDA_DIR/bin:$PATH
 # -c conda-forge r-base
-ADD archive/environment.yml environment.yml
-RUN conda env create -f environment.yml
+COPY requirements.txt requirements.txt
 
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
@@ -37,6 +36,7 @@ RUN conda init bash
 RUN source ~/.bashrc
 RUN conda create --name minion2 python=3.9.18
 RUN activate minion2
+RUN pip install -r requirements.txt
 # Install all the software
 COPY software /software
 

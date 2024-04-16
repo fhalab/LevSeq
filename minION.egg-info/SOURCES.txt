@@ -10,6 +10,7 @@ minION/interface.py
 minION/parser.py
 minION/run_MinION.py
 minION/simulation.py
+minION/user.py
 minION/utils.py
 minION/variantcaller.py
 minION/visualization.py
