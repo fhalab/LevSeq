@@ -14,6 +14,8 @@ RUN apt-get install -y --no-install-recommends -f pkg-config
 RUN apt-get install -y libfreetype-dev
 RUN apt-get install -y libfreetype6
 RUN apt-get install -y libfreetype6-dev
+
+
 # forgot about this one needed for Drummer https://bedtools.readthedocs.io/en/latest/content/installation.html
 RUN apt-get install bedtools
 # Clean up mess to make things smaller
@@ -63,10 +65,30 @@ WORKDIR /
 
 # Add folder that we'll output data to
 # COPY docker_data /docker_data
-RUN mkdir /examples
+RUN mkdir /minION_results
 
 # Add to paths
 RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/minimap2:$PATH"
+
+# Install for demultiplexing
+RUN conda install conda-forge::gcc=13.1
+RUN conda install conda-forge::gxx
+RUN apt install gcc
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install tzdata package
+RUN apt-get update && apt-get install -y tzdata
+
+# Set your timezone
+RUN ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+RUN dpkg-reconfigure --frontend noninteractive tzdata
+
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y libstdc++6
 
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
 RUN cp -r /software/minimap2-2.24/* /usr/local/bin

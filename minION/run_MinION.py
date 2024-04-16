@@ -70,10 +70,11 @@ def basecall_reads(cl_args):
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
     # Obtain path of executable from package
-    with resources.path('minION.barcoding', 'minion_barcodes.fasta') as barcode_path:
-        front_prefix = "NB"
-        back_prefix = "RB"
-        bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
+    #with resources.path('minION/barcoding', 'minion_barcodes.fasta') as barcode_path:
+    barcode_path = '/minION/barcoding/minion_barcodes.fasta'
+    front_prefix = "NB"
+    back_prefix = "RB"
+    bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
     bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
     return barcode_path_filter
@@ -95,13 +96,16 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Plan B to locate using relative path relying on the git folder
     current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
-        # Get min and max sequence length if user specified, otherwise use default
-        seq_min = 800
-        seq_max = 5000
-        # Use subprocess to run the executable
-        prompt = f"{str(executable_path)} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100} -m {seq_min} -x {seq_max}"
-        subprocess.run(prompt, shell=True)
+    #with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
+    # ToDO! Fix this tech debt
+    executable_path = '/minION/barcoding/demultiplex-x86'
+
+    # Get min and max sequence length if user specified, otherwise use default
+    seq_min = 800
+    seq_max = 5000
+    # Use subprocess to run the executable
+    prompt = f"{str(executable_path)} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100} -m {seq_min} -x {seq_max}"
+    subprocess.run(prompt, shell=True)
 
 
 # Variant calling using VariantCaller class and generate dataframe

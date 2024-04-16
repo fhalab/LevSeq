@@ -63,7 +63,7 @@ docker run minion
 ```
 
 ```
- docker run -v /Users/ariane/Documents/code/MinION/data/paper:/examples/ minion examples/JR-TEST examples/20240403-JR/ examples/test-ref.csv
+ docker run -v /Users/ariane/Documents/code/MinION/data/paper:/minION_results/ minion JR-TEST minION_results/20240403-JR/ minION_results/test-ref.csv
 ```
 
 ### Steps to rebuild the C++ executables
