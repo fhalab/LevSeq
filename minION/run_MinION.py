@@ -151,8 +151,8 @@ def create_df_v(variants_df):
 
     # Compare aa_variant with translated refseq and generate mutations column
     df_variants_['Mutations'] = df_variants_.apply(get_mutations, axis=1)
-
-    # Fill in empty empty values
+    
+    # Fill in empty empty values 
     df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
     df_variants_['Alignment Count'] = df_variants_['Alignment_count'].fillna(0.0)
 
@@ -160,22 +160,30 @@ def create_df_v(variants_df):
     for i in df_variants_.index:
         if df_variants_['nc_variant'].iloc[i] == 'Deletion':
             df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '-')
-        if df_variants_['Average mutation frequency'].iloc[i] == 0.0 and df_variants_['Mutations'].iloc[i] == '':
-            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '#N.A.#')
-        if df_variants_['Mutations'].iloc[i] == '':
-            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '#PARENT#')
+        if df_variants_['Mutations'].iloc[i] == '#PARENT#':
+            df_variants_['Alignment Probability'].iat[i] = 1.0
 
     # Add row and columns
     Well = df_variants_['Well'].tolist()
-    column = [Well[i].strip('ABCDEFGH') for Well[i] in Well]
-    row = [Well[i].rstrip('0123456789') for Well[i] in Well]
+    row = []
+    column = []
+    for well in Well:
+        if len(well) >= 2:
+            row.append(well[0])
+            if well[1:].isdigit():
+                column.append(well[1:])
+            else:
+                column.append('')
+        else:
+            row.append('')
+            column.append('')
+
     df_variants_['Row'] = row
     df_variants_['Column'] = column
     df_variants_['Plate'] = df_variants_['name'].astype(str)
     
     # Update 'Plate' column from '1'-'9' to '01'-'09'
     df_variants_['Plate'] = df_variants_['Plate'].apply(lambda x: f'0{x}' if len(x) == 1 else x)
-
     # Select the desired columns in the desired order
     restructured_df = df_variants_[['barcode_plate', 'Plate', 'Well', 'Variant', 'Alignment Count', 'Average mutation frequency', 'P value', 'P adj. value', 'Mutations', 'nc_variant', 'aa_variant']]
     # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
@@ -207,6 +215,7 @@ def create_nc_variant(variant, refseq):
 def get_mutations(row):
     refseq_aa = translate(row['refseq'])
     variant_aa = row['aa_variant']
+    alignment_count = row['Alignment_count']  
 
     if variant_aa == 'Deletion':
         return ''
@@ -217,7 +226,10 @@ def get_mutations(row):
                 if refseq_aa[i] != variant_aa[i]:
                     mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
             if not mutations:
-                return '#PARENT#'
+                if alignment_count < 10:
+                    return '#N.A.#'
+                else:
+                    return '#PARENT#'
         else:
             return 'LEN'
     return '_'.join(mutations) if mutations else ''
@@ -289,8 +301,8 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     else:
         df_variants,df_vis = create_df_v(variant_df)
 
-    processed_csv = os.path.join(result_folder, 'processed.csv')
-    df_variants.to_csv(processed_csv, index = False)
+    processed_csv = os.path.join(result_folder, 'visualization.csv')
+    df_vis.to_csv(processed_csv, index = False)
     # Generate heatmap
     hm_ = generate_platemaps(df_vis)
 

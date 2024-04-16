@@ -122,14 +122,12 @@ def _make_platemap(df, title, cmap=None):
     def bin_align_freq(value):
         if value > 0.95:
             bin_vals = '0.95+'
-        if value <= 0.95 and value > 0.9:
+        elif value <= 0.95 and value > 0.9:
             bin_vals = '0.90-0.95'
-        if value <= 0.9 and value > 0.8:
+        elif value <= 0.9 and value > 0.8:
             bin_vals = '0.80-0.90'
         # anything below 0.8 should really be discarded
-        if value < 0.8:
-            bin_vals = '<0.80'
-        if value == 0.0:
+        else:
             bin_vals = '<0.80'
         return bin_vals
     
