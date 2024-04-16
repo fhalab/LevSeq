@@ -62,6 +62,9 @@ This gives us the access to the minION command line interface via:
 docker run minion
 ```
 
+```
+ docker run -v /Users/ariane/Documents/code/MinION/data/paper:/examples/ minion examples/JR-TEST examples/20240403-JR/ examples/test-ref.csv
+```
 
 ### Steps to rebuild the C++ executables
 
