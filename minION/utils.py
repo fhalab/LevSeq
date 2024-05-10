@@ -211,7 +211,7 @@ def calculate_mutation_significance_across_well(seq_df):
     return seq_df
 
 
-def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=20, msa_path=None):
+def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=5, msa_path=None):
     """
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """

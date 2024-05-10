@@ -183,6 +183,7 @@ class VariantCaller:
                 if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
                     self.variant_df.at[i, "Variant"] = float("nan")
                     self.variant_df.at[i, "Probability"] = float("nan")
+                    print(isinstance(bam_file,float))
                     continue
 
                 fname = '_'.join(bam_file.split("/")[1:3])
@@ -207,7 +208,7 @@ class VariantCaller:
         Args:
             - alignment_file (Path): Path to the alignment file (.bam).
             - qualities (bool, optional): If True, include base qualities in the analysis. Defaults to True.
-            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.2.
+            - threshold (float, optional): Threshold for calling a variant. Defaults to 0.5.
         """
         self.variant_df['P value'] = float("nan")
         self.variant_df['Mixed Well'] = False

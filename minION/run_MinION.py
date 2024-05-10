@@ -53,10 +53,8 @@ def fastq_path(folder):
 
 # Create result folder
 def create_result_folder(cl_args):
-    basecall_model = 'sup'
     result_folder = IO_processor.create_folder(
         cl_args['name'],
-        basecall_model,
         target_path=Path(cl_args['output']))
     return result_folder
 
@@ -71,7 +69,7 @@ def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
     # Obtain path of executable from package
     #with resources.path('minION/barcoding', 'minion_barcodes.fasta') as barcode_path:
-    barcode_path = '/minION/barcoding/minion_barcodes.fasta'
+    barcode_path = 'minION/barcoding/minion_barcodes.fasta'
     front_prefix = "NB"
     back_prefix = "RB"
     bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
@@ -98,7 +96,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Obtain path of executable from package
     #with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
     # ToDO! Fix this tech debt
-    executable_path = '/minION/barcoding/demultiplex-x86'
+    executable_path = 'minION/barcoding/demultiplex-x86'
 
     # Get min and max sequence length if user specified, otherwise use default
     seq_min = 800
@@ -116,7 +114,7 @@ def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
                        padding_start=0,
                        padding_end=0)
 
-    variant_df = vc.get_variant_df(threshold=0.2,
+    variant_df = vc.get_variant_df(threshold=0.5,
                                    min_depth=5)
     return variant_df
 
@@ -191,7 +189,7 @@ def create_df_v(variants_df):
     # Select the desired columns in the desired order
     restructured_df = df_variants_[['barcode_plate', 'Plate', 'Well', 'Variant', 'Alignment Count', 'Average mutation frequency', 'P value', 'P adj. value', 'Mutations', 'nc_variant', 'aa_variant']]
     # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
-    restructured_df.loc[restructured_df['Alignment Count'] < 10, ['Mutations', 'Variant']] = '#N.A.#'
+    restructured_df.loc[restructured_df['Alignment Count'] < 5, ['Mutations', 'Variant']] = '#N.A.#'
 
     return restructured_df, df_variants_
 
@@ -230,7 +228,7 @@ def get_mutations(row):
                 if refseq_aa[i] != variant_aa[i]:
                     mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
             if not mutations:
-                if alignment_count < 10:
+                if alignment_count < 5:
                     return '#N.A.#'
                 else:
                     return '#PARENT#'
@@ -276,7 +274,7 @@ def process_ref_csv(cl_args):
             variant_df = pd.concat([variant_df, variant_result])
         
         # Remove the temporary fasta file
-        os.remove(temp_fasta_path)
+        #os.remove(temp_fasta_path)
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df
 
@@ -292,7 +290,7 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
     # Basecall if asked
     if cl_args["perform_basecalling"]:
         basecall_reads(cl_args)
-    # Process summary file by row
+    # Process summary file by row using demux, call_variant function
     variant_df = process_ref_csv(cl_args)
     
     # Check if variants.csv already exist

@@ -402,7 +402,7 @@ def read_fasta_file(path: Path, score=False) -> dict:
         return sequences
 
 
-def create_folder(experiment_name: str, dorado_model, target_path: Path = None, output_name: str = None) -> Path:
+def create_folder(experiment_name: str, target_path: Path = None, output_name: str = None) -> Path:
     """
     When Starting minION, the function checks if a minION result folder exists. If not, it creates one. 
     It also checks for the subfolder of the experiment.
@@ -432,12 +432,12 @@ def create_folder(experiment_name: str, dorado_model, target_path: Path = None, 
 
     # Create experiment folder
 
-    experiment_name = f"{experiment_name}_{dorado_model}"
+    experiment_name = f"{experiment_name}"
 
     if output_name is None:
         result_folder = minION_results_dir / experiment_name
     else:
-        output_name = f"{output_name}_{dorado_model}"
+        output_name = f"{output_name}"
         result_folder = minION_results_dir / output_name
 
     result_folder.mkdir(exist_ok=True)
