@@ -21,4 +21,4 @@ seaborn
 scikit-learn
 statsmodels
 tqdm
-
+logomaker
