@@ -19,20 +19,20 @@ import shutil
 import tempfile
 import unittest
 from minION import *
-
-result_path = Path("test_data/")
-experiment_name = "RL-8-70"
-basecall_model_type = "sup"
-result_folder = IO_processor.create_folder(experiment_name,
-                                            basecall_model_type,
-                                            target_path=result_path)
-
+#
+# result_path = Path("test_data/")
+# experiment_name = "RL-8-70"
+# basecall_model_type = "sup"
+# result_folder = IO_processor.create_folder(experiment_name,
+#                                             basecall_model_type,
+#                                             target_path=result_path)
+#
 # Create Barcode fasta file
 barcode_path = "../minION/barcoding/minion_barcodes.fasta" # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
-barcode_path = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
+barcode_path = os.path.join("/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1", "minion_barcodes_filtered.fasta")
 
 # Barcode indexes
 front_min = 1
@@ -43,19 +43,19 @@ back_max = 12
 # Expected fragment sizes
 min_size = 800
 max_size = 5000
-
+#
 bp.filter_barcodes(barcode_path, (front_min,front_max), (back_min,back_max))
-
-file_to_experiment = f"test_data/{experiment_name}"
-template_fasta = "data/20220216-ZZ_sup/zz_parent.fasta"
-
-# Basecalling
-basecall_folder = os.path.join(result_folder, "basecalled")
-experiment_folder = ""
-
-# Demultiplexing
-experiment_name = experiment_name + "_" + basecall_model_type
-result_folder_path = IO_processor.find_folder(result_path, experiment_name)
+#
+# file_to_experiment = f"test_data/{experiment_name}"
+# template_fasta = "data/20220216-ZZ_sup/zz_parent.fasta"
+#
+# # Basecalling
+# basecall_folder = os.path.join(result_folder, "basecalled")
+# experiment_folder = ""
+#
+# # Demultiplexing
+# experiment_name = experiment_name + "_" + basecall_model_type
+# result_folder_path = IO_processor.find_folder(result_path, experiment_name)
 
 path_to_code = "demultiplex"
 
@@ -119,5 +119,14 @@ class TestMinIon(TestClass):
                                        num_threads=20)
         variant_df.to_csv('test_ZZ/variant_new_0.5_v6.csv')
 
-    def test_probabilities(self):
-        return 0
+    def test_new_minION(self):
+        vc = VariantCaller(Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/'),
+                           Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/temp_300-1.fasta'),
+                           demultiplex_folder_name='',
+                           padding_start=0,
+                           padding_end=0)
+        variant_df = vc.get_variant_df(threshold=0.5,
+                                       min_depth=5,
+                                       output_dir='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/msa/',
+                                       num_threads=20)
+        variant_df.to_csv('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/variant_new_0.5_v6.csv')
