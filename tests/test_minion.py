@@ -83,6 +83,7 @@ class TestClass(unittest.TestCase):
 
 class TestMinIon(TestClass):
 
+
     def test_basecalling(self):
         """
         ToDo test!

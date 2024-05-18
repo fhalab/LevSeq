@@ -62,7 +62,7 @@ class VariantCaller:
                                                  reverse_prefix=reverse_barcode_prefix)
             self.variant_df = self._get_sample_name()
             self.variant_df = self._rename_barcodes(rowwise=rowwise, merge=True)
-            self.variant_df = self._apply_alignment_count()
+            #self.variant_df = self._apply_alignment_count()
 
     def _get_sample_name(self):
         variant_df = {"Parent": [], "Child": [], "Path": []}
@@ -144,11 +144,11 @@ class VariantCaller:
             mismatch_score = 2
             gap_opening_penalty = 10
 
-            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+            minimap_cmd = f"/Users/ariane/Documents/code/MinION/minimap2/./minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         else:
-            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+            minimap_cmd = f"/Users/ariane/Documents/code/MinION/minimap2/./minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         view_cmd = f"samtools view -bS {output_dir}/{alignment_name}.sam > {output_dir}/{alignment_name}.bam"
@@ -177,18 +177,18 @@ class VariantCaller:
                     print(f"Aligning sequences for {row['Path']}")
                     self._align_sequences(row["Path"])
 
-                self._apply_alignment_count()
-
-                # Check alignment count
-                if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
-                    self.variant_df.at[i, "Variant"] = float("nan")
-                    self.variant_df.at[i, "Probability"] = float("nan")
-                    print(isinstance(bam_file,float))
-                    continue
+                # self._apply_alignment_count()
+                #
+                # # Check alignment count
+                # if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
+                #     self.variant_df.at[i, "Variant"] = float("nan")
+                #     self.variant_df.at[i, "Probability"] = float("nan")
+                #     print(isinstance(bam_file,float))
+                #     continue
 
                 fname = '_'.join(bam_file.split("/")[1:3])
                 well_df = get_reads_for_well(self.ref_name, bam_file, str(self.reference_path),
-                                             msa_path=f'{output_dir}msa_{fname}.fa')
+                                             msa_path=f'{output_dir}msa_{i}.fa')
                 if well_df is not None:
                     well_df.to_csv(f'{output_dir}seq_{fname}.csv')
                     label, probability, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
@@ -261,14 +261,14 @@ class VariantCaller:
         if not os.path.exists(bam_file):
             return 0
 
-        try:
-            alignment_count = int(
-                subprocess.run(f"samtools view -c {bam_file}", shell=True, capture_output=True).stdout.decode(
-                    "utf-8").strip())
-        except:
-            # ToDo: Return a meaningful error here
-            print(f'Warning! your bamfile: {bam_file} had no counts! Check the header manually.')
-            return 0
+     #try:
+        alignment_count = int(
+            subprocess.run(f"samtools view -c {bam_file}", shell=True, capture_output=True).stdout.decode(
+                "utf-8").strip())
+        # except:
+        #     # ToDo: Return a meaningful error here
+        #     print(f'Warning! your bamfile: {bam_file} had no counts! Check the header manually.')
+            #return 0
         return alignment_count
 
     def _apply_alignment_count(self):
