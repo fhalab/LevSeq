@@ -43,10 +43,10 @@ class VariantCaller:
 
     """
 
-    def __init__(self, experiment_folder: Path, reference_path: Path, reverse_barcodes, forward_barcodes,
-                 padding_start: int = 0, padding_end: int = 0) -> None:
+    def __init__(self, experiment_folder: Path, reference_path: Path, experiment_file_path: str, reverse_barcodes,
+                 forward_barcodes, padding_start: int = 0, padding_end: int = 0) -> None:
         self.reference_path = reference_path
-        self.ref_name, self.reference_path, self.barcode_to_plate_name = self.load_reference(reference_path)
+        self.ref_name, self.ref_str, self.barcode_to_plate_name = self.load_reference(experiment_file_path)
         self.experiment_folder = experiment_folder
         self.padding_start = padding_start
         self.padding_end = padding_end
@@ -109,7 +109,7 @@ class VariantCaller:
         else:
             return "NA"
 
-    def _align_sequences(self, output_dir: Path, scores: list = [4, 2, 10], fastq_prefix="demultiplexed",
+    def _align_sequences(self, output_dir: Path, filename, scores: list = [4, 2, 10],
                          site_saturation: bool = False, alignment_name: str = "alignment_minimap") -> None:
         """
         Aligns sequences using minimap2, converts to BAM, sorts and indexes the BAM file.
@@ -125,12 +125,12 @@ class VariantCaller:
             - None
         """
 
-        fastq_files = Path(output_dir).glob(f"{fastq_prefix}*.fastq")
+        fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq.gz")
 
         if not fastq_files:
             raise FileNotFoundError("No FASTQ files found in the specified output directory.")
 
-        fastq_files_str = " ".join(str(file) for file in fastq_files)
+        fastq_files_str = fastq_files
 
         if site_saturation:
             alignment_name = "alignment_minimap_site_saturation"
@@ -142,17 +142,18 @@ class VariantCaller:
             minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        else:
-            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+        else:  # -A {scores[0]} -B {scores[1]} -O {scores[2]},24
+            minimap_cmd = f"/Users/ariane/Documents/code/MinION/software/minimap2-2.24/./minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.reference_path}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
+            print(minimap_cmd)
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        view_cmd = f"samtools view -bS {output_dir}/{alignment_name}.sam > {output_dir}/{alignment_name}.bam"
+        view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
         subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        sort_cmd = f"samtools sort {output_dir}/{alignment_name}.bam -o {output_dir}/{alignment_name}.bam"
+        sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
         subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        index_cmd = f"samtools index {output_dir}/{alignment_name}.bam"
+        index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"
         subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Remove SAM file
@@ -164,20 +165,21 @@ class VariantCaller:
         """
         barcode_ids, threshold, min_depth, output_dir = args[0], args[1], args[2], args[3]
         for barcode_id in tqdm(barcode_ids):
-            row = self.variant_dict.get(barcode_id)            bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
+            row = self.variant_dict.get(barcode_id)
+            bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
             # Check if the alignment file exists
             if os.path.exists(row["Path"]):
                 if not os.path.exists(bam_file):
                     # Try aligning the sequences
                     print(f"Aligning sequences for {row['Path']}")
-                    self._align_sequences(row["Path"])
+                    self._align_sequences(row["Path"], row['Barcodes'])
 
                 # Check alignment count
-                fname = '_'.join(bam_file.split("/")[1:3])
-                well_df = get_reads_for_well(self.ref_name, bam_file, str(self.reference_path),
-                                             msa_path=f'{output_dir}msa_{fname}.fa')
+                well_df = get_reads_for_well(self.ref_name, bam_file, self.ref_str,
+                                             msa_path=f'{output_dir}msa_{barcode_id}.fa')
+                self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
                 if well_df is not None:
-                    well_df.to_csv(f'{output_dir}seq_{fname}.csv')
+                    well_df.to_csv(f'{output_dir}seq_{barcode_id}.csv')
                     label, freq, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
                     self.variant_dict[barcode_id]["Variant"] = label
                     self.variant_dict[barcode_id]["Mixed Well"] = mixed_well
@@ -211,7 +213,8 @@ class VariantCaller:
         self.variant_df['Variant'] = [self.variant_dict[b_id].get('Variant') for b_id in self.variant_df['ID'].values]
         self.variant_df['Mixed Well'] = [self.variant_dict[b_id].get('Mixed Well') for b_id in self.variant_df['ID'].values]
         self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for b_id in self.variant_df['ID'].values]
-        self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') for b_id in self.variant_df['ID'].values]
+        self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') if self.variant_dict[b_id].get('P value') else 1.0 for b_id in self.variant_df['ID'].values]
+        self.variant_df['Alignment Count'] = [self.variant_dict[b_id].get('Alignment Count') for b_id in self.variant_df['ID'].values]
 
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values

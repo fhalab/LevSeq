@@ -82,14 +82,23 @@ class TestClass(unittest.TestCase):
 class TestMinIon(TestClass):
 
     def test_new_minION(self):
-        vc = VariantCaller(Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/'),
-                           Path('/Users/ariane/Documents/code/MinION/tests/data/20240502/ref.csv'),
-                           reverse_barcodes='/Users/ariane/Documents/code/MinION/tests/data/20240502/rev_barcodes.fasta',
-                           forward_barcodes='/Users/ariane/Documents/code/MinION/tests/data/20240502/for_barcodes.fasta',
+        input_file = '/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/temp_300-1.fasta'
+        with open(input_file.replace(".fasta", "_rev.fasta"), "w") as output_handle:
+            for record in SeqIO.parse(input_file, "fasta"):
+                record.seq = record.seq.reverse_complement()
+                print(record.seq)
+                SeqIO.write(record, output_handle, "fasta")
+
+        vc = VariantCaller(Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/output/'),
+                           Path(
+                               '/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/temp_300-1.fasta'),
+                           '/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/ref.csv',
+                           reverse_barcodes='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/rev_barcodes.fasta',
+                           forward_barcodes='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/for_barcodes.fasta',
                            padding_start=0,
                            padding_end=0)
         variant_df = vc.get_variant_df(threshold=0.5,
                                        min_depth=5,
-                                       output_dir='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/msa/',
-                                       num_threads=1)
-        variant_df.to_csv('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/variant_new_0.5_v6.csv')
+                                       output_dir='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/output/msa/',
+                                       num_threads=20)
+        variant_df.to_csv('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/output/variant_new.csv')

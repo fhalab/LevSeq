@@ -17,12 +17,14 @@
 # Import all packages
 import pandas as pd
 import pysam
+import os
 import numpy as np
 from collections import defaultdict
 from scipy.stats import binomtest
 from statsmodels.stats.multitest import multipletests
 from pathlib import Path
 from scipy.stats import combine_pvalues
+from Bio import SeqIO
 
 
 amino_acid_to_codon = {
@@ -160,15 +162,15 @@ def make_well_df_from_reads(seqs, read_ids, read_quals):
     Make a dataframe in a specific format taking the reads and read IDs and filtering duplicates based on the
     read quality. Keeps the highest quality scoring read for a given read ID.
     """
-    seq_df = pd.DataFrame([list(s) for s in seqs]) # Convert each string to a list so that we get positions nicely
+    seq_df = pd.DataFrame([list(s) for s in seqs])  # Convert each string to a list so that we get positions nicely
     # Also add in the read_ids and sort by the quality to only take the highest quality one
     seq_df['read_id'] = read_ids
-    seq_df['read_qual'] = read_quals
+    #seq_df['read_qual'] = read_quals
     seq_df['seqs'] = seqs
-    seq_df = seq_df.sort_values(by='read_qual', ascending=False)
+    #seq_df = seq_df.sort_values(by='read_qual', ascending=False)
     # Should now be sorted by the highest quality
     seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
-    return seq_df.drop(columns=['read_qual', 'read_id', 'seqs'])
+    return seq_df.drop(columns=['read_id', 'seqs'])
 
 
 def calculate_mutation_significance_across_well(seq_df):
@@ -210,52 +212,57 @@ def calculate_mutation_significance_across_well(seq_df):
     return seq_df
 
 
-def get_reads_for_well(parent_name, bam: str, ref: str, min_coverage=5, msa_path=None):
+def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_coverage=5, msa_path=None):
     """
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """
-    bam = pysam.AlignmentFile(bam, "rb")
-    fasta = pysam.FastaFile(ref)
+    bam = pysam.AlignmentFile(bam_file_path, "rb")
+    # Ensure the BAM file is indexed
+    if not os.path.exists(bam_file_path + ".bai"):
+        pysam.index(bam_file_path)
+
+    cramHeader = bam.header.to_dict()
+    print("References in BAM file:", bam.references)
+    print("Lengths of references:", bam.lengths)
+    print(cramHeader)
     rows_all = []
-    reads = []
-    try:
-        for read in bam.fetch(parent_name):
-            # Check if we want this read
-            reads.append(read)
-    except:
-        print(f'Position: {parent_name}, unable to be read... Warning!')
+    seqs = []
+    read_ids = []
+    read_quals = []
 
-    if len(reads) > min_coverage:
-        ref_str = fasta[parent_name]
-        seqs = []
-        read_ids = []
-        read_quals = []
-        for read in reads:
-            if read.query_sequence is not None:
-                seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
-                                                           read.query_qualities)
-                # Make it totally align
-                seq = "-" * read.reference_start + seq + "-" * (len(ref_str) - (read.reference_start + len(seq)))
-                seqs.append(list(seq))
-                read_ids.append(f'{read.query_name}')
-                read_quals.append(read.qual)
+    for read in bam.fetch(until_eof=True):
+        if read.query_sequence is not None and len(read.query_sequence) > 0.9*len(ref_str) and read.cigartuples is not None:
+            seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
+                                                       read.query_qualities)
+            # Make it totally align
+            seq = "-" * read.reference_start + seq + "-" * (len(ref_str) - (read.reference_start + len(seq)))
+            seqs.append(seq)
+            #seqs.append(read.query_sequence)
+            read_ids.append(f'{read.query_name}')
+            read_quals.append(read.qual)
 
-        # Again check that we actually had enough reads for this to be considered a good well
-        if len(seqs) > min_coverage:
-            seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
-            rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
+    # Check if we want to write a MSA
+    if msa_path is not None:
+        print("Writing MSA")
+        with open(msa_path, 'w+') as fout:
+            # Write the reference first
+            fout.write(f'>{parent_name}\n{ref_str}\n')
+            for i, seq in enumerate(seqs):
+                fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
+        # # Align using clustal for debugging if you need the adapter! Here you would change above to use a different version
+        # print(f'/Users/ariane/Documents/code/MinION/software/./clustal-omega-1.2.3-macosx --force -i {msa_path} -o {msa_path.replace(".fa", "_msa.fa")}')
+        # os.system(f'/Users/ariane/Documents/code/MinION/software/./clustal-omega-1.2.3-macosx --force -i "{msa_path}" -o "{msa_path.replace(".fa", "_msa.fa")}"')
+        # seqs = [str(record.seq) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
+        # read_ids = [str(record.id) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
+    # Again check that we actually had enough reads for this to be considered a good well
+    if len(seqs) > min_coverage:
+        seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
+        # Seqs[0] is always the parent
+        rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
 
-        # Check if we want to write a MSA
-        if msa_path is not None:
-            with open(msa_path, 'w+') as fout:
-                # Write the reference first
-                fout.write(f'>{parent_name}\n{ref_str}\n')
 
-                for i, seq in enumerate(seqs):
-                    fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
 
     bam.close()
-    fasta.close()
 
     if len(rows_all) > 1:  # Check if we have anything to return
         seq_df = pd.DataFrame(rows_all)
