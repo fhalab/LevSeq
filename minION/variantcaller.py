@@ -14,13 +14,14 @@
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.     #
 #                                                                             #
 ###############################################################################
-from minION.IO_processor import get_barcode_dict, get_template_sequence
+import pandas as pd
+
 from minION.utils import *
 import subprocess
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
-import pandas as pd
+from Bio import SeqIO
 import re
 from tqdm import tqdm
 
@@ -42,65 +43,59 @@ class VariantCaller:
 
     """
 
-    def __init__(self, experiment_folder: Path,
-                 reference_path: Path,
-                 barcodes=True,
-                 demultiplex_folder_name="demultiplex",
-                 front_barcode_prefix="NB", reverse_barcode_prefix="RB", rowwise=False,
+    def __init__(self, experiment_folder: Path, reference_path: Path, reverse_barcodes, forward_barcodes,
                  padding_start: int = 0, padding_end: int = 0) -> None:
         self.reference_path = reference_path
-        self.reference = get_template_sequence(reference_path)
+        self.ref_name, self.reference_path, self.barcode_to_plate_name = self.load_reference(reference_path)
         self.experiment_folder = experiment_folder
-        self.ref_name = self._get_ref_name()
         self.padding_start = padding_start
         self.padding_end = padding_end
-        self.alignment_name = "alignment_minimap.bam"
+        self.alignment_name = 'alignment_minimap'
+        self.build_variant_df_from_barcodes(reverse_barcodes, forward_barcodes)
+        self.variant_dict = {}
 
-        if barcodes:
-            self.demultiplex_folder = Path(os.path.join(experiment_folder, demultiplex_folder_name))
-            self.barcode_dict = get_barcode_dict(self.demultiplex_folder, front_prefix=front_barcode_prefix,
-                                                 reverse_prefix=reverse_barcode_prefix)
-            self.variant_df = self._get_sample_name()
-            self.variant_df = self._rename_barcodes(rowwise=rowwise, merge=True)
-            self.variant_df = self._apply_alignment_count()
+        self.variant_df = self.build_variant_df_from_barcodes(reverse_barcodes, forward_barcodes)
 
-    def _get_sample_name(self):
-        variant_df = {"Parent": [], "Child": [], "Path": []}
+    def build_variant_df_from_barcodes(self, reverse_barcodes, forward_barcodes) -> pd.DataFrame:
+        """
+        Build variant dataframe from barcodes, forward and reverse barcodes.
+        """
+        forward_barcode_ids = [record.id for record in SeqIO.parse(forward_barcodes, "fasta")]
+        reverse_barcode_ids = [record.id for record in SeqIO.parse(reverse_barcodes, "fasta")]
+        # Make the dataframe using these and converting them to something more readable (i.e. the name the user assigned
+        # to the plate)
+        barcode_ids = []
+        renamed_ids = []
+        plates = []
+        wells = []
+        self.variant_dict = defaultdict(dict)
+        for reverse_barcode in reverse_barcode_ids:
+            for forward_barcode in forward_barcode_ids:
+                barcode_ids.append(f'{reverse_barcode}_{forward_barcode}')
+                plate = self.barcode_to_plate_name.get(int(reverse_barcode.replace('RB', '')))
+                well = self._barcode_to_well(forward_barcode)
+                renamed_ids.append(f'{plate}_{well}')
+                plates.append(plate)
+                wells.append(well)
+                self.variant_dict[f'{plate}_{well}'] = {'Plate': plate, 'Well': well,
+                                                        'Barcodes': f'{reverse_barcode}_{forward_barcode}',
+                                                        'Path': os.path.join(self.experiment_folder, f'{reverse_barcode}/{forward_barcode}')}
 
-        for _, barcode_dict in self.barcode_dict.items():
-            for barcode_path in barcode_dict:
-                child = os.path.basename(barcode_path)
-                parent = os.path.basename(os.path.dirname(barcode_path))
-
-                variant_df["Parent"].append(parent)
-                variant_df["Child"].append(child)
-                variant_df["Path"].append(Path(barcode_path))
-
-        return pd.DataFrame(variant_df)
-
-    def _rename_barcodes(self, rowwise=False, parent_name="Plate", child_name="Well", merge=True):
-
-        df = self.variant_df
-
-        if rowwise:
-            df = df.rename(columns={'Parent': "Row", 'Child': child_name})
-            df["Well"] = df["Well"].apply(self._barcode_to_well)
-            df["Plate"] = df['Plate'].str.extract('(\d+)').astype(int)
-
-        else:
-            df = df.rename(columns={'Parent': parent_name, 'Child': child_name})
-            df["Plate"] = df['Plate'].str.extract('(\d+)').astype(int)
-            df["Well"] = df["Well"].apply(self._barcode_to_well)
-
-            # Get Plate Numbers
-            plate_numbers = df[parent_name].unique()
-            plate_numbers.sort()
-
-            if merge:
-                template_df = get_template_df(plate_numbers, self.barcode_dict, rowwise=rowwise)
-                df = pd.merge(template_df, df, on=[parent_name, child_name], how="left")
-
+        df = pd.DataFrame()
+        df['Plate'] = plates
+        df['Well'] = wells
+        df['Barcode'] = barcode_ids
+        df['ID'] = renamed_ids
         return df
+
+    @staticmethod
+    def load_reference(reference_path):
+        # The reference enables multiple parents to be used for different
+        df = pd.read_csv(reference_path)
+        # WARNING: this assumes all the parents are the same
+        ref_seq = df['refseq'].values[0]
+        barcode_to_plate_name = dict(zip(df['barcode_plate'], df['name']))
+        return 'Parent', ref_seq, barcode_to_plate_name
 
     @staticmethod
     def _barcode_to_well(barcode):
@@ -130,7 +125,7 @@ class VariantCaller:
             - None
         """
 
-        fastq_files = output_dir.glob(f"{fastq_prefix}*.fastq")
+        fastq_files = Path(output_dir).glob(f"{fastq_prefix}*.fastq")
 
         if not fastq_files:
             raise FileNotFoundError("No FASTQ files found in the specified output directory.")
@@ -167,39 +162,27 @@ class VariantCaller:
         """
         Runs a thread of variant calling.
         """
-        data, threshold, min_depth, output_dir = args[0], args[1], args[2], args[3]
-        for i, row in tqdm(data.iterrows()):
-            if isinstance(row["Path"], os.PathLike):
-                bam_file = os.path.join(row["Path"], self.alignment_name)
-                # Check if the alignment file exists
+        barcode_ids, threshold, min_depth, output_dir = args[0], args[1], args[2], args[3]
+        for barcode_id in tqdm(barcode_ids):
+            row = self.variant_dict.get(barcode_id)            bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
+            # Check if the alignment file exists
+            if os.path.exists(row["Path"]):
                 if not os.path.exists(bam_file):
                     # Try aligning the sequences
                     print(f"Aligning sequences for {row['Path']}")
                     self._align_sequences(row["Path"])
 
-                self._apply_alignment_count()
-
                 # Check alignment count
-                if self.variant_df["Alignment_count"][i] < min_depth or isinstance(bam_file, float):
-                    self.variant_df.at[i, "Variant"] = float("nan")
-                    self.variant_df.at[i, "Probability"] = float("nan")
-                    print(isinstance(bam_file,float))
-                    continue
-
                 fname = '_'.join(bam_file.split("/")[1:3])
                 well_df = get_reads_for_well(self.ref_name, bam_file, str(self.reference_path),
                                              msa_path=f'{output_dir}msa_{fname}.fa')
                 if well_df is not None:
                     well_df.to_csv(f'{output_dir}seq_{fname}.csv')
-                    label, probability, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
-                    self.variant_df.at[i, "Mixed Well"] = mixed_well
-                    self.variant_df.at[i, "Variant"] = label
-                    self.variant_df.at[i, "Probability"] = probability
-                    self.variant_df.at[i, "P value"] = combined_p_value
-
-                else:
-                    self.variant_df.at[i, "Variant"] = float("nan")
-                    self.variant_df.at[i, "Probability"] = float("nan")
+                    label, freq, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
+                    self.variant_dict[barcode_id]["Variant"] = label
+                    self.variant_dict[barcode_id]["Mixed Well"] = mixed_well
+                    self.variant_dict[barcode_id]["Average mutation frequency"] = freq
+                    self.variant_dict[barcode_id]["P value"] = combined_p_value
 
     def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=10):
         """
@@ -218,30 +201,23 @@ class VariantCaller:
         self.variant_df.reset_index(inplace=True)
         for i in range(0, len(self.variant_df), num):
             end_i = i + num if i + num < len(self.variant_df) else len(self.variant_df)
-            sub_df = self.variant_df.iloc[i: end_i]
+            sub_df = self.variant_df.iloc[i: end_i]['ID'].values
             sub_data = [sub_df, threshold, min_depth, output_dir]
             data.append(sub_data)
 
         # Thread it
         pool.map(self._run_variant_thread, data)
 
+        self.variant_df['Variant'] = [self.variant_dict[b_id].get('Variant') for b_id in self.variant_df['ID'].values]
+        self.variant_df['Mixed Well'] = [self.variant_dict[b_id].get('Mixed Well') for b_id in self.variant_df['ID'].values]
+        self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for b_id in self.variant_df['ID'].values]
+        self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') for b_id in self.variant_df['ID'].values]
+
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
         self.variant_df['P adj. value'] = [1 if x > 1 else x for x in self.variant_df["P adj. value"].values]
-        self.variant_df.rename(columns={'Probability': "Average mutation frequency"}, inplace=True)
 
         return self.variant_df
-
-    def _get_ref_name(self):
-        with open(self.reference_path, "r") as f:
-
-            # Check if the reference is in fasta format
-            ref_name = f.readline().strip()
-            if not ref_name.startswith(">"):
-                raise ValueError("Reference file is not in fasta format")
-            else:
-                ref_name = ref_name[1:]
-        return ref_name
 
     def _get_alignment_count(self, sample_folder_path: Path):
         """
@@ -253,9 +229,6 @@ class VariantCaller:
         Returns:
             - int: Number of alignments in the BAM file.
         """
-        if not isinstance(sample_folder_path, Path):
-            return 0
-
         bam_file = os.path.join(sample_folder_path, self.alignment_name)
 
         if not os.path.exists(bam_file):
@@ -275,10 +248,5 @@ class VariantCaller:
         """
         Get alignment count for each sample
         """
-
-        self.variant_df["Path"] = self.variant_df["Path"].apply(lambda x: Path(x) if isinstance(x, str) else x)
-
-        self.variant_df["Alignment_count"] = self.variant_df["Path"].apply(self._get_alignment_count)
-
-        return self.variant_df
-
+        for barcode_id, entry in self.variant_dict.items():
+            self.variant_dict[barcode_id]["Alignment_count"] = self._get_alignment_count(entry["Path"])

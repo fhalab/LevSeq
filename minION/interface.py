@@ -21,12 +21,7 @@ Contain argument parsers used for command line interface and web interface
 import os
 import tqdm
 import argparse
-from time import strftime
-
-from pathlib import Path
-
 # Import local packages
-from minION import IO_processor
 from minION.run_MinION import run_MinION
 
 # Get the working directory

@@ -68,19 +68,12 @@ def basecall_reads(cl_args):
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
     # Obtain path of executable from package
-    #with resources.path('minION/barcoding', 'minion_barcodes.fasta') as barcode_path:
     barcode_path = 'minION/barcoding/minion_barcodes.fasta'
     front_prefix = "NB"
     back_prefix = "RB"
-    bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
     bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
     return barcode_path_filter
-
-
-# Filter template sequence length
-def filter_seq(cl_args):
-    return seq_min, seq_max
 
 
 # Get reference fasta (parent sequence)
@@ -110,7 +103,6 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
     vc = VariantCaller(experiment_folder,
                        template_fasta,
-                       demultiplex_folder_name=demultiplex_folder_name,
                        padding_start=0,
                        padding_end=0)
 
@@ -239,6 +231,8 @@ def get_mutations(row):
 # Process the summary file
 def process_ref_csv(cl_args):
     ref_df = pd.read_csv(cl_args['summary'])
+    barcode_path = pd.read_csv(cl_args['barcode_path'])
+
     result_folder = create_result_folder(cl_args)
 
     variant_csv_path = os.path.join(result_folder, "variants.csv")
@@ -259,7 +253,6 @@ def process_ref_csv(cl_args):
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         with open(temp_fasta_path, "w") as f:
             f.write(f">{name}\n{refseq}\n")
-        barcode_path = filter_bc(cl_args, name_folder, i)
         file_to_fastq = fastq_path(get_input_folder(cl_args))
 
         if not cl_args['skip_demultiplexing']: 
@@ -286,10 +279,7 @@ def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
 
     # Find fastq from experiment folder
     file_to_fastq = fastq_path(experiment_folder)
-    
-    # Basecall if asked
-    if cl_args["perform_basecalling"]:
-        basecall_reads(cl_args)
+
     # Process summary file by row using demux, call_variant function
     variant_df = process_ref_csv(cl_args)
     

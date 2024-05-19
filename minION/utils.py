@@ -25,7 +25,6 @@ from pathlib import Path
 from scipy.stats import combine_pvalues
 
 
-
 amino_acid_to_codon = {
     'A': 'GCT', 'R': 'CGT', 'N': 'AAT', 'D': 'GAT', 'C': 'TGT',
     'Q': 'CAA', 'E': 'GAA', 'G': 'GGT', 'H': 'CAT', 'I': 'ATT',

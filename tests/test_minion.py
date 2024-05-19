@@ -31,7 +31,6 @@ from minION import *
 barcode_path = "../minION/barcoding/minion_barcodes.fasta" # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
-bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
 barcode_path = os.path.join("/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1", "minion_barcodes_filtered.fasta")
 
 # Barcode indexes
@@ -44,7 +43,6 @@ back_max = 12
 min_size = 800
 max_size = 5000
 #
-bp.filter_barcodes(barcode_path, (front_min,front_max), (back_min,back_max))
 #
 # file_to_experiment = f"test_data/{experiment_name}"
 # template_fasta = "data/20220216-ZZ_sup/zz_parent.fasta"
@@ -83,50 +81,15 @@ class TestClass(unittest.TestCase):
 
 class TestMinIon(TestClass):
 
-    def test_basecalling(self):
-        """
-        ToDo test!
-        """
-        pod5_files = IO_processor.find_folder(experiment_folder, "pod5")
-        bc = Basecaller(basecall_model_type, pod5_files, basecall_folder, fastq=True)
-        bc.run_basecaller()
-
-    def test_find_fastq(self):
-        # Find fastq files
-        file_to_fastq = IO_processor.find_folder(experiment_folder, "fastq_pass")
-        print(file_to_fastq)
-
-    def test_demultiplex(self):
-        # Find fastq files
-        file_to_fastq = IO_processor.find_folder(experiment_folder, "fastq_pass")
-        print(file_to_fastq)
-        prompt = f"{path_to_code} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100} -m {min_size} -x {max_size}"
-        subprocess.run(prompt, shell=True)
-        demultiplex_folder = result_folder
-        print(demultiplex_folder)
-
-    def test_variant_calling(self):
-        # To run this will need to update to having stuff not using subprocess...
-        vc = VariantCaller(Path('test_data/RL/'),
-                           Path(template_fasta),
-                           demultiplex_folder_name='',
-                           padding_start=0,
-                           padding_end=0)
-
-        variant_df = vc.get_variant_df(threshold=0.5,
-                                       min_depth=5,
-                                       output_dir='test_ZZ/',
-                                       num_threads=20)
-        variant_df.to_csv('test_ZZ/variant_new_0.5_v6.csv')
-
     def test_new_minION(self):
         vc = VariantCaller(Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/'),
-                           Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/temp_300-1.fasta'),
-                           demultiplex_folder_name='',
+                           Path('/Users/ariane/Documents/code/MinION/tests/data/20240502/ref.csv'),
+                           reverse_barcodes='/Users/ariane/Documents/code/MinION/tests/data/20240502/rev_barcodes.fasta',
+                           forward_barcodes='/Users/ariane/Documents/code/MinION/tests/data/20240502/for_barcodes.fasta',
                            padding_start=0,
                            padding_end=0)
         variant_df = vc.get_variant_df(threshold=0.5,
                                        min_depth=5,
                                        output_dir='/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1/msa/',
-                                       num_threads=20)
+                                       num_threads=1)
         variant_df.to_csv('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/variant_new_0.5_v6.csv')

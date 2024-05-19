@@ -40,22 +40,10 @@ SW_ALIGN_PARAMS = {
     "rear_window_size": 150,
 }  # Adapted from Guppy Barcoder
 
-# Path where the minION reads are stored # ToDo: this needs to be made modular!
-# MINKNOW_PATH = "/var/lib/minknow/data/"
-MINKNOW_PATH = "/Users/ariane/Documents/code/MinION/data/"
 
 # Defaul target folder names from ONT
 DEFAULT_TARGETS = {"Not_basecalled": ["pod5"], "Basecalled": ["fastq_pass"]}
 
-# Dorado Models
-DORADO_MODELS = {"fast": "dna_r10.4.1_e8.2_400bps_fast@v4.2.0",  # Fast inference (least accurate)
-                 "hac": "dna_r10.4.1_e8.2_400bps_hac@v4.2.0",  # Balanced inference (balanced accuracy and speed)
-                 "sup": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0"  # Most accurate inference (slowest)
-                 }
-
-# Medaka Models
-
-MEDAKA_MODELS = {"default": "r1041_e82_400bps_sup_v4.2.0"}
 
 # Codons
 CODONS = {
