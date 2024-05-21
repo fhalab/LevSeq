@@ -260,8 +260,6 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
         # Seqs[0] is always the parent
         rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
 
-
-
     bam.close()
 
     if len(rows_all) > 1:  # Check if we have anything to return

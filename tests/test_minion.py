@@ -82,13 +82,6 @@ class TestClass(unittest.TestCase):
 class TestMinIon(TestClass):
 
     def test_new_minION(self):
-        input_file = '/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/temp_300-1.fasta'
-        with open(input_file.replace(".fasta", "_rev.fasta"), "w") as output_handle:
-            for record in SeqIO.parse(input_file, "fasta"):
-                record.seq = record.seq.reverse_complement()
-                print(record.seq)
-                SeqIO.write(record, output_handle, "fasta")
-
         vc = VariantCaller(Path('/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/output/'),
                            Path(
                                '/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/raw/20240415-JR-YL/temp_300-1.fasta'),
