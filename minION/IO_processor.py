@@ -427,7 +427,7 @@ def create_folder(experiment_name: str, target_path: Path = None, output_name: s
         curr_dir = target_path
 
     # Create minION_results folder if it doesn't exist
-    minION_results_dir = curr_dir / "minION_results"
+    minION_results_dir = curr_dir / "EVSeqL_Output"
     minION_results_dir.mkdir(exist_ok=True)
 
     # Create experiment folder
