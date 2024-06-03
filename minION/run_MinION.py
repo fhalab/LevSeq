@@ -44,12 +44,14 @@ def barcode_user(cl_args,i):
 
 
 # Get fastq.gz files from user provided path, exclude any from fastq_fail
-def cat_fastq_files(folder_path: str, output_file: str):
+def cat_fastq_files(folder_path: str, output_path: str):
     folder_path = Path(folder_path)
-    output_path = Path(output_file)
+    output_path = Path(output_path)
+    output_file = output_path
 
     if not folder_path.is_dir():
         raise ValueError(f"The provided path {folder_path} is not a valid directory")
+
 
     # Find all fastq.gz files excluding those in fastq_fail folders
     fastq_files = []
@@ -60,12 +62,12 @@ def cat_fastq_files(folder_path: str, output_file: str):
                     fastq_files.append(Path(root) / file)
 
     # Concatenate the fastq.gz files
-    with gzip.open(output_path, 'wb') as f_out:
+    with gzip.open(output_file, 'wb') as f_out:
         for fastq_file in fastq_files:
             with gzip.open(fastq_file, 'rb') as f_in:
                 shutil.copyfileobj(f_in, f_out)
 
-    return str(output_path)
+    return str(output_file)
 
 
 # Create result folder
@@ -84,18 +86,30 @@ def basecall_reads(cl_args):
     print('basecalling')
 
 
-# Filter barcode
+# Return and create filtered barcodes
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
-    # Obtain path of executable from package
     barcode_path = 'minION/barcoding/minion_barcodes.fasta'
+
     front_prefix = "NB"
     back_prefix = "RB"
+
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
-    bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
+    filter_barcodes(barcode_path, barcode_path_filter, (front_min, front_max), rbc, front_prefix, back_prefix)
     return barcode_path_filter
 
+# Filter barcodes
+def filter_barcodes(input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix):
+    front_min, front_max = barcode_range
+    filtered_records = []
 
+    for record in SeqIO.parse(input_fasta, "fasta"):
+        if (record.id.startswith(front_prefix) and front_min <= int(record.id[len(front_prefix):]) <= front_max) or \
+                (record.id.startswith(back_prefix) and int(record.id[len(back_prefix):]) == rbc):
+                    filtered_records.append(record)
+
+    with open(output_fasta, "w") as output_handle:
+        SeqIO.write(filtered_records, output_handle, "fasta")
 
 # Demultiplex the basecalled fastq into plate-well folders
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
@@ -271,17 +285,14 @@ def process_ref_csv(cl_args):
         # Create filtered barcode path
         barcode_path = filter_bc(cl_args, name_folder, i) 
         # Find fastq.gz files   
-        output_dir = cl_args.get('output', os.getcwd()) 
-        if os.path.isdir(output_dir):
-            output_file = os.path.join(output_dir, f"{name}.fastq.gz")
-        else:
-            output_file = output_dir
+        output_dir = Path(result_folder)/'basecalled_reads'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = os.path.join(output_dir, f"basecalled.fastq.gz")
 
         file_to_fastq = cat_fastq_files(cl_args.get('path'), output_file)
 
         if not cl_args['skip_demultiplexing']: 
-            demux_fastq(file_to_fastq, name_folder, barcode_path)
-        
+            demux_fastq(output_dir, name_folder, barcode_path)
         if not cl_args['skip_variantcalling']: 
             variant_result = call_variant(result_folder, temp_fasta_path, f"{name}")
             variant_result["barcode_plate"] = barcode_plate
