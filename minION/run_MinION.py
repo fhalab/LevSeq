@@ -28,6 +28,9 @@ from Bio import SeqIO
 import tqdm
 import os
 import re
+import gzip
+import shutil
+
 
 # Get barcode used
 def barcode_user(cl_args,i):
@@ -40,24 +43,41 @@ def barcode_user(cl_args,i):
     return int(fmin), int(fmax), int(rbc)
 
 
-# Get output directory
-def get_input_folder(cl_args):
-    input_folder = IO_processor.check_data_folder(cl_args['path'])
-    return input_folder
+# Get fastq.gz files from user provided path, exclude any from fastq_fail
+def cat_fastq_files(folder_path: str, output_file: str):
+    folder_path = Path(folder_path)
+    output_path = Path(output_file)
 
+    if not folder_path.is_dir():
+        raise ValueError(f"The provided path {folder_path} is not a valid directory")
 
-# Get fastq input directory, this is the basecalled folder
-def fastq_path(folder):
-    return IO_processor.find_folder(folder, "fastq_pass")
+    # Find all fastq.gz files excluding those in fastq_fail folders
+    fastq_files = []
+    for root, dirs, files in os.walk(folder_path):
+        if 'fastq_fail' not in root:
+            for file in files:
+                if file.endswith('.fastq.gz'):
+                    fastq_files.append(Path(root) / file)
+
+    # Concatenate the fastq.gz files
+    with gzip.open(output_path, 'wb') as f_out:
+        for fastq_file in fastq_files:
+            with gzip.open(fastq_file, 'rb') as f_in:
+                shutil.copyfileobj(f_in, f_out)
+
+    return str(output_path)
 
 
 # Create result folder
-def create_result_folder(cl_args):
-    result_folder = IO_processor.create_folder(
-        cl_args['name'],
-        target_path=Path(cl_args['output']))
-    return result_folder
-
+def create_result_folder(cl_args: dict) -> str:
+    folder_name = cl_args.get('name')
+    if not folder_name:
+        raise ValueError("The 'name' key is required in cl_args")
+    output_path = cl_args.get('output', os.getcwd())
+    result_folder = Path(output_path) / folder_name
+    # Create the directory if it doesn't exist
+    result_folder.mkdir(parents=True, exist_ok=True)
+    return str(result_folder)
 
 # Basecall reads
 def basecall_reads(cl_args):
@@ -75,11 +95,6 @@ def filter_bc(cl_args, result_folder, i):
     bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
     return barcode_path_filter
 
-
-# Get reference fasta (parent sequence)
-def parent_fasta(cl_args):
-    template_fasta = cl_args['refseq']
-    return template_fasta
 
 
 # Demultiplex the basecalled fastq into plate-well folders
@@ -231,7 +246,7 @@ def get_mutations(row):
 # Process the summary file
 def process_ref_csv(cl_args):
     ref_df = pd.read_csv(cl_args['summary'])
-    barcode_path = pd.read_csv(cl_args['barcode_path'])
+    #barcode_path = pd.read_csv(cl_args['barcode_path'])
 
     result_folder = create_result_folder(cl_args)
 
@@ -253,7 +268,16 @@ def process_ref_csv(cl_args):
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         with open(temp_fasta_path, "w") as f:
             f.write(f">{name}\n{refseq}\n")
-        file_to_fastq = fastq_path(get_input_folder(cl_args))
+        # Create filtered barcode path
+        barcode_path = filter_bc(cl_args, name_folder, i) 
+        # Find fastq.gz files   
+        output_dir = cl_args.get('output', os.getcwd()) 
+        if os.path.isdir(output_dir):
+            output_file = os.path.join(output_dir, f"{name}.fastq.gz")
+        else:
+            output_file = output_dir
+
+        file_to_fastq = cat_fastq_files(cl_args.get('path'), output_file)
 
         if not cl_args['skip_demultiplexing']: 
             demux_fastq(file_to_fastq, name_folder, barcode_path)
@@ -274,11 +298,6 @@ def process_ref_csv(cl_args):
 # Run MinION    
 
 def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
-    # Find specific experiment in the upper directory of nanopore data
-    experiment_folder = get_input_folder(cl_args)
-
-    # Find fastq from experiment folder
-    file_to_fastq = fastq_path(experiment_folder)
 
     # Process summary file by row using demux, call_variant function
     variant_df = process_ref_csv(cl_args)
