@@ -19,6 +19,7 @@ import pandas as pd
 from minION.utils import *
 import subprocess
 import os
+import glob
 from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 from Bio import SeqIO
@@ -67,7 +68,6 @@ class VariantCaller:
                 forward_barcode_ids.append(record.id)
             elif record.id.startswith('RB'):
                 reverse_barcode_ids.append(record.id)
-        print(forward_barcode_ids)
         # Make the dataframe using these and converting them to something more readable (i.e. the name the user assigned
         # to the plate)
         barcode_ids = []
@@ -114,7 +114,7 @@ class VariantCaller:
             return "NA"
 
     def _align_sequences(self, output_dir: Path, filename, scores: list = [4, 2, 10],
-                         site_saturation: bool = False, alignment_name: str = "alignment_minimap") -> None:
+            alignment_name: str = "alignment_minimap") -> None:
         """
         Aligns sequences using minimap2, converts to BAM, sorts and indexes the BAM file.
 
@@ -128,28 +128,23 @@ class VariantCaller:
         Returns:
             - None
         """
-
-        fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq.gz")
-
+        all_fastq = os.path.join(output_dir, '*.fastq')
+        fastq_list = glob.glob(all_fastq)
+        fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
+        
         if not fastq_files:
             raise FileNotFoundError("No FASTQ files found in the specified output directory.")
-
+        with open(fastq_files, 'w') as outfile:
+            for fastq in fastq_list:
+                with open(fastq, 'r') as infile:
+                    outfile.write(infile.read())
+                os.remove(fastq)
         fastq_files_str = fastq_files
 
-        if site_saturation:
-            alignment_name = "alignment_minimap_site_saturation"
-
-            match_score = 4
-            mismatch_score = 2
-            gap_opening_penalty = 10
-
-            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.template_fasta} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
-            subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        else:  # -A {scores[0]} -B {scores[1]} -O {scores[2]},24
-            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
-            print(minimap_cmd)
-            subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Alignment using minimap2
+        minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
+        print(minimap_cmd)
+        subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
         subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -161,7 +156,7 @@ class VariantCaller:
         subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Remove SAM file
-        os.remove(f"{output_dir}/{alignment_name}.sam")
+        #os.remove(f"{output_dir}/{alignment_name}.sam")
 
     def _run_variant_thread(self, args):
         """
@@ -183,6 +178,7 @@ class VariantCaller:
                                              msa_path=f'{output_dir}msa_{barcode_id}.fa')
                 self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
                 if well_df is not None:
+                    # Remove this statement?
                     well_df.to_csv(f'{output_dir}seq_{barcode_id}.csv')
                     label, freq, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
                     self.variant_dict[barcode_id]["Variant"] = label
