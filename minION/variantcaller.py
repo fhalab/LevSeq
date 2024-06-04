@@ -49,12 +49,14 @@ class VariantCaller:
         self.experiment_folder = experiment_folder
         self.padding_start = padding_start
         self.padding_end = padding_end
+        self.template_fasta = template_fasta
         self.alignment_name = 'alignment_minimap'
         self.variant_dict = {}
+        self.ref_name = experiment_name
+        self.ref_str = str(SeqIO.read(template_fasta,'fasta').seq)
+        self.variant_df = self.build_variant_df_from_barcodes(barcode_path, experiment_name)
 
-        self.variant_df = self.build_variant_df_from_barcodes(barcode_path)
-
-    def build_variant_df_from_barcodes(self, barcode_path) -> pd.DataFrame:
+    def build_variant_df_from_barcodes(self, barcode_path, experiment_name) -> pd.DataFrame:
         """
         Build variant dataframe from barcodes, forward and reverse barcodes.
         """
@@ -80,7 +82,6 @@ class VariantCaller:
                 plate = experiment_name
                 renamed_ids.append(f'{plate}_{well}')
                 plates.append(experiment_name)
-                print(plates)
                 wells.append(well)
                 self.variant_dict[f'{plate}_{well}'] = {'Plate': experiment_name, 'Well': well,
                                                         'Barcodes': f'{reverse_barcode}_{forward_barcode}',
@@ -142,11 +143,11 @@ class VariantCaller:
             mismatch_score = 2
             gap_opening_penalty = 10
 
-            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.reference_path} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
+            minimap_cmd = f"minimap2 -ax map-ont -A {match_score} -B {mismatch_score} -O {gap_opening_penalty},24 {self.template_fasta} {fastq_files_str} > {output_dir}/{alignment_name}.sam"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         else:  # -A {scores[0]} -B {scores[1]} -O {scores[2]},24
-            minimap_cmd = f"/Users/ariane/Documents/code/MinION/software/minimap2-2.24/./minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.reference_path}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
+            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
             print(minimap_cmd)
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -178,7 +179,7 @@ class VariantCaller:
                     self._align_sequences(row["Path"], row['Barcodes'])
 
                 # Check alignment count
-                well_df = get_reads_for_well(self.ref_name, bam_file, self.ref_str,
+                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str,
                                              msa_path=f'{output_dir}msa_{barcode_id}.fa')
                 self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
                 if well_df is not None:
