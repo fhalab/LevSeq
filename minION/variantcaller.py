@@ -43,25 +43,29 @@ class VariantCaller:
 
     """
 
-    def __init__(self, experiment_folder: Path, reference_path: Path, experiment_file_path: str, reverse_barcodes,
-                 forward_barcodes, padding_start: int = 0, padding_end: int = 0) -> None:
-        self.reference_path = reference_path
-        self.ref_name, self.ref_str, self.barcode_to_plate_name = self.load_reference(experiment_file_path)
+    def __init__(self, experiment_name, experiment_folder: Path, template_fasta: Path, barcode_path: Path, padding_start: int = 0, padding_end: int = 0) -> None:
+        self.barcode_path = barcode_path
+        self.experiment_name = experiment_name
         self.experiment_folder = experiment_folder
         self.padding_start = padding_start
         self.padding_end = padding_end
         self.alignment_name = 'alignment_minimap'
-        self.build_variant_df_from_barcodes(reverse_barcodes, forward_barcodes)
         self.variant_dict = {}
 
-        self.variant_df = self.build_variant_df_from_barcodes(reverse_barcodes, forward_barcodes)
+        self.variant_df = self.build_variant_df_from_barcodes(barcode_path)
 
-    def build_variant_df_from_barcodes(self, reverse_barcodes, forward_barcodes) -> pd.DataFrame:
+    def build_variant_df_from_barcodes(self, barcode_path) -> pd.DataFrame:
         """
         Build variant dataframe from barcodes, forward and reverse barcodes.
         """
-        forward_barcode_ids = [record.id for record in SeqIO.parse(forward_barcodes, "fasta")]
-        reverse_barcode_ids = [record.id for record in SeqIO.parse(reverse_barcodes, "fasta")]
+        forward_barcode_ids = []
+        reverse_barcode_ids = []
+        for record in SeqIO.parse(barcode_path, "fasta"):
+            if record.id.startswith('NB'):
+                forward_barcode_ids.append(record.id)
+            elif record.id.startswith('RB'):
+                reverse_barcode_ids.append(record.id)
+        print(forward_barcode_ids)
         # Make the dataframe using these and converting them to something more readable (i.e. the name the user assigned
         # to the plate)
         barcode_ids = []
@@ -72,15 +76,15 @@ class VariantCaller:
         for reverse_barcode in reverse_barcode_ids:
             for forward_barcode in forward_barcode_ids:
                 barcode_ids.append(f'{reverse_barcode}_{forward_barcode}')
-                plate = self.barcode_to_plate_name.get(int(reverse_barcode.replace('RB', '')))
                 well = self._barcode_to_well(forward_barcode)
+                plate = experiment_name
                 renamed_ids.append(f'{plate}_{well}')
-                plates.append(plate)
+                plates.append(experiment_name)
+                print(plates)
                 wells.append(well)
-                self.variant_dict[f'{plate}_{well}'] = {'Plate': plate, 'Well': well,
+                self.variant_dict[f'{plate}_{well}'] = {'Plate': experiment_name, 'Well': well,
                                                         'Barcodes': f'{reverse_barcode}_{forward_barcode}',
                                                         'Path': os.path.join(self.experiment_folder, f'{reverse_barcode}/{forward_barcode}')}
-
         df = pd.DataFrame()
         df['Plate'] = plates
         df['Well'] = wells
@@ -91,10 +95,9 @@ class VariantCaller:
     @staticmethod
     def load_reference(reference_path):
         # The reference enables multiple parents to be used for different
-        df = pd.read_csv(reference_path)
         # WARNING: this assumes all the parents are the same
-        ref_seq = df['refseq'].values[0]
-        barcode_to_plate_name = dict(zip(df['barcode_plate'], df['name']))
+        ref_seq = str(SeqIO.read(template_fasta,'fasta').seq)
+        barcode_to_plate_name = experiment_name
         return 'Parent', ref_seq, barcode_to_plate_name
 
     @staticmethod

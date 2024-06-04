@@ -129,12 +129,14 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
 
 # Variant calling using VariantCaller class and generate dataframe
-def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
-    vc = VariantCaller(experiment_folder,
-                       template_fasta,
-                       padding_start=0,
-                       padding_end=0)
-
+def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
+    vc = VariantCaller(experiment_name,
+            experiment_folder,
+            template_fasta,
+            filtered_barcodes,
+            padding_start=0,
+            padding_end=0)
+    print('here')
     variant_df = vc.get_variant_df(threshold=0.5,
                                    min_depth=5)
     return variant_df
@@ -294,7 +296,7 @@ def process_ref_csv(cl_args):
         if not cl_args['skip_demultiplexing']: 
             demux_fastq(output_dir, name_folder, barcode_path)
         if not cl_args['skip_variantcalling']: 
-            variant_result = call_variant(result_folder, temp_fasta_path, f"{name}")
+            variant_result = call_variant(f"{name}", name_folder, temp_fasta_path, barcode_path)
             variant_result["barcode_plate"] = barcode_plate
             variant_result["name"] = name
             variant_result["refseq"] = refseq
