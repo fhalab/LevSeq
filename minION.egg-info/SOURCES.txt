@@ -20,6 +20,7 @@ minION.egg-info/dependency_links.txt
 minION.egg-info/entry_points.txt
 minION.egg-info/requires.txt
 minION.egg-info/top_level.txt
+tests/test_demultiplex.py
 tests/test_minion.py
 tests/test_minion_JR.py
 tests/test_minion_RL.py
