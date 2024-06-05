@@ -24,13 +24,10 @@ __author_email__ = 'ylong@caltech.edu'
 __license__ = 'GPL3'
 
 from minION.globals import *
-from minION.IO_processor import *
-from minION.parser import *
 from minION.variantcaller import *
 from minION.visualization import *
 from minION.interface import *
 from minION.cmd import *
-from minION.basecaller import *
 from minION.utils import *
 from minION.simulation import *
 from minION.user import *

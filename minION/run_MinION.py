@@ -28,6 +28,9 @@ from Bio import SeqIO
 import tqdm
 import os
 import re
+import gzip
+import shutil
+
 
 # Get barcode used
 def barcode_user(cl_args,i):
@@ -40,54 +43,73 @@ def barcode_user(cl_args,i):
     return int(fmin), int(fmax), int(rbc)
 
 
-# Get output directory
-def get_input_folder(cl_args):
-    input_folder = IO_processor.check_data_folder(cl_args['path'])
-    return input_folder
+# Get fastq.gz files from user provided path, exclude any from fastq_fail
+def cat_fastq_files(folder_path: str, output_path: str):
+    folder_path = Path(folder_path)
+    output_path = Path(output_path)
+    output_file = output_path
+
+    if not folder_path.is_dir():
+        raise ValueError(f"The provided path {folder_path} is not a valid directory")
 
 
-# Get fastq input directory, this is the basecalled folder
-def fastq_path(folder):
-    return IO_processor.find_folder(folder, "fastq_pass")
+    # Find all fastq.gz files excluding those in fastq_fail folders
+    fastq_files = []
+    for root, dirs, files in os.walk(folder_path):
+        if 'fastq_fail' not in root:
+            for file in files:
+                if file.endswith('.fastq.gz'):
+                    fastq_files.append(Path(root) / file)
+
+    # Concatenate the fastq.gz files
+    with gzip.open(output_file, 'wb') as f_out:
+        for fastq_file in fastq_files:
+            with gzip.open(fastq_file, 'rb') as f_in:
+                shutil.copyfileobj(f_in, f_out)
+
+    return str(output_file)
 
 
 # Create result folder
-def create_result_folder(cl_args):
-    result_folder = IO_processor.create_folder(
-        cl_args['name'],
-        target_path=Path(cl_args['output']))
-    return result_folder
-
+def create_result_folder(cl_args: dict) -> str:
+    folder_name = cl_args.get('name')
+    if not folder_name:
+        raise ValueError("The 'name' key is required in cl_args")
+    output_path = cl_args.get('output', os.getcwd())
+    result_folder = Path(output_path) / folder_name
+    # Create the directory if it doesn't exist
+    result_folder.mkdir(parents=True, exist_ok=True)
+    return str(result_folder)
 
 # Basecall reads
 def basecall_reads(cl_args):
     print('basecalling')
 
 
-# Filter barcode
+# Return and create filtered barcodes
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
-    # Obtain path of executable from package
-    #with resources.path('minION/barcoding', 'minion_barcodes.fasta') as barcode_path:
     barcode_path = 'minION/barcoding/minion_barcodes.fasta'
+
     front_prefix = "NB"
     back_prefix = "RB"
-    bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
+
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
-    bp.filter_barcodes(barcode_path_filter, (front_min, front_max), rbc)
+    filter_barcodes(barcode_path, barcode_path_filter, (front_min, front_max), rbc, front_prefix, back_prefix)
     return barcode_path_filter
 
+# Filter barcodes
+def filter_barcodes(input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix):
+    front_min, front_max = barcode_range
+    filtered_records = []
 
-# Filter template sequence length
-def filter_seq(cl_args):
-    return seq_min, seq_max
+    for record in SeqIO.parse(input_fasta, "fasta"):
+        if (record.id.startswith(front_prefix) and front_min <= int(record.id[len(front_prefix):]) <= front_max) or \
+                (record.id.startswith(back_prefix) and int(record.id[len(back_prefix):]) == rbc):
+                    filtered_records.append(record)
 
-
-# Get reference fasta (parent sequence)
-def parent_fasta(cl_args):
-    template_fasta = cl_args['refseq']
-    return template_fasta
-
+    with open(output_fasta, "w") as output_handle:
+        SeqIO.write(filtered_records, output_handle, "fasta")
 
 # Demultiplex the basecalled fastq into plate-well folders
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
@@ -107,13 +129,13 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
 
 # Variant calling using VariantCaller class and generate dataframe
-def call_variant(experiment_folder, template_fasta, demultiplex_folder_name):
-    vc = VariantCaller(experiment_folder,
-                       template_fasta,
-                       demultiplex_folder_name=demultiplex_folder_name,
-                       padding_start=0,
-                       padding_end=0)
-
+def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
+    vc = VariantCaller(experiment_name,
+            experiment_folder,
+            template_fasta,
+            filtered_barcodes,
+            padding_start=0,
+            padding_end=0)
     variant_df = vc.get_variant_df(threshold=0.5,
                                    min_depth=5)
     return variant_df
@@ -156,7 +178,7 @@ def create_df_v(variants_df):
     
     # Fill in empty empty values 
     df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
-    df_variants_['Alignment Count'] = df_variants_['Alignment_count'].fillna(0.0)
+    df_variants_['Alignment Count'] = df_variants_['Alignment Count'].fillna(0.0)
 
     # Fill in parents into mutations Column
     for i in df_variants_.index:
@@ -217,7 +239,7 @@ def create_nc_variant(variant, refseq):
 def get_mutations(row):
     refseq_aa = translate(row['refseq'])
     variant_aa = row['aa_variant']
-    alignment_count = row['Alignment_count']  
+    alignment_count = row['Alignment Count']  
 
     if variant_aa == 'Deletion':
         return ''
@@ -239,6 +261,8 @@ def get_mutations(row):
 # Process the summary file
 def process_ref_csv(cl_args):
     ref_df = pd.read_csv(cl_args['summary'])
+    #barcode_path = pd.read_csv(cl_args['barcode_path'])
+
     result_folder = create_result_folder(cl_args)
 
     variant_csv_path = os.path.join(result_folder, "variants.csv")
@@ -259,14 +283,19 @@ def process_ref_csv(cl_args):
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         with open(temp_fasta_path, "w") as f:
             f.write(f">{name}\n{refseq}\n")
-        barcode_path = filter_bc(cl_args, name_folder, i)
-        file_to_fastq = fastq_path(get_input_folder(cl_args))
+        # Create filtered barcode path
+        barcode_path = filter_bc(cl_args, name_folder, i) 
+        # Find fastq.gz files   
+        output_dir = Path(result_folder)/'basecalled_reads'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = os.path.join(output_dir, f"basecalled.fastq.gz")
+
+        file_to_fastq = cat_fastq_files(cl_args.get('path'), output_file)
 
         if not cl_args['skip_demultiplexing']: 
-            demux_fastq(file_to_fastq, name_folder, barcode_path)
-        
+            demux_fastq(output_dir, name_folder, barcode_path)
         if not cl_args['skip_variantcalling']: 
-            variant_result = call_variant(result_folder, temp_fasta_path, f"{name}")
+            variant_result = call_variant(f"{name}", name_folder, temp_fasta_path, barcode_path)
             variant_result["barcode_plate"] = barcode_plate
             variant_result["name"] = name
             variant_result["refseq"] = refseq
@@ -281,15 +310,7 @@ def process_ref_csv(cl_args):
 # Run MinION    
 
 def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
-    # Find specific experiment in the upper directory of nanopore data
-    experiment_folder = get_input_folder(cl_args)
 
-    # Find fastq from experiment folder
-    file_to_fastq = fastq_path(experiment_folder)
-    
-    # Basecall if asked
-    if cl_args["perform_basecalling"]:
-        basecall_reads(cl_args)
     # Process summary file by row using demux, call_variant function
     variant_df = process_ref_csv(cl_args)
     
