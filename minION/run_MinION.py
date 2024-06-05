@@ -136,7 +136,6 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
             filtered_barcodes,
             padding_start=0,
             padding_end=0)
-    print('here')
     variant_df = vc.get_variant_df(threshold=0.5,
                                    min_depth=5)
     return variant_df
@@ -179,7 +178,7 @@ def create_df_v(variants_df):
     
     # Fill in empty empty values 
     df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
-    df_variants_['Alignment Count'] = df_variants_['Alignment_count'].fillna(0.0)
+    df_variants_['Alignment Count'] = df_variants_['Alignment Count'].fillna(0.0)
 
     # Fill in parents into mutations Column
     for i in df_variants_.index:
@@ -240,7 +239,7 @@ def create_nc_variant(variant, refseq):
 def get_mutations(row):
     refseq_aa = translate(row['refseq'])
     variant_aa = row['aa_variant']
-    alignment_count = row['Alignment_count']  
+    alignment_count = row['Alignment Count']  
 
     if variant_aa == 'Deletion':
         return ''

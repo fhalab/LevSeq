@@ -143,7 +143,6 @@ class VariantCaller:
 
         # Alignment using minimap2
         minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
-        print(minimap_cmd)
         subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
@@ -174,12 +173,11 @@ class VariantCaller:
                     self._align_sequences(row["Path"], row['Barcodes'])
 
                 # Check alignment count
-                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str,
-                                             msa_path=f'{output_dir}msa_{barcode_id}.fa')
+                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str,)
+                                             #msa_path=f'{output_dir}msa_{barcode_id}.fa')
                 self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
                 if well_df is not None:
-                    # Remove this statement?
-                    well_df.to_csv(f'{output_dir}seq_{barcode_id}.csv')
+                    #well_df.to_csv(row['Path'],f'{output_dir}seq_{barcode_id}.csv')
                     label, freq, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
                     self.variant_dict[barcode_id]["Variant"] = label
                     self.variant_dict[barcode_id]["Mixed Well"] = mixed_well

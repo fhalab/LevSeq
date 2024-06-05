@@ -222,9 +222,6 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
         pysam.index(bam_file_path)
 
     cramHeader = bam.header.to_dict()
-    print("References in BAM file:", bam.references)
-    print("Lengths of references:", bam.lengths)
-    print(cramHeader)
     rows_all = []
     seqs = []
     read_ids = []
