@@ -180,12 +180,10 @@ def create_df_v(variants_df):
     df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
     df_variants_['Alignment Count'] = df_variants_['Alignment Count'].fillna(0.0)
 
-    # Fill in parents into mutations Column
+    # Fill in Deletion into mutations Column
     for i in df_variants_.index:
         if df_variants_['nc_variant'].iloc[i] == 'Deletion':
             df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '-')
-        if df_variants_['Mutations'].iloc[i] == '#PARENT#':
-            df_variants_['Alignment Probability'].iat[i] = 1.0
 
     # Add row and columns
     Well = df_variants_['Well'].tolist()
@@ -211,7 +209,10 @@ def create_df_v(variants_df):
     # Select the desired columns in the desired order
     restructured_df = df_variants_[['barcode_plate', 'Plate', 'Well', 'Variant', 'Alignment Count', 'Average mutation frequency', 'P value', 'P adj. value', 'Mutations', 'nc_variant', 'aa_variant']]
     # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
-    restructured_df.loc[restructured_df['Alignment Count'] < 5, ['Mutations', 'Variant']] = '#N.A.#'
+    restructured_df.loc[restructured_df['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
+    df_variants_.loc[df_variants_['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
+    if df_variants_['Mutations'].iloc[i] == '#PARENT#':
+        df_variants_['Alignment Probability'].iat[i] = 1.0
 
     return restructured_df, df_variants_
 
@@ -273,7 +274,7 @@ def process_ref_csv(cl_args):
     for i, row in ref_df.iterrows():
         barcode_plate = row["barcode_plate"]
         name = row["name"]
-        refseq = row["refseq"]
+        refseq = row["refseq"].upper()
 
         # Create a subfolder for the current iteration using the name value
         name_folder = os.path.join(result_folder, name)
