@@ -18,9 +18,9 @@
 import shutil
 import tempfile
 import unittest
-from sciutil import *
 import matplotlib.pyplot as plt
 from levseq.user import *
+
 
 u = SciUtil()
 
@@ -70,13 +70,13 @@ class TestUser(TestClass):
         assert 'MPQIPGYTYGDPALPPS' in seqs[0]
 
     def test_msa(self):
-        variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
+        variant_df = pd.read_csv('test_ZZ/variant_new_0.5.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         # Using the sequences let's now get the MSA
         alignment = make_msa(seqs, seq_ids, 'aln.fa')
 
     def test_encode(self):
-        variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
+        variant_df = pd.read_csv('test_ZZ/variant_new_0.5.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         # Using the sequences let's now get the MSA
         alignment = make_msa(seqs, seq_ids, 'aln.fa')
@@ -98,17 +98,17 @@ class TestUser(TestClass):
         plt.show()
 
     def test_epcr_pca(self):
-        # read_depth = 20
-        # number_of_wells = 96
-        # epcr_mutation_rate = 0.02
-        # frequency_cutoff = 0.5
-        # library_number = 96  # Usually do a 96 well plate
-        # parent_sequence = 'ATGACTCCCTCGGACATCCCGGGATATGATTATGGGCGTGTCGAGAAGTCACCCATCACGGACCTTGAGTTTGACCTTCTGAAGAAGACTGTCATGTTAGGTGAAAAGGACGTAATGTACTTGAAAAAGGCGTGTGACGTTCTGAAAGATCAAGTTGATGAGATCCTTGACTTGGCGGGTGGTTGGGTAGCATCAAATGAGCATTTGATTTATTACTTCTCCAATCCGGATACAGGAGAGCCTATTAAGGAATACCTGGAACGTGTACGCGCTCGCTTTGGAGCCTGGATTCTGGACACTACCTGCCGCGACTATAACCGTGAATGGTTAGACTACCAGTACGAAGTTGGGCTTCGTCATCACCGTTCAAAGAAAGGGGTCACAGACGGAGTACGCACCGTGCCCCATATCCCACTTCGTTATCTTATCGCATGGATCTATCCTATCACCGCCACTATCAAGCCATTTTTGGCTAAGAAAGGTGGCTCTCCGGAAGACATCGAAGGGATGTACAACGCTTGGTTCAAGTCTGTAGTTTTACAAGTTGCCATCTGGTCACACCCTTATACTAAGGAGAATGACTGGCTCGAGCACCACCACCACCACCACTGA'
-        # sequencing_error = 30
-        # sequencing_error_rate = sequencing_error / 100.0
-        # run_df = make_experiment(f'SeqError_{sequencing_error}', read_depth, sequencing_error_rate, parent_sequence,
-        #                          library_number, number_of_wells, epcr_mutation_rate, frequency_cutoff)
-        # run_df.to_csv('run.csv')
+        read_depth = 20
+        number_of_wells = 96
+        epcr_mutation_rate = 0.02
+        frequency_cutoff = 0.5
+        library_number = 96  # Usually do a 96 well plate
+        parent_sequence = 'ATGACTCCCTCGGACATCCCGGGATATGATTATGGGCGTGTCGAGAAGTCACCCATCACGGACCTTGAGTTTGACCTTCTGAAGAAGACTGTCATGTTAGGTGAAAAGGACGTAATGTACTTGAAAAAGGCGTGTGACGTTCTGAAAGATCAAGTTGATGAGATCCTTGACTTGGCGGGTGGTTGGGTAGCATCAAATGAGCATTTGATTTATTACTTCTCCAATCCGGATACAGGAGAGCCTATTAAGGAATACCTGGAACGTGTACGCGCTCGCTTTGGAGCCTGGATTCTGGACACTACCTGCCGCGACTATAACCGTGAATGGTTAGACTACCAGTACGAAGTTGGGCTTCGTCATCACCGTTCAAAGAAAGGGGTCACAGACGGAGTACGCACCGTGCCCCATATCCCACTTCGTTATCTTATCGCATGGATCTATCCTATCACCGCCACTATCAAGCCATTTTTGGCTAAGAAAGGTGGCTCTCCGGAAGACATCGAAGGGATGTACAACGCTTGGTTCAAGTCTGTAGTTTTACAAGTTGCCATCTGGTCACACCCTTATACTAAGGAGAATGACTGGCTCGAGCACCACCACCACCACCACTGA'
+        sequencing_error = 30
+        sequencing_error_rate = sequencing_error / 100.0
+        run_df = make_experiment(f'SeqError_{sequencing_error}', read_depth, sequencing_error_rate, parent_sequence,
+                                 library_number, number_of_wells, epcr_mutation_rate, frequency_cutoff)
+        run_df.to_csv('run.csv')
         run_df = pd.read_csv('run.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(run_df, parent)
         # Using the sequences let's now get the MSA

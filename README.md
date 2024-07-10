@@ -14,7 +14,7 @@ Before using this repository, ensure the following preparations:
 
 The wet lab part is detailed in the method section. Once samples are prepared, the multiplexed sample is used for sequencing, and the sequencing data is stored in the `../data` folder on Nanopore.
 
-After sequencing, variants are identified. For simple applications, we recommend using the notebook `run_minion.ipynb`.
+After sequencing, variants are identified. For simple applications, we recommend using the notebook `run_levseq.ipynb`.
 
 ### Steps:
 
@@ -30,7 +30,7 @@ After sequencing, variants are identified. For simple applications, we recommend
 Installation via pip:
 
 ```
-pip install minION
+pip install levseq
 ```
 
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
@@ -47,19 +47,19 @@ python setup.py sdist bdist_wheel
 
 To then install locally:
 ```
- pip install dist/minION-0.1.0.tar.gz
+ pip install dist/levseq-0.1.0.tar.gz
 ```
 
 To build the docker image run (within the main folder that contains the `Dockerfile`):
 
 ```
- docker build -t minion .
+ docker build -t levseq .
 ```
 
 This gives us the access to the minION command line interface via:
 
 ```
-docker run minion
+docker run levseq
 ```
 
 ```

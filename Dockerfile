@@ -36,8 +36,8 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
-RUN conda create --name minion2 python=3.9.18
-RUN activate minion2
+RUN conda create --name levseq python=3.9.18
+RUN activate levseq
 RUN pip install -r requirements.txt
 # Install all the software
 COPY software /software
@@ -65,7 +65,7 @@ WORKDIR /
 
 # Add folder that we'll output data to
 # COPY docker_data /docker_data
-RUN mkdir /minION_results
+RUN mkdir /levseq_results
 
 # Add to paths
 RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/minimap2:$PATH"
@@ -91,17 +91,17 @@ RUN apt-get update && \
     apt-get install -y libstdc++6
 
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
-RUN cp -r /software/minimap2-2.24/* /usr/local/bin
+RUN cp -r /software/minimap2/* /usr/local/bin
 
 # Install levseq via pip and remove these two steps
-COPY dist/minION-0.1.0.tar.gz /
-COPY dist/minION-0.1.0-py3-none-any.whl /
+COPY dist/levseq-0.1.0.tar.gz /
+COPY dist/levseq-0.1.0-py3-none-any.whl /
 
 # Add in some sample data ToDo.!
 RUN pip install levseq-0.1.0.tar.gz
 
 # Set an entry point to CLI for pipeline
-COPY levseq /minION
+COPY levseq /levseq
 COPY setup.py /
 COPY README.md /
 COPY LICENSE /
@@ -110,4 +110,4 @@ COPY source /source
 RUN apt install g++ build-essential
 WORKDIR /
 RUN python setup.py install
-ENTRYPOINT ["minION"]
+ENTRYPOINT ["levseq"]
