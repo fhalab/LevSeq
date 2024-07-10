@@ -15,20 +15,9 @@
 #                                                                             #
 ###############################################################################
 
-__title__ = 'minION'
-__description__ = 'MinION evseq caller'
-__url__ = 'https://github.com/fhalab/MinION/'
-__version__ = '0.1.0'
-__author__ = 'Yueming Long, Emreay Gursoy'
-__author_email__ = 'ylong@caltech.edu'
-__license__ = 'GPL3'
-
-from minION.globals import *
-from minION.variantcaller import *
-from minION.visualization import *
-from minION.interface import *
-from minION.cmd import *
-from minION.utils import *
-from minION.simulation import *
-from minION.user import *
-
+from levseq.interface import execute_MinION
+def main():
+    execute_MinION()
+                
+if __name__ == "__main__":
+    main()

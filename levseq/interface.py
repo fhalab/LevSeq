@@ -22,7 +22,7 @@ import os
 import tqdm
 import argparse
 # Import local packages
-from minION.run_MinION import run_MinION
+from levseq.run_MinION import run_MinION
 
 # Get the working directory
 CWD = os.getcwd()

@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 def create_parser(): 
-    parser = argparse.ArgumentParser(description='evSeq minION pipeline. Enter the experiment name from your run')
+    parser = argparse.ArgumentParser(description='evSeq levseq pipeline. Enter the experiment name from your run')
     
     # Arguments
     parser.add_argument('--experiment_name',

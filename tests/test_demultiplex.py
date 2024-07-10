@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 u = SciUtil()
 
-from minION.user import *
+from levseq.user import *
 
 
 class TestClass(unittest.TestCase):

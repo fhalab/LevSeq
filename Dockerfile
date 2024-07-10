@@ -93,15 +93,15 @@ RUN apt-get update && \
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
 RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 
-# Install minION via pip and remove these two steps
+# Install levseq via pip and remove these two steps
 COPY dist/minION-0.1.0.tar.gz /
 COPY dist/minION-0.1.0-py3-none-any.whl /
 
 # Add in some sample data ToDo.!
-RUN pip install minION-0.1.0.tar.gz
+RUN pip install levseq-0.1.0.tar.gz
 
 # Set an entry point to CLI for pipeline
-COPY minION /minION
+COPY levseq /minION
 COPY setup.py /
 COPY README.md /
 COPY LICENSE /

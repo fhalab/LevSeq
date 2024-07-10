@@ -19,7 +19,7 @@
 
 import os
 import glob
-from minION.globals import MINKNOW_PATH
+from levseq.globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip
@@ -150,7 +150,7 @@ class BarcodeProcessor:
 
         if not demultiplex_folder.exists():
             raise FileNotFoundError(
-                f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
+                f"Demultiplex folder '{demultiplex_folder}' does not exist. Run levseq to get the demultiplex folder.")
 
         reverse_barcodes = list(demultiplex_folder.glob(f"{self.reverse_prefix}*"))
 
@@ -404,7 +404,7 @@ def read_fasta_file(path: Path, score=False) -> dict:
 
 def create_folder(experiment_name: str, target_path: Path = None, output_name: str = None) -> Path:
     """
-    When Starting minION, the function checks if a minION result folder exists. If not, it creates one. 
+    When Starting levseq, the function checks if a levseq result folder exists. If not, it creates one.
     It also checks for the subfolder of the experiment.
     If no information is given about the folder, it creates a default folder in the current directory.
     
@@ -455,7 +455,7 @@ def get_rbc_barcode_folders(demultiplex_folder: Path, prefix="barcode") -> list:
 
     if not demultiplex_folder.exists():
         raise FileNotFoundError(
-            f"Demultiplex folder '{demultiplex_folder}' does not exist. Run minION to get the demultiplex folder.")
+            f"Demultiplex folder '{demultiplex_folder}' does not exist. Run levseq to get the demultiplex folder.")
 
     reverse_barcodes = list(demultiplex_folder.glob(f"{prefix}*"))
 

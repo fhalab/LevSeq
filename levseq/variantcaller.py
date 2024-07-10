@@ -16,7 +16,7 @@
 ###############################################################################
 import pandas as pd
 
-from minION.utils import *
+from levseq.utils import *
 import subprocess
 import os
 import glob

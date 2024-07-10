@@ -4,25 +4,25 @@ import re
 
 
 def read_version():
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'levseq/__init__.py')
     with open(path, 'r') as fh:
         return re.search(r'__version__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
 
 def read_author():
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'levseq/__init__.py')
     with open(path, 'r') as fh:
         return re.search(r'__author__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
 
 def read_email():
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'levseq/__init__.py')
     with open(path, 'r') as fh:
         return re.search(r'__author_email__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
 
 def read_git():
-    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'minION/__init__.py')
+    path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'levseq/__init__.py')
     with open(path, 'r') as fh:
         return re.search(r'__url__\s?=\s?[\'"](.+)[\'"]', fh.read()).group(1)
 
@@ -32,7 +32,7 @@ def readme():
         return f.read()
 
 
-setup(name='minION',
+setup(name='levseq',
       version=read_version(),
       description='',
       long_description=readme(),
@@ -57,10 +57,10 @@ setup(name='minION',
           'Topic :: Scientific/Engineering :: Bio-Informatics',
       ],
       keywords=['Nanopore', 'ONT', 'evSeq'],
-      packages=['minION'],
+      packages=['levseq'],
       entry_points={
           'console_scripts': [
-              'minION = minION.cmd:main'
+              'levseq = levseq.cmd:main'
           ]
       },
       install_requires=['Bio',

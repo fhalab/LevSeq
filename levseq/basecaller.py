@@ -15,7 +15,7 @@
 #                                                                             #
 ###############################################################################
 
-from minION.globals import DORADO_MODELS
+from levseq.globals import DORADO_MODELS
 import os
 import glob
 import subprocess

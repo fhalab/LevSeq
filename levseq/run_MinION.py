@@ -16,7 +16,7 @@
 ###############################################################################
 
 # Import MinION objects
-from minION import *
+from levseq import *
 
 # Import external packages
 from pathlib import Path
@@ -89,7 +89,7 @@ def basecall_reads(cl_args):
 # Return and create filtered barcodes
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
-    barcode_path = 'minION/barcoding/minion_barcodes.fasta'
+    barcode_path = 'levseq/barcoding/minion_barcodes.fasta'
 
     front_prefix = "NB"
     back_prefix = "RB"
@@ -116,9 +116,9 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Plan B to locate using relative path relying on the git folder
     current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    #with resources.path('minION.barcoding', 'demultiplex-x86') as executable_path:
+    #with resources.path('levseq.barcoding', 'demultiplex-x86') as executable_path:
     # ToDO! Fix this tech debt
-    executable_path = 'minION/barcoding/demultiplex-x86'
+    executable_path = 'levseq/barcoding/demultiplex-x86'
 
     # Get min and max sequence length if user specified, otherwise use default
     seq_min = 800

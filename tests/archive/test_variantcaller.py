@@ -4,7 +4,7 @@ import sys
 import glob
 from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from minION.variantcaller import check_demultiplexing, VariantCaller
+from levseq.variantcaller import check_demultiplexing, VariantCaller
 import pandas as pd
 
 class TestVariantCaller(unittest.TestCase):

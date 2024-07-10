@@ -25,9 +25,9 @@ import matplotlib.pyplot as plt
 
 u = SciUtil()
 
-from minION.variantcaller import *
-from minION.simulation import *
-from minION.user import *
+from levseq.variantcaller import *
+from levseq.simulation import *
+from levseq.user import *
 
 
 class TestClass(unittest.TestCase):

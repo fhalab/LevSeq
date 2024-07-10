@@ -18,7 +18,7 @@ import random
 
 import numpy as np
 
-from minION.variantcaller import *
+from levseq.variantcaller import *
 from Bio import AlignIO
 from sklearn.decomposition import PCA
 

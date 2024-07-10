@@ -2,10 +2,10 @@
 
 import unittest
 import os
-from minION.globals import MINKNOW_PATH
-from minION.IO_processor import find_experiment_folder, find_file, get_fbc_barcode_folders, get_rbc_barcode_folders, get_barcode_dict
-from minION.consensus import process_fastq, consensus_prompt, run_medaka, medeka_stitch_prompt
-from minION.util import json_processor import read_json
+from levseq.globals import MINKNOW_PATH
+from levseq.IO_processor import find_experiment_folder, find_file, get_fbc_barcode_folders, get_rbc_barcode_folders, get_barcode_dict
+from levseq.consensus import process_fastq, consensus_prompt, run_medaka, medeka_stitch_prompt
+from levseq.util import json_processor import read_json
 
 
 class TestminION(unittest.TestCase):
@@ -56,7 +56,7 @@ class TestminION(unittest.TestCase):
         self.barcode_dict = get_barcode_dict(self.DEMULTIPLEXER_PATH)
 
 class Test_Data_Acc(TestminION):
-    """This class test if the data accusition is running correctly. It assumes that minION is already installed on your computer and the MINKNOW_PATH is set correctly."""
+    """This class test if the data accusition is running correctly. It assumes that levseq is already installed on your computer and the MINKNOW_PATH is set correctly."""
 
     def test_find_experiment_folder(self):
         """The filename of an experiment """

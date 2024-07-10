@@ -22,8 +22,8 @@ from sciutil import *
 
 u = SciUtil()
 
-from minION.variantcaller import *
-from minION.simulation import *
+from levseq.variantcaller import *
+from levseq.simulation import *
 
 
 class TestClass(unittest.TestCase):

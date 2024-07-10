@@ -17,7 +17,7 @@
 # Import all packages
 import random
 
-from minION.variantcaller import *
+from levseq.variantcaller import *
 import math
 
 

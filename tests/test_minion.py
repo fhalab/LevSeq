@@ -18,7 +18,7 @@
 import shutil
 import tempfile
 import unittest
-from minION import *
+from levseq import *
 #
 # result_path = Path("test_data/")
 # experiment_name = "RL-8-70"
@@ -28,7 +28,7 @@ from minION import *
 #                                             target_path=result_path)
 #
 # Create Barcode fasta file
-barcode_path = "../minION/barcoding/minion_barcodes.fasta" # Path to standard barcode file
+barcode_path = "../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 barcode_path = os.path.join("/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1", "minion_barcodes_filtered.fasta")

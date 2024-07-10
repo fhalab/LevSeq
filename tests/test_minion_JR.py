@@ -20,7 +20,7 @@ import pandas as pd
 import shutil
 import tempfile
 import unittest
-from minION import *
+from levseq import *
 
 result_path = Path("test_data/JR/")
 experiment_name = "RL-8-70"
@@ -30,7 +30,7 @@ result_folder = IO_processor.create_folder(experiment_name,
                                             target_path=result_path)
 
 # Create Barcode fasta file
-barcode_path = "../minION/barcoding/minion_barcodes.fasta" # Path to standard barcode file
+barcode_path = "../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
