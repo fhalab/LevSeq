@@ -20,7 +20,7 @@ import tempfile
 import unittest
 from levseq import *
 
-result_path = Path("test_data/")
+result_path = Path("../test_data/")
 experiment_name = "RL-8-70"
 basecall_model_type = "sup"
 result_folder = IO_processor.create_folder(experiment_name,
@@ -28,7 +28,7 @@ result_folder = IO_processor.create_folder(experiment_name,
                                             target_path=result_path)
 
 # Create Barcode fasta file
-barcode_path = "../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
+barcode_path = "../../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
@@ -57,7 +57,7 @@ experiment_folder = ""
 experiment_name = experiment_name + "_" + basecall_model_type
 result_folder_path = IO_processor.find_folder(result_path, experiment_name)
 
-path_to_code = "demultiplex"
+path_to_code = "../demultiplex"
 
 
 class TestClass(unittest.TestCase):
@@ -107,7 +107,7 @@ class TestMinIon(TestClass):
 
     def test_variant_calling(self):
         # To run this will need to update to having stuff not using subprocess...
-        vc = VariantCaller(Path('test_data/RL/'),
+        vc = VariantCaller(Path('../test_data/RL/'),
                            Path(template_fasta),
                            demultiplex_folder_name='',
                            padding_start=0,
@@ -115,7 +115,7 @@ class TestMinIon(TestClass):
 
         variant_df = vc.get_variant_df(threshold=0.5,
                                        min_depth=5,
-                                       output_dir='test_ZZ/',
+                                       output_dir='../test_ZZ/',
                                        num_threads=20)
         variant_df.to_csv('test_ZZ/variant_new_0.5_v6.csv')
 

@@ -22,7 +22,7 @@ import tempfile
 import unittest
 from levseq import *
 
-result_path = Path("test_data/JR/")
+result_path = Path("../test_data/JR/")
 experiment_name = "RL-8-70"
 basecall_model_type = "sup"
 result_folder = IO_processor.create_folder(experiment_name,
@@ -30,7 +30,7 @@ result_folder = IO_processor.create_folder(experiment_name,
                                             target_path=result_path)
 
 # Create Barcode fasta file
-barcode_path = "../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
+barcode_path = "../../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 bp = IO_processor.BarcodeProcessor(barcode_path, front_prefix, back_prefix)
@@ -59,7 +59,7 @@ experiment_folder = ""
 experiment_name = experiment_name + "_" + basecall_model_type
 result_folder_path = IO_processor.find_folder(result_path, experiment_name)
 
-path_to_code = "demultiplex"
+path_to_code = "../demultiplex"
 
 
 class TestClass(unittest.TestCase):
@@ -88,7 +88,7 @@ class TestMinIonJR(TestClass):
 
     def test_variant_calling_JR(self):
         # To run this will need to update to having stuff not using subprocess...
-        vc = VariantCaller(Path('test_data/JR/'),
+        vc = VariantCaller(Path('../test_data/JR/'),
                            Path(template_fasta),
                            demultiplex_folder_name='',
                            padding_start=0,
@@ -96,13 +96,13 @@ class TestMinIonJR(TestClass):
 
         variant_df = vc.get_variant_df(threshold=0.2,
                                        min_depth=5,
-                                       output_dir='test_data/JR/output/',
+                                       output_dir='../test_data/JR/output/',
                                        num_threads=1)
         variant_df.to_csv('test_data/JR/output/variant_new_0.5_v2.csv')
         # TODO: Save the variant_df to a file after running. Currently it is not saved.
 
     def test_postprocess_variant_df(self):
-        df = pd.read_csv('test_data/JR/output/variant_new_0.5_v2.csv')
-        position_mapping = postprocess_variant_df(df, output_path='test_data/JR/output/')
+        df = pd.read_csv('../test_data/JR/output/variant_new_0.5_v2.csv')
+        position_mapping = postprocess_variant_df(df, output_path='../test_data/JR/output/')
         position_mapping.to_csv('test_data/JR/output/plates.csv')
         # Save as a csv for each position in the seqeunce and the number of times that position was mutated

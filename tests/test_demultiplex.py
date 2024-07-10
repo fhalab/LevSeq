@@ -19,12 +19,10 @@ import shutil
 import tempfile
 import unittest
 from sciutil import *
-import matplotlib
 import matplotlib.pyplot as plt
+from levseq.user import *
 
 u = SciUtil()
-
-from levseq.user import *
 
 
 class TestClass(unittest.TestCase):
@@ -66,7 +64,7 @@ class TestUser(TestClass):
 
     def test_get_seqs(self):
         ### tests making a MSA from the variant DF.
-        variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
+        variant_df = pd.read_csv('test_ZZ/variant_new_0.5.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         print(seqs, seq_ids)
         assert 'MPQIPGYTYGDPALPPS' in seqs[0]
