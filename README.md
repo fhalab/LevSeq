@@ -85,10 +85,3 @@ make -j
 ```
 
 The demultiplex file should now function!
-
-### Mac M1 chip (toDo)
-
-### Linux (toDo)
-
-
-brew install gcc@7 based on https://docs.seqan.de/seqan3/3.0.0/setup.html
