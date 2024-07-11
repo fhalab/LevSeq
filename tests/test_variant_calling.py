@@ -296,7 +296,7 @@ class TestVariantCalling(TestClass):
         frequency_cutoff = 0.3
         df = make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequence, library_number,
                              number_of_wells, epcr_mutation_rate, frequency_cutoff, number_wells_to_mix, mixture_rate,
-                             qc_files_path='qc_data/')
+                             qc_files_path='test_data/')
         check_variants(df, parent_sequence)
         df.to_csv('test2.csv')
 

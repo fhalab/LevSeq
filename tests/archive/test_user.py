@@ -78,13 +78,13 @@ class TestUser(TestClass):
         variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         # Using the sequences let's now get the MSA
-        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+        alignment = make_msa(seqs, seq_ids, '../aln.fa')
 
     def test_encode(self):
         variant_df = pd.read_csv('test_ZZ/variant_new_0.5_v6.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         # Using the sequences let's now get the MSA
-        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+        alignment = make_msa(seqs, seq_ids, '../aln.fa')
         # Check how one hot encoding of this works
         # Accessing individual records
         encodings = []
@@ -114,10 +114,10 @@ class TestUser(TestClass):
         # run_df = make_experiment(f'SeqError_{sequencing_error}', read_depth, sequencing_error_rate, parent_sequence,
         #                          library_number, number_of_wells, epcr_mutation_rate, frequency_cutoff)
         # run_df.to_csv('run.csv')
-        run_df = pd.read_csv('run.csv')
+        run_df = pd.read_csv('../run.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(run_df, parent)
         # Using the sequences let's now get the MSA
-        alignment = make_msa(seqs, seq_ids, 'aln.fa')
+        alignment = make_msa(seqs, seq_ids, '../aln.fa')
         # Check how one hot encoding of this works
         # Accessing individual records
         encodings = []

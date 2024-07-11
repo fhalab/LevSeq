@@ -28,7 +28,7 @@ from levseq import *
 #                                             target_path=result_path)
 #
 # Create Barcode fasta file
-barcode_path = "../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
+barcode_path = "../../levseq/barcoding/minion_barcodes.fasta"  # Path to standard barcode file
 front_prefix = "NB"
 back_prefix = "RB"
 barcode_path = os.path.join("/Users/ariane/Documents/code/MinION/manucript/notebooks/Ape AGW/Data/EVSeqL_Output/YL-EvSeqL1/300-1", "minion_barcodes_filtered.fasta")
@@ -55,7 +55,7 @@ max_size = 5000
 # experiment_name = experiment_name + "_" + basecall_model_type
 # result_folder_path = IO_processor.find_folder(result_path, experiment_name)
 
-path_to_code = "demultiplex"
+path_to_code = "../demultiplex"
 
 
 class TestClass(unittest.TestCase):
