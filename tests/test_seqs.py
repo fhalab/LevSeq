@@ -19,8 +19,7 @@ import shutil
 import tempfile
 import unittest
 import matplotlib.pyplot as plt
-from levseq.user import *
-
+from levseq import *
 
 u = SciUtil()
 

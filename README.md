@@ -10,7 +10,7 @@ Before using this repository, ensure the following preparations:
 - Successfully install Oxford Nanopore's software. [Link to installation guide](#).
 - Clone this GitHub repository to your local directory.
 
-## How to Use evSeq-Nanopore
+## How to Use LevSeq.
 
 The wet lab part is detailed in the method section. Once samples are prepared, the multiplexed sample is used for sequencing, and the sequencing data is stored in the `../data` folder on Nanopore.
 
