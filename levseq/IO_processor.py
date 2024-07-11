@@ -19,7 +19,6 @@
 
 import os
 import glob
-from levseq.globals import MINKNOW_PATH
 from Bio import SeqIO
 from pathlib import Path
 import gzip
@@ -196,7 +195,7 @@ def check_data_folder(path: Path) -> None:
     else:
         return path
 
-def find_experiment_folder(experiment_name: str, minknow_path: Path = MINKNOW_PATH) -> None:
+def find_experiment_folder(experiment_name: str, minknow_path) -> None:
     """Find the experiment folder in the minknow data folder. Access the name from Meta File.
     
     Args:
