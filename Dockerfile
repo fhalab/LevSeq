@@ -94,12 +94,18 @@ RUN pip install levseq-0.1.0.tar.gz
 
 # Set an entry point to CLI for pipeline
 COPY levseq /levseq
+RUN chmod a+x levseq/barcoding/demultiplex-x86
+# Update alternatives to use the new GCC version
+RUN apt-get update
+RUN apt-get install -y software-properties-common
+RUN apt install g++ build-essential
+# Install necessary build tools and dependencies
+
 COPY setup.py /
 COPY README.md /
 COPY LICENSE /
 RUN mkdir /source
 COPY source /source
-RUN apt install g++ build-essential
 WORKDIR /
 RUN python setup.py install
 ENTRYPOINT ["levseq"]

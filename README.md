@@ -55,7 +55,13 @@ To build the docker image run (within the main folder that contains the `Dockerf
 ```
  docker build -t levseq .
 ```
+**Note** when building on a mac with a MX chip, you need to set your docker env variable to: 
+`export DOCKER_DEFAULT_PLATFORM=linux/amd64` or add the flag `--platform linux/amd64` when building.
 
+i.e. you need to run on mac MX:
+```
+docker build  --platform linux/amd64 -t levseq .
+```
 This gives us the access to the minION command line interface via:
 
 ```
@@ -63,7 +69,7 @@ docker run levseq
 ```
 
 ```
- docker run -v /Users/ariane/Documents/code/MinION/data/paper:/minION_results/ minion JR-TEST minION_results/20240403-JR/ minION_results/test-ref.csv
+ docker run -v /Users/arianemora/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
 
 ### Steps to rebuild the C++ executables
