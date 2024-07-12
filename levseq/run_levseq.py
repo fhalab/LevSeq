@@ -211,8 +211,9 @@ def create_df_v(variants_df):
     # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
     restructured_df.loc[restructured_df['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
     df_variants_.loc[df_variants_['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
-    if df_variants_['Mutations'].iloc[i] == '#PARENT#':
-        df_variants_['Alignment Probability'].iat[i] = 1.0
+    restructured_df.loc[restructured_df['Mutations'] == '#PARENT#', ['Alignment Probability']] = 1.0
+    df_variants_.loc[df_variants_['Mutations'] == '#PARENT#', ['Alignment Probability']] = 1.0
+    
 
     return restructured_df, df_variants_
 
