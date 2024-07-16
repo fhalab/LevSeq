@@ -15,9 +15,9 @@
 #                                                                             #
 ###############################################################################
 
-from levseq.interface import execute_MinION
+from levseq.interface import execute_LevSeq
 def main():
-    execute_MinION()
+    execute_LevSeq()
                 
 if __name__ == "__main__":
     main()

@@ -19,6 +19,7 @@
 from levseq import *
 
 # Import external packages
+import logging
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -31,44 +32,54 @@ import re
 import gzip
 import shutil
 
+# Configure logging
+logging.basicConfig(filename='script_errors.log', level=logging.ERROR,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 # Get barcode used
 def barcode_user(cl_args,i):
-    # Set some default values if user did not provide barcodes
-    fmin = 1
-    fmax = 96
-    bc_df = pd.read_csv(cl_args["summary"])
-    rbc = bc_df["barcode_plate"][i]
+    try:
+        # Set some default values if user did not provide barcodes
+        fmin = 1
+        fmax = 96
+        bc_df = pd.read_csv(cl_args["summary"])
+        rbc = bc_df["barcode_plate"][i]
 
-    return int(fmin), int(fmax), int(rbc)
-
+        return int(fmin), int(fmax), int(rbc)
+    
+    except Exception as e:
+        logging.error("Invalid entry in user input barcode_plate, integer only", exc_info = True)
+        raise
 
 # Get fastq.gz files from user provided path, exclude any from fastq_fail
 def cat_fastq_files(folder_path: str, output_path: str):
-    folder_path = Path(folder_path)
-    output_path = Path(output_path)
-    output_file = output_path
+    try:
+        folder_path = Path(folder_path)
+        output_path = Path(output_path)
+        output_file = output_path
 
-    if not folder_path.is_dir():
-        raise ValueError(f"The provided path {folder_path} is not a valid directory")
+        if not folder_path.is_dir():
+            raise ValueError(f"The provided path {folder_path} is not a valid directory")
 
 
-    # Find all fastq.gz files excluding those in fastq_fail folders
-    fastq_files = []
-    for root, dirs, files in os.walk(folder_path):
-        if 'fastq_fail' not in root:
-            for file in files:
-                if file.endswith('.fastq.gz'):
-                    fastq_files.append(Path(root) / file)
+        # Find all fastq.gz files excluding those in fastq_fail folders
+        fastq_files = []
+        for root, dirs, files in os.walk(folder_path):
+            if 'fastq_fail' not in root:
+                for file in files:
+                    if file.endswith('.fastq.gz'):
+                        fastq_files.append(Path(root) / file)
 
-    # Concatenate the fastq.gz files
-    with gzip.open(output_file, 'wb') as f_out:
-        for fastq_file in fastq_files:
-            with gzip.open(fastq_file, 'rb') as f_in:
-                shutil.copyfileobj(f_in, f_out)
+        # Concatenate the fastq.gz files
+        with gzip.open(output_file, 'wb') as f_out:
+            for fastq_file in fastq_files:
+                with gzip.open(fastq_file, 'rb') as f_in:
+                    shutil.copyfileobj(f_in, f_out)
 
-    return str(output_file)
-
+        return str(output_file)
+   except Exception as e:
+        logging.error("Failed to create combined fastq file, veriry the input and output locations.",exc_info = True) 
+        raise
 
 # Create result folder
 def create_result_folder(cl_args: dict) -> str:
@@ -80,10 +91,6 @@ def create_result_folder(cl_args: dict) -> str:
     # Create the directory if it doesn't exist
     result_folder.mkdir(parents=True, exist_ok=True)
     return str(result_folder)
-
-# Basecall reads
-def basecall_reads(cl_args):
-    print('basecalling')
 
 
 # Return and create filtered barcodes
@@ -130,16 +137,19 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
 # Variant calling using VariantCaller class and generate dataframe
 def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
-    vc = VariantCaller(experiment_name,
-            experiment_folder,
-            template_fasta,
-            filtered_barcodes,
-            padding_start=0,
-            padding_end=0)
-    variant_df = vc.get_variant_df(threshold=0.5,
-                                   min_depth=5)
-    return variant_df
-
+    try:
+        vc = VariantCaller(experiment_name,
+                experiment_folder,
+                template_fasta,
+                filtered_barcodes,
+                padding_start=0,
+                padding_end=0)
+        variant_df = vc.get_variant_df(threshold=0.5,
+                                       min_depth=5)
+        return variant_df
+    except Exception as e:
+        logging.error("Variant calling failed",exc_info = True)
+        raise
 
 # Saving heatmaps and csv in the results folder
 def save_platemap_to_file(heatmaps, outputdir, name):
@@ -239,26 +249,31 @@ def create_nc_variant(variant, refseq):
         return ''.join(nc_variant)
 
 def get_mutations(row):
-    refseq_aa = translate(row['refseq'])
-    variant_aa = row['aa_variant']
-    alignment_count = row['Alignment Count']  
+    try:
+        refseq_aa = translate(row['refseq'])
+        variant_aa = row['aa_variant']
+        alignment_count = row['Alignment Count']  
 
-    if variant_aa == 'Deletion':
-        return ''
-    else:
-        mutations = []
-        if len(refseq_aa) == len(variant_aa):
-            for i in range(len(refseq_aa)):
-                if refseq_aa[i] != variant_aa[i]:
-                    mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
-            if not mutations:
-                if alignment_count < 5:
-                    return '#N.A.#'
-                else:
-                    return '#PARENT#'
+        if variant_aa == 'Deletion':
+            return ''
         else:
-            return 'LEN'
-    return '_'.join(mutations) if mutations else ''
+            mutations = []
+            if len(refseq_aa) == len(variant_aa):
+                for i in range(len(refseq_aa)):
+                    if refseq_aa[i] != variant_aa[i]:
+                        mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
+                if not mutations:
+                    if alignment_count < 5:
+                        return '#N.A.#'
+                    else:
+                        return '#PARENT#'
+            else:
+                return 'LEN'
+        return '_'.join(mutations) if mutations else ''
+
+    except Exception as e:
+        logging.error("Check template sequence, only A, T, G, C and sequence dividable by 3 are accepted.",exc_info = True)
+        raise
 
 # Process the summary file
 def process_ref_csv(cl_args):
@@ -309,28 +324,31 @@ def process_ref_csv(cl_args):
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df
 
-# Run MinION    
+# Run LevSeq 
 
-def run_MinION(cl_args, tqdm_fn=tqdm.tqdm):
+def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
+    try:
+        # Process summary file by row using demux, call_variant function
+        variant_df = process_ref_csv(cl_args)
+        
+        # Check if variants.csv already exist
+        result_folder = create_result_folder(cl_args) 
+        variant_csv_path = os.path.join(result_folder, "variants.csv")
+        if os.path.exists(variant_csv_path):
+            variant_df = pd.read_csv(variant_csv_path)
+            df_variants,df_vis = create_df_v(variant_df)
+        # Clean up and prepare dataframe for visualization
+        else:
+            df_variants,df_vis = create_df_v(variant_df)
 
-    # Process summary file by row using demux, call_variant function
-    variant_df = process_ref_csv(cl_args)
-    
-    # Check if variants.csv already exist
-    result_folder = create_result_folder(cl_args) 
-    variant_csv_path = os.path.join(result_folder, "variants.csv")
-    if os.path.exists(variant_csv_path):
-        variant_df = pd.read_csv(variant_csv_path)
-        df_variants,df_vis = create_df_v(variant_df)
-    # Clean up and prepare dataframe for visualization
-    else:
-        df_variants,df_vis = create_df_v(variant_df)
+        processed_csv = os.path.join(result_folder, 'visualization.csv')
+        df_vis.to_csv(processed_csv, index = False)
+        # Generate heatmap
+        hm_ = generate_platemaps(df_vis)
 
-    processed_csv = os.path.join(result_folder, 'visualization.csv')
-    df_vis.to_csv(processed_csv, index = False)
-    # Generate heatmap
-    hm_ = generate_platemaps(df_vis)
-
-    # Saving heatmap and csv
-    save_platemap_to_file(hm_, result_folder, cl_args['name'])
-    save_csv(df_variants, result_folder, cl_args['name'])
+        # Saving heatmap and csv
+        save_platemap_to_file(hm_, result_folder, cl_args['name'])
+        save_csv(df_variants, result_folder, cl_args['name'])
+    except Exception as e:
+        logging.error("An error occured while executing LevSeq, check log file for detail",exc_info = True)
+        raise

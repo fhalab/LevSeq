@@ -67,16 +67,16 @@ def build_cli_parser():
 
 
 # Execute MinION
-def execute_MinION():
+def execute_LevSeq():
     # Build parser
     parser = build_cli_parser()
     # Parse the arguments
     CL_ARGS = vars(parser.parse_args())
     # Set up progres bar
     tqdm_fn = tqdm.tqdm
-    # Run MinION
+    # Run LevSeq
     try:
-        run_MinION(CL_ARGS, tqdm_fn)
+        run_LevSeq(CL_ARGS, tqdm_fn)
     except Exception as e:
         print(e)
     print("Run Complete, add log info")
