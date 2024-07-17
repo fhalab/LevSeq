@@ -22,7 +22,7 @@ import os
 import tqdm
 import argparse
 # Import local packages
-from levseq.run_levseq import run_MinION
+from levseq.run_levseq import run_LevSeq
 
 # Get the working directory
 CWD = os.getcwd()

@@ -32,10 +32,6 @@ import re
 import gzip
 import shutil
 
-# Configure logging
-logging.basicConfig(filename='script_errors.log', level=logging.ERROR,
-                    format='%(asctime)s:%(levelname)s:%(message)s')
-
 # Get barcode used
 def barcode_user(cl_args,i):
     try:
@@ -44,11 +40,12 @@ def barcode_user(cl_args,i):
         fmax = 96
         bc_df = pd.read_csv(cl_args["summary"])
         rbc = bc_df["barcode_plate"][i]
+        logging.info(f'Demultiplex executed successfully for index {i}.')
 
         return int(fmin), int(fmax), int(rbc)
     
     except Exception as e:
-        logging.error("Invalid entry in user input barcode_plate, integer only", exc_info = True)
+        logging.error("Demultiplex failed to execute for index {i}.", exc_info = True)
         raise
 
 # Get fastq.gz files from user provided path, exclude any from fastq_fail
@@ -75,9 +72,10 @@ def cat_fastq_files(folder_path: str, output_path: str):
             for fastq_file in fastq_files:
                 with gzip.open(fastq_file, 'rb') as f_in:
                     shutil.copyfileobj(f_in, f_out)
-
+        logging.info(f'Combined fastq file created successfully in output directory')
         return str(output_file)
-   except Exception as e:
+        
+    except Exception as e:
         logging.error("Failed to create combined fastq file, veriry the input and output locations.",exc_info = True) 
         raise
 
@@ -146,6 +144,7 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
                 padding_end=0)
         variant_df = vc.get_variant_df(threshold=0.5,
                                        min_depth=5)
+        logging.info('Variant calling to create consensus reads successful')
         return variant_df
     except Exception as e:
         logging.error("Variant calling failed",exc_info = True)
@@ -272,7 +271,7 @@ def get_mutations(row):
         return '_'.join(mutations) if mutations else ''
 
     except Exception as e:
-        logging.error("Check template sequence, only A, T, G, C and sequence dividable by 3 are accepted.",exc_info = True)
+        logging.error("Translation to amino acids failed, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted.",exc_info = True)
         raise
 
 # Process the summary file
@@ -327,12 +326,29 @@ def process_ref_csv(cl_args):
 # Run LevSeq 
 
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
+    # Create output folder
+    result_folder = create_result_folder(cl_args)
+
+    # Configure logging to save in the output directory
+    log_format = '%(asctime)s:%(levelname)s:%(message)s'
+
+    # INFO level logger
+    info_handler = logging.FileHandler(os.path.join(result_folder, 'LevSeq_run.log'))
+    info_handler.setLevel(logging.INFO)
+    info_handler.setFormatter(logging.Formatter(log_format))
+
+    # ERROR level logger
+    error_handler = logging.FileHandler(os.path.join(result_folder, 'LevSeq_error.log'))
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter(log_format))
+
+    # Configure the root logger
+    logging.basicConfig(level=logging.INFO, handlers=[info_handler, error_handler])
     try:
         # Process summary file by row using demux, call_variant function
         variant_df = process_ref_csv(cl_args)
         
         # Check if variants.csv already exist
-        result_folder = create_result_folder(cl_args) 
         variant_csv_path = os.path.join(result_folder, "variants.csv")
         if os.path.exists(variant_csv_path):
             variant_df = pd.read_csv(variant_csv_path)
@@ -349,6 +365,7 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         # Saving heatmap and csv
         save_platemap_to_file(hm_, result_folder, cl_args['name'])
         save_csv(df_variants, result_folder, cl_args['name'])
+        logging.info('Run successful, see visualization and results')
     except Exception as e:
         logging.error("An error occured while executing LevSeq, check log file for detail",exc_info = True)
         raise
