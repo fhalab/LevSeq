@@ -28,7 +28,7 @@ hv.extension('bokeh')
 
 # Function for making plate maps
 def _make_platemap(df, title, cmap=None):
-    """Generates a plate heatmap from evSeq data using Holoviews with
+    """Generates a plate heatmap from LevSeq data using Holoviews with
     bokeh backend.
 
     Called via `generate_platemaps`; see docs there.
@@ -224,7 +224,7 @@ def generate_platemaps(
     Input:
     ------
     max_combo_data: path (str) or DartaFrame
-        Path to 'Combos_Coupled_Max.csv' from an evSeq experiment or
+        Path to 'variants.csv' from an LevSeq experiment or
         a pandas DataFrame of that file.
     cmap: list-like or str, default None
         The colormap to use for the well outline indicating alignment
