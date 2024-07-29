@@ -288,7 +288,7 @@ class TestVariantCalling(TestClass):
         sequencing_error_rate = 0.1
         library_number = 10
         epcr_mutation_rate = 0.1
-        read_depth = 100
+        read_depth = 10
         number_wells_to_mix = 10
         mixture_rate = 0.5  # 50%
         run_label = 'mutations'
@@ -296,7 +296,7 @@ class TestVariantCalling(TestClass):
         frequency_cutoff = 0.3
         df = make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequence, library_number,
                              number_of_wells, epcr_mutation_rate, frequency_cutoff, number_wells_to_mix, mixture_rate,
-                             qc_files_path='test_data/')
+                             qc_files_path='/Users/arianemora/Documents/code/MinION/tmp/')
         check_variants(df, parent_sequence)
         df.to_csv('test2.csv')
 
