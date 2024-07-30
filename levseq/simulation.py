@@ -106,8 +106,10 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
                     number_of_wells, epcr_mutation_rate, frequency_cutoff=0.5, number_wells_to_mix=0,
                     mixture_rate=0, qc_files_path=None):
     # Make a full experiment setup
+    mixed_wells = None
     if number_wells_to_mix > 0:
-        mutated_sequence = make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number,
+        # mixed_wells tells us which wells are truely mixed
+        mutated_sequence, mixed_wells = make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number,
                                                               epcr_mutation_rate, number_wells_to_mix, mixture_rate)
     else:
         mutated_sequence = make_epcr_de_experiment(read_depth, sequencing_error_rate, parent_sequence, library_number,
@@ -116,6 +118,7 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
     variant_df = get_dummy_plate_df(run_label, 'Well', number_of_wells)
     mutant_to_well_df = {}
     current_well = 0
+    variant_df['True Mixed Well'] = False
     for mutant in tqdm(mutated_sequence):
         parent_name = 'Parent'
         reads = []
@@ -148,6 +151,8 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
         variant_df.at[current_well, "P value"] = combined_p_value
         variant_df.at[current_well, "Well"] = f'Well {current_well}'
         variant_df.at[current_well, "Alignment_count"] = read_depth
+        if mixed_wells is not None:
+            variant_df.at[current_well, "True Mixed Well"] = mixed_wells[mutant] # Save this as a true mixed well
         current_well += 1
 
     # Before returning adjust the pvalues
@@ -234,10 +239,11 @@ def make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent
     library = generate_epcr_library(parent_sequence, epcr_mutation_rate, library_number)
     # For this library for each one, simulate the number of reads with a sequencing error rate
     reads_per_well = {}
+    reads_mutated_label = {}
     for seq in library:
         # Randomly mix some of the wells at the mixture rate. Here we'll just randomly "dope" in some of the randomly
         reads_per_well[seq] = [mutate_sequence(seq, sequencing_error_rate) for i in range(0, read_depth)]
-
+        reads_mutated_label[seq] = False
     wells_to_mix = random.sample(list(reads_per_well.keys()), number_wells_to_mix)
     # Combine them
     for well_seq in wells_to_mix:
@@ -246,12 +252,12 @@ def make_mixed_well_epcr_de_experiment(read_depth, sequencing_error_rate, parent
         if dope_in_seq != well_seq:  # Make sure the sequences are different
             # Swap out a percentage of the wells from dope in into the other well
             number_to_add_in = math.floor(read_depth*mixture_rate)
-            for i in range(0, number_to_add_in):
-                # Get random position from our number of reads
-                read_position = random.randint(0, read_depth - 1)
+            for read_position in range(0, number_to_add_in):
+                # Just make the top X the other doped in seq
                 reads_per_well[well_seq][read_position] = reads_per_well[dope_in_seq][read_position]
+                reads_mutated_label[well_seq] = True
 
-    return reads_per_well
+    return reads_per_well, reads_mutated_label
 
 
 def check_variants(variant_df, parent_sequence):
@@ -259,6 +265,10 @@ def check_variants(variant_df, parent_sequence):
 
     corrects = []
     incorrects = []
+    true_positives = 0
+    true_negatives = 0
+    false_negatives = 0
+    false_positives = 0
     for predicted_variant, true_variant in variant_df[['Variant', 'True Variant']].values:
         count_correct = 0
         count_incorrect = 0
@@ -269,8 +279,10 @@ def check_variants(variant_df, parent_sequence):
                     for i in range(0, len(true_variant)):
                         if true_variant[i] == parent_sequence[i]:
                             count_correct += 1
+                            true_positives += 1
                         else:
                             count_incorrect += 1
+                            false_negatives += 1
                 else:
                     # true_variant is a sequence while predicated variant is just the mutations
                     if 'DEL' not in mutation:
@@ -281,6 +293,7 @@ def check_variants(variant_df, parent_sequence):
                         mut = 'DEL'
                     if true_variant[mut_pos - 1] == mut:
                         count_correct += 1
+                        true_positives += 1
                     else:
                         count_incorrect += 1
                     try:
