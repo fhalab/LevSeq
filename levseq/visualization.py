@@ -16,15 +16,73 @@
 ###############################################################################
 
 # Import all packages
+from __future__ import annotations
+
+from collections import Counter
+
+import os
+from copy import deepcopy
+
 import pandas as pd
 import numpy as np
 
+from Bio import AlignIO
+from Bio.motifs import Motif
+from Bio.PDB.Polypeptide import aa1
+from Bio.Align import MultipleSeqAlignment
+
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
 import holoviews as hv
+from holoviews.streams import Tap
+
 import ninetysix as ns
 import colorcet as cc
+
+from bokeh.plotting import figure
+from bokeh.models import (
+    ColumnDataSource,
+    Range1d,
+    CustomJS,
+    RangeSlider,
+    TapTool,
+    HoverTool,
+    Label,
+    Div,
+)
+from bokeh.models.glyphs import Text, Rect
+from bokeh.layouts import column, gridplot, row, Spacer
+from bokeh.events import Tap
+from bokeh.io import save, show, output_file, output_notebook
+
+import panel as pn
+
 from levseq.utils import *
+
+output_notebook()
+
+pn.extension()
+pn.config.comms = "vscode"
+
 hv.extension('bokeh')
 
+
+
+
+######## Define constants for MSA alignments ########
+# Set light gray for seq matched with the reference
+match_color = "#d9d9d9"
+
+# Set nuecleotide colors for the MSA alignment plot
+NUC_COLOR_DICT = {
+    "A": "green",
+    "T": "red",
+    "G": "black",
+    "C": "blue",
+    "-": "white",
+    "N": "gray",
+}
 
 # Function for making plate maps
 def _make_platemap(df, title, cmap=None):
@@ -242,6 +300,7 @@ def generate_platemaps(
     Returns:
     --------
     hm_holomap: an interactive Platemap
+    unique_plates: list of unique plates in the data
     """
 
     # Convert to dataframe if necessary
@@ -305,9 +364,517 @@ def generate_platemaps(
     hm_holomap = hv.HoloMap(
         hm_dict, 
         kdims=['Plate']
-    )
+    ).opts(tools=['tap'], active_tools=['tap'])
+
     # Update widget location
     hv.output(widget_location=widget_location)
 
-    return hm_holomap
+    return hm_holomap, unique_plates
 
+########### Functions for the MSA alignment plot ###########
+def get_sequence_colors(seqs: list, palette="viridis") -> list[str]:
+    """
+    Get colors for a sequence without parent seq highlighting differences
+
+    Args:
+    - seqs: list of sequences
+    - palette: str, name of the color palette
+    """
+
+    aas = deepcopy(ALL_AAS)
+    aas.append("-")
+    aas.append("X")
+
+    pal = plt.colormaps[palette]
+    pal = [mpl.colors.to_hex(i) for i in pal(np.linspace(0, 1, 20))]
+    pal.append("white")
+    pal.append("gray")
+
+    pcolors = {i: j for i, j in zip(aas, pal)}
+    nuc = [i for s in list(seqs) for i in s]
+
+    try:
+        colors = [NUC_COLOR_DICT[i] for i in nuc]
+    except:
+        colors = [pcolors[i] for i in nuc]
+
+    return colors
+
+
+def get_sequence_diff_colorNseq(seqs: list, ids: list, parent_seq: str) -> tuple:
+    """
+    Get colors and nucleotides for input sequences highlighting differences from parent
+
+    Args:
+    - seqs: str, list of sequences
+    - ids: str, list of sequence ids
+    - parent_seq: str, parent sequence to compare against
+
+    Returns:
+    - block_colors: list of colors for each nucleotide highlighting differences
+    - nuc_colors: list of colors for each nucleotide
+    - nucs: list of nucleotides highlighting differences
+    - spacers: list of spacers (for plotting)
+    """
+    # color for the highlighted nuc block over text
+    block_colors = []
+    # color for the nuc text to be annotated
+    nuc_textcolors = []
+    # init nuc to annotate
+    diff_nucs = []
+    # parent nuc or spacer annotation
+    text_annot = []
+
+    for seq, id in zip(seqs, ids):
+        if id == "parent":
+            for p in list(parent_seq):
+                block_colors.append(match_color)
+                nuc_textcolors.append(NUC_COLOR_DICT[p])
+                diff_nucs.append(" ")
+                text_annot.append(p)
+        else:
+            for n, p in zip(list(seq), list(parent_seq)):
+                if n != p:
+                    block_colors.append(NUC_COLOR_DICT[n])
+                    diff_nucs.append(n)
+                    if n == "-":
+                        text_annot.append("-")
+                    else:
+                        text_annot.append(" ")
+                else:
+                    block_colors.append(match_color)
+                    diff_nucs.append(" ")
+                    text_annot.append(" ")
+
+                nuc_textcolors.append("gray")
+
+    return block_colors, nuc_textcolors, diff_nucs, text_annot
+
+
+def get_cons(aln: MultipleSeqAlignment) -> list[float]:
+
+    """
+    Get conservation values from alignment
+
+    Args:
+    - aln: MultipleSeqAlignment, input alignment
+
+    Returns:
+    - list: conservation values
+    """
+
+    x = []
+    l = len(aln)
+    for i in range(aln.get_alignment_length()):
+        a = aln[:, i]
+        res = Counter(a)
+        del res["-"]
+        x.append(max(res.values()) / l)
+    return x
+
+
+def get_cons_seq(aln: MultipleSeqAlignment, ifdeg: bool = True) -> str:
+
+    """
+    Ger consensus sequence from alignment
+
+    Args:
+    - aln: MultipleSeqAlignment, input alignment
+    - ifdeg: bool, if True, return degenerate consensus
+
+    Returns:
+    - str: consensus sequences
+    """
+
+    alignment = aln.alignment
+    motif = Motif("ACGT", alignment)
+
+    if ifdeg:
+        return motif.degenerate_consensus
+    else:
+        return motif.consensus
+
+
+def get_cons_diff_colorNseq(cons_seq: str, parent_seq: str) -> tuple:
+
+    """
+    Get consensus sequence highlighting differences from parent
+
+    Args:
+    - cons_seq: str, consensus sequence
+    - parent_seq: str, parent sequence
+
+    Returns:
+    - colors: list, colors for each nucleotide highlighting differences
+    - cons_seq_diff: list, nucleotides highlighting differences
+    """
+
+    colors = []
+    cons_seq_diff = []
+    for n, p in zip(list(cons_seq), list(parent_seq)):
+        if n != p:
+            cons_seq_diff.append(n)
+            if n in NUC_COLOR_DICT.keys():
+                colors.append(NUC_COLOR_DICT[n])
+            else:
+                colors.append("#f2f2f2")
+        else:
+            cons_seq_diff.append(" ")
+            colors.append(match_color)
+
+    return colors, cons_seq_diff
+
+
+def plot_empty(msg="", plot_width=1200, plot_height=200) -> figure:
+    """
+    Return an empty bokeh plot with optional text displayed
+
+    Args:
+    - msg: str, message to display
+    - plot_width: int, width of the plot
+    - plot_height: int, height of the plot
+    """
+
+    p = figure(
+        width=plot_width,
+        height=plot_height,
+        tools="",
+        x_range=(0, 1),
+        y_range=(0, 2),
+        sizing_mode="stretch_width",
+    )
+    text = Label(x=0.3, y=1, text=msg)
+    p.add_layout(text)
+    p.grid.visible = False
+    p.xaxis.visible = False
+    p.yaxis.visible = False
+    return p
+
+
+def plot_sequence_alignment(
+    aln_path: str,
+    markdown_title: str = "Multiple sequence alignment",
+    fontsize: str = "8pt",
+    plot_width: int = 1200,
+    sizing_mode: str = "stretch_width",
+    palette: str = "viridis",
+    row_height: float = 10,
+    numb_nuc_zoom: int = 200,
+) -> figure:
+
+    # get text from markdown
+    div = Div(
+        text=f"""
+    # {markdown_title}
+    """
+    )
+
+    if not os.path.exists(aln_path):
+        p = plot_empty("alignment file not found", plot_width)
+        return gridplot(
+            [[div], [p]],
+            toolbar_location="below",
+            sizing_mode=sizing_mode,
+        )
+
+    aln = AlignIO.read(aln_path, "fasta")
+
+    seqs = [rec.seq for rec in (aln)]
+    ids = [rec.id for rec in aln]
+    rev_ids = list(reversed(ids))
+
+    seq_len = len(seqs[0])
+    numb_seq = len(seqs)
+
+    parent_seq = None
+    for rec in aln:
+        if rec.id in ["parent", "Parent"]:
+            parent_seq = rec.seq
+            break
+
+    if len(seqs) <= 1:
+        p = plot_empty("needs at least two sequences", plot_width)
+        return p
+
+    seq_nucs = [i for s in list(seqs) for i in s]
+    parent_nucs = [i for i in parent_seq] * numb_seq
+
+    if parent_seq == None:
+        block_colors = get_sequence_colors(seqs, palette=palette)
+        text = seq_nucs
+        text_colors = "black"
+    else:
+        # block_colors, nuc_textcolors, diff_nucs, text_annot
+        (
+            block_colors,
+            nuc_textcolors,
+            diff_nucs,
+            text_annot,
+        ) = get_sequence_diff_colorNseq(seqs=seqs, ids=ids, parent_seq=parent_seq)
+        text = text_annot
+        text_colors = nuc_textcolors
+
+    cons = get_cons(aln)
+    cons_seq = get_cons_seq(aln)
+    cons_nucs = [i for i in cons_seq] * numb_seq
+
+    # coords of the plot
+    x = np.arange(1, seq_len + 1)
+    y = np.arange(0, numb_seq, 1)
+    xx, yy = np.meshgrid(x, y)
+    gx = xx.ravel()
+    gy = yy.flatten()
+    recty = gy + 0.5
+
+    # Apply transformation to IDs
+    y_flipped = numb_seq - gy - 1
+    ids_repeated = [ids[yi] for yi in y_flipped]
+    rev_ids_repeated = [rev_ids[yi] for yi in y_flipped]
+
+    # set up msa source
+    msa_source = ColumnDataSource(
+        dict(
+            x=gx,
+            y=y_flipped,
+            ids=ids_repeated,
+            rev_ids=rev_ids_repeated,
+            seq_nucs=seq_nucs,
+            parent_nucs=parent_nucs,
+            cons_nucs=cons_nucs,
+            recty=numb_seq - recty,
+            block_colors=block_colors,
+            text=text,
+            text_colors=text_colors,
+        )
+    )
+
+    plot_height = len(seqs) * row_height + 50
+    x_range = Range1d(0, seq_len + 1, bounds="auto")
+
+    if seq_len < numb_nuc_zoom:
+        numb_nuc_zoom = len(seqs[0])
+    view_range = (0, numb_nuc_zoom)
+    viewlen = view_range[1] - view_range[0]
+
+    # preview sequence view (no text)
+    p_sumview = figure(
+        title=None,
+        width=plot_width,
+        height=numb_seq * 2 + 25,
+        x_range=x_range,
+        y_range=(0, numb_seq),
+        tools="xpan, xwheel_zoom, tap, reset, save",
+        min_border=0,
+        toolbar_location="below",
+        sizing_mode="stretch_width",
+    )
+    sumview_rects = Rect(
+        x="x",
+        y="recty",
+        width=1,
+        height=1,
+        fill_color="block_colors",
+        line_color=None,
+    )
+    p_sumview.add_glyph(msa_source, sumview_rects)
+    previewrect = Rect(
+        x=viewlen / 2,
+        y=numb_seq / 2,
+        width=viewlen,
+        height=numb_seq * 0.99,
+        line_color="black",
+        fill_color=None,
+    )
+    p_sumview.add_glyph(msa_source, previewrect)
+    p_sumview.yaxis.visible = False
+    p_sumview.grid.visible = False
+
+    hover = HoverTool(
+        tooltips=[
+            ("position", "@x"),
+            ("sequence_id", "@rev_ids"),
+            ("sequenced_nuc", "@seq_nucs"),
+            ("parent_nuc", "@parent_nucs"),
+            ("cons_nuc", "@cons_nucs"),
+        ],
+    )
+
+    # full sequence text view
+    p_aln = figure(
+        title=None,
+        width=plot_width,
+        height=plot_height,
+        x_range=view_range,
+        y_range=rev_ids,
+        tools=[hover, "xpan,reset"],
+        min_border=0,
+        toolbar_location="below",
+    )
+
+    seqtext = Text(
+        x="x",
+        y="y",
+        text="text",
+        text_align="center",
+        text_color="text_colors",
+        text_font_size=fontsize,
+    )
+    aln_rects = Rect(
+        x="x",
+        y="recty",
+        width=1,
+        height=1,
+        fill_color="block_colors",
+        line_color=None,
+    )
+    # adds in colors over the seq text
+    p_aln.add_glyph(msa_source, aln_rects)
+    # adds in the sequence text
+    p_aln.add_glyph(msa_source, seqtext)
+
+    p_aln.grid.visible = False
+    p_aln.xaxis.major_label_text_font_style = "bold"
+    p_aln.yaxis.minor_tick_line_width = 0
+    p_aln.yaxis.major_tick_line_width = 0
+
+    # conservation plot
+    cons_colors, cons_text = get_cons_diff_colorNseq(
+        cons_seq=cons_seq, parent_seq=parent_seq
+    )
+    cons_source = ColumnDataSource(
+        dict(
+            x=x,
+            cons=cons,
+            cons_height=[2 * c for c in cons],
+            cons_colors=cons_colors,
+            parent_nucs=list(parent_seq),
+            cons_nucs=list(cons_seq),
+            cons_text=cons_text,
+        )
+    )
+
+    cons_hover = HoverTool(
+        tooltips=[
+            ("position", "@x"),
+            ("cons_val", "@cons"),
+            ("parent_nuc", "@parent_nucs"),
+            ("cons_nuc", "@cons_nucs"),
+        ],
+    )
+
+    p_cons = figure(
+        title=None,
+        width=plot_width,
+        height=50,
+        x_range=p_aln.x_range,
+        y_range=(Range1d(0, 1)),
+        tools=[cons_hover, "xpan,reset"],
+    )
+    cons_rects = Rect(
+        x="x",
+        y=0,
+        width=1,
+        height="cons_height",
+        fill_color="cons_colors",
+        line_color=None,
+    )
+    cons_text = Text(
+        x="x",
+        y=0,
+        text="cons_text",
+        text_align="center",
+        text_color="black",
+        text_font_size=fontsize,
+    )
+    p_cons.add_glyph(cons_source, cons_rects)
+    p_cons.add_glyph(cons_source, cons_text)
+
+    p_cons.xaxis.visible = False
+    p_cons.yaxis.visible = True
+    p_cons.yaxis.ticker = [0, 0.5, 1]
+    p_cons.yaxis.axis_label = "Alignment conservation values"
+    p_cons.yaxis.axis_label_orientation = "horizontal"
+
+    p_cons.grid.visible = False
+    p_cons.background_fill_color = "white"
+
+    # callback for slider move
+    jscode = """
+        var start = cb_obj.value[0];
+        var end = cb_obj.value[1];
+        x_range.setv({"start": start, "end": end})
+        rect.width = end-start;
+        rect.x = start+rect.width/2;
+        var fac = rect.width/width;
+        if (fac>=.22) { fontsize = 0;}
+        else { fontsize = 8.5; }
+        text.text_font_size=fontsize+"pt";
+    """
+    callback = CustomJS(
+        args=dict(
+            x_range=p_aln.x_range, rect=previewrect, text=seqtext, width=p_aln.width
+        ),
+        code=jscode,
+    )
+    slider = RangeSlider(
+        start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10
+    )  # , callback_policy="throttle")
+    slider.js_on_change("value_throttled", callback)
+
+    # callback for plot drag
+    jscode = """
+        start = parseInt(range.start);
+        end = parseInt(range.end);
+        slider.value[0] = start;
+        rect.width = end-start;
+        rect.x = start+rect.width/2;
+    """
+
+    callback = CustomJS(
+        args=dict(slider=slider, range=p_aln.x_range, rect=previewrect), code=jscode
+    )
+    p_sumview.x_range.js_on_change("start", callback)
+
+    p_sumview = gridplot(
+        [[div], [p_sumview], [slider], [p_cons], [p_aln]],
+        toolbar_location="below",
+        sizing_mode=sizing_mode,
+    )
+
+    return p_sumview
+
+# Define a function to map the x, y coordinates to row and column indices
+def map_coordinates(x, y):
+    """
+    Map x, y coordinates to row and column indices
+    """
+    row_mapping = {chr(i): i - 64 for i in range(65, 73)}  # Mapping A-H to 1-8
+    try:
+        col = int(round(float(x)))
+    except ValueError:
+        col = int(x)
+    row = row_mapping.get(y.upper(), None)
+    return row, col
+
+# Define a callback function to print click coordinates
+def record_clicks(x, y):
+    """
+    A function to record the x, y coordinates of a click
+    """
+    print(f"Click recorded at x: {x}, y: {y}")
+
+
+def dummy_heatmap():
+    # Returns an empty plot as a placeholder
+    return hv.Curve([]).opts(title="No data available")
+
+def select_heatmap(plate):
+    if plate not in unique_plates:
+        return hv.DynamicMap(dummy_heatmap)
+    heatmap = hm[plate].opts(tools=["tap"], active_tools=["tap"], framewise=True)
+    return heatmap
+
+def create_heatmap_msa_layout(hm_view, update_msas):
+    # Recreate all components and layout here
+    layout = pn.Column(hm_view, update_msas)
+    return layout

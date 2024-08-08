@@ -1,0 +1,55 @@
+# This file may be used to create an environment for alignment visualiztion using:
+# platform: linux-64
+# conda env update --file vis_aln_env.yml --prune
+
+name: LevSeq_vis_aln
+channels:
+  - pyviz
+  - bioconda
+  - conda-forge
+  - salilab
+  - defaults
+dependencies:
+  - python=3.9.18
+  - biopandas
+  - biopython
+  - bokeh
+  - cairosvg
+  - dash
+  - dash-bio
+  - firefox
+  - flake8
+  - geckodriver
+  - holoviews
+  - hvplot
+  - ipykernel
+  - ipympl
+  - ipywidgets
+  - jupyter_bokeh
+  - jupyterlab
+  - mafft
+  - matplotlib
+  - matplotlib
+  - muscle
+  - numpy
+  - pandas
+  - panel
+  - pillow
+  - pip
+  - plotly
+  - pymsaviz
+  - pysam
+  - python-wget
+  - pyviz_comms
+  - pyyaml
+  - samtools
+  - scikit-learn            # might not be evcouplings compatible 
+  - scipy
+  - seaborn
+  - selenium
+  - seqtk
+
+  - pip:
+    - blackcellmagic
+    - igv-notebook
+    - git+https://github.com/dmnfarrell/pybioviz.git#egg=pybioviz

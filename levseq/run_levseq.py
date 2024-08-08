@@ -32,6 +32,16 @@ import re
 import gzip
 import shutil
 
+import panel as pn
+
+output_notebook()
+
+pn.extension()
+pn.config.comms = "vscode"
+
+hv.extension('bokeh')
+
+
 # Get barcode used
 def barcode_user(cl_args,i):
     try:
@@ -347,6 +357,11 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     try:
         # Process summary file by row using demux, call_variant function
         variant_df = process_ref_csv(cl_args)
+
+        # TODO check plate name to rb mapping
+        plate2rb = {"300-1": "RB01", "300-2": "RB02", "500-1": "RB03", "500-2": "RB04"}
+
+        # TODO generate fasta files for each variant from bam if not existed
         
         # Check if variants.csv already exist
         variant_csv_path = os.path.join(result_folder, "variants.csv")
@@ -359,8 +374,57 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
 
         processed_csv = os.path.join(result_folder, 'visualization.csv')
         df_vis.to_csv(processed_csv, index = False)
+        
         # Generate heatmap
-        hm_ = generate_platemaps(df_vis)
+        hm_, unique_plates = generate_platemaps(df_vis)
+
+        plate_selector = pn.widgets.Select(name='Plate Name', options=list(unique_plates))
+
+        tap_stream = Tap(x=1, y="A")
+
+        # Dynamic view that updates when plate selection changes, using @pn.depends
+        @pn.depends(plate=plate_selector.param.value)
+        def hm_view(plate):
+            heatmap = select_heatmap(plate)
+            tap_stream.source = heatmap  # Link tap_stream to the actual heatmap
+            tap_stream.add_subscriber(record_clicks)
+            return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
+
+
+        @pn.depends(plate_name=plate_selector.param.value, x=tap_stream.param.x, y=tap_stream.param.y)
+        # Define callback function
+        def update_msas(plate_name, x, y):
+            print(f"Plate Name: {plate_name}")
+            if x is None or y is None:
+                print("No coordinates selected")
+                return
+            row, col = map_coordinates(x, y)
+            if row is None:
+                print(f"Invalid row value: x={x}, y={y}")
+                return
+            print(f"Clicked coordinates: x={x}, y={y} -> row={row}, col={col}")
+
+            nb = (row - 1) * 12 + col
+            # TODO: update well name if not msa_path=f'{output_dir}msa_{barcode_id}.fa'
+            if nb < 10:
+                well = f"msa_NB0{nb}"
+            else:
+                well = f"msa_NB{nb}"
+
+            aln_path = os.path.join(
+                experiment_path, plate_name, plate2rb[plate_name], well + ".fa"
+            )
+            return pn.panel(
+                plot_sequence_alignment(
+                    aln_path,
+                    markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well}: Row {row}, Column {col}",
+                )
+            )
+
+        layout = create_heatmap_msa_layout(hm_view, update_msas)
+
+        # launch the panel
+        pn.serve(layout)
 
         # Saving heatmap and csv
         save_platemap_to_file(hm_, result_folder, cl_args['name'])
