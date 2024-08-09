@@ -358,9 +358,6 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         # Process summary file by row using demux, call_variant function
         variant_df = process_ref_csv(cl_args)
 
-        # TODO check plate name to rb mapping
-        plate2rb = {"300-1": "RB01", "300-2": "RB02", "500-1": "RB03", "500-2": "RB04"}
-
         # TODO generate fasta files for each variant from bam if not existed
         
         # Check if variants.csv already exist
@@ -376,7 +373,7 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         df_vis.to_csv(processed_csv, index = False)
         
         # Generate heatmap
-        hm_, unique_plates = generate_platemaps(df_vis)
+        hm_, unique_plates, plate2rb = generate_platemaps(df_vis)
 
         plate_selector = pn.widgets.Select(name='Plate Name', options=list(unique_plates))
 
@@ -390,9 +387,8 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
             tap_stream.add_subscriber(record_clicks)
             return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
 
-
+        # Define callback function for updating MSA
         @pn.depends(plate_name=plate_selector.param.value, x=tap_stream.param.x, y=tap_stream.param.y)
-        # Define callback function
         def update_msas(plate_name, x, y):
             print(f"Plate Name: {plate_name}")
             if x is None or y is None:

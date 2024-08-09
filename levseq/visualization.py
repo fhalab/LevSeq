@@ -300,7 +300,8 @@ def generate_platemaps(
     Returns:
     --------
     hm_holomap: an interactive Platemap
-    unique_plates: list of unique plates in the data
+    unique_plates: list of unique plates in the data,
+    plate2barcode: dictionary mapping plate to barcode_plate
     """
 
     # Convert to dataframe if necessary
@@ -311,7 +312,16 @@ def generate_platemaps(
     
     # Identify unique plates
     unique_plates = max_combo_df.Plate.unique()
-    
+
+    # Create a new DataFrame to modify without affecting the original
+    temp_df = max_combo_df.copy()
+
+    # Convert barcode_plate to string and modify its format
+    temp_df["barcode_plate"] = temp_df["barcode_plate"].apply(lambda x: "RB0" + str(x) if x < 10 else "RB" + str(x))
+
+    # Create a dictionary with unique Plate to modified barcode_plate mapping
+    plate2barcode = temp_df[["Plate", "barcode_plate"]].drop_duplicates("Plate").set_index("Plate")["barcode_plate"].to_dict()
+
     # dictionary for storing plots
     hm_dict = {}
    
@@ -369,7 +379,7 @@ def generate_platemaps(
     # Update widget location
     hv.output(widget_location=widget_location)
 
-    return hm_holomap, unique_plates
+    return hm_holomap, unique_plates, plate2barcode
 
 ########### Functions for the MSA alignment plot ###########
 def get_sequence_colors(seqs: list, palette="viridis") -> list[str]:

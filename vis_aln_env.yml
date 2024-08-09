@@ -2,7 +2,7 @@
 # platform: linux-64
 # conda env update --file vis_aln_env.yml --prune
 
-name: LevSeq_vis_aln
+name: LevSeq
 channels:
   - pyviz
   - bioconda
@@ -10,16 +10,16 @@ channels:
   - salilab
   - defaults
 dependencies:
-  - python=3.9.18
+  - python
   - biopandas
   - biopython
   - bokeh
   - cairosvg
-  - dash
-  - dash-bio
   - firefox
   - flake8
+  - fsspec
   - geckodriver
+  - h5py
   - holoviews
   - hvplot
   - ipykernel
@@ -27,17 +27,23 @@ dependencies:
   - ipywidgets
   - jupyter_bokeh
   - jupyterlab
+  - logomaker
   - mafft
   - matplotlib
-  - matplotlib
+  - mappy
   - muscle
+  - notebook
   - numpy
   - pandas
-  - panel
+  - panel=1.4.4
   - pillow
   - pip
   - plotly
+  - pybedtools
+  - pycoQC
+  - pyfaidx
   - pymsaviz
+  - pyparsing
   - pysam
   - python-wget
   - pyviz_comms
@@ -48,8 +54,9 @@ dependencies:
   - seaborn
   - selenium
   - seqtk
+  - statsmodels
 
   - pip:
     - blackcellmagic
-    - igv-notebook
-    - git+https://github.com/dmnfarrell/pybioviz.git#egg=pybioviz
+    - ninetysix
+    - sciutil
