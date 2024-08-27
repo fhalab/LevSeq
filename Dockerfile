@@ -21,10 +21,21 @@ RUN apt-get install bedtools
 # Clean up mess to make things smaller
 RUN apt-get clean
 
-# install conda
-ENV CONDA_DIR /opt/conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+# Define the build argument
+ARG TARGETARCH
+
+# Install Miniconda depending on the architecture
+ENV CONDA_DIR=/opt/conda
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O ~/miniconda.sh; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+        wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh; \
+    else \
+        echo "Unsupported architecture: $TARGETARCH" && exit 1; \
+    fi && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda
+
+
 ENV PATH=$CONDA_DIR/bin:$PATH
 # -c conda-forge r-base
 COPY requirements.txt requirements.txt
@@ -38,6 +49,7 @@ RUN conda init bash
 RUN source ~/.bashrc
 RUN conda create --name minion2 python=3.9.18
 RUN activate minion2
+RUN conda install -c conda-forge h5py
 RUN pip install -r requirements.txt
 # Install all the software
 COPY software /software
