@@ -33,6 +33,8 @@ import gzip
 import shutil
 
 import panel as pn
+import holoviews as hv
+from holoviews.streams import Tap
 
 output_notebook()
 
@@ -358,8 +360,6 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         # Process summary file by row using demux, call_variant function
         variant_df = process_ref_csv(cl_args)
 
-        # TODO generate fasta files for each variant from bam if not existed
-        
         # Check if variants.csv already exist
         variant_csv_path = os.path.join(result_folder, "variants.csv")
         if os.path.exists(variant_csv_path):
@@ -382,7 +382,7 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         # Dynamic view that updates when plate selection changes, using @pn.depends
         @pn.depends(plate=plate_selector.param.value)
         def hm_view(plate):
-            heatmap = select_heatmap(plate)
+            heatmap = select_heatmap(hm_, plate, unique_plates)
             tap_stream.source = heatmap  # Link tap_stream to the actual heatmap
             tap_stream.add_subscriber(record_clicks)
             return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
@@ -401,19 +401,25 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
             print(f"Clicked coordinates: x={x}, y={y} -> row={row}, col={col}")
 
             nb = (row - 1) * 12 + col
-            # TODO: update well name if not msa_path=f'{output_dir}msa_{barcode_id}.fa'
+
             if nb < 10:
-                well = f"msa_NB0{nb}"
+                well_dir = f"NB0{nb}"
             else:
-                well = f"msa_NB{nb}"
+                well_dir = f"NB{nb}"
+
+            well = f"msa_{plate_name}_{y}{col}"
 
             aln_path = os.path.join(
-                experiment_path, plate_name, plate2rb[plate_name], well + ".fa"
+                result_folder, plate_name, plate2rb[plate_name], well_dir, well + ".fa"
             )
+
+            print(f"Loading MSA from {aln_path}")
+
             return pn.panel(
                 plot_sequence_alignment(
                     aln_path,
-                    markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well}: Row {row}, Column {col}",
+                    parent_name=plate_name,
+                    markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well_dir} {well}: Row {row}, Column {col}",
                 )
             )
 

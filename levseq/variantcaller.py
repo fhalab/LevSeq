@@ -173,7 +173,7 @@ class VariantCaller:
                     self._align_sequences(row["Path"], row['Barcodes'])
 
                 # Check alignment count
-                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str, msa_path=f'{output_dir}msa_{barcode_id}.fa')
+                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str, msa_path=f'{row["Path"]}/msa_{barcode_id}.fa')
                 self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
                 if well_df is not None:
                     #well_df.to_csv(row['Path'],f'{output_dir}seq_{barcode_id}.csv')

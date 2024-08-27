@@ -563,6 +563,7 @@ def plot_empty(msg="", plot_width=1200, plot_height=200) -> figure:
 
 def plot_sequence_alignment(
     aln_path: str,
+    parent_name: str = "parent",
     markdown_title: str = "Multiple sequence alignment",
     fontsize: str = "8pt",
     plot_width: int = 1200,
@@ -587,6 +588,7 @@ def plot_sequence_alignment(
             sizing_mode=sizing_mode,
         )
 
+    print("got through plot_empty...")
     aln = AlignIO.read(aln_path, "fasta")
 
     seqs = [rec.seq for rec in (aln)]
@@ -598,7 +600,7 @@ def plot_sequence_alignment(
 
     parent_seq = None
     for rec in aln:
-        if rec.id in ["parent", "Parent"]:
+        if rec.id in ["parent", "Parent", parent_name]:
             parent_seq = rec.seq
             break
 
@@ -607,13 +609,13 @@ def plot_sequence_alignment(
         return p
 
     seq_nucs = [i for s in list(seqs) for i in s]
-    parent_nucs = [i for i in parent_seq] * numb_seq
 
     if parent_seq == None:
         block_colors = get_sequence_colors(seqs, palette=palette)
         text = seq_nucs
         text_colors = "black"
     else:
+        parent_nucs = [i for i in parent_seq] * numb_seq
         # block_colors, nuc_textcolors, diff_nucs, text_annot
         (
             block_colors,
@@ -623,6 +625,8 @@ def plot_sequence_alignment(
         ) = get_sequence_diff_colorNseq(seqs=seqs, ids=ids, parent_seq=parent_seq)
         text = text_annot
         text_colors = nuc_textcolors
+
+    print("got through get color and stuff...")
 
     cons = get_cons(aln)
     cons_seq = get_cons_seq(aln)
@@ -678,6 +682,8 @@ def plot_sequence_alignment(
         toolbar_location="below",
         sizing_mode="stretch_width",
     )
+
+    print("p_sumview created...")
     sumview_rects = Rect(
         x="x",
         y="recty",
@@ -686,7 +692,10 @@ def plot_sequence_alignment(
         fill_color="block_colors",
         line_color=None,
     )
+    
     p_sumview.add_glyph(msa_source, sumview_rects)
+    print("sumview_rects added...")
+
     previewrect = Rect(
         x=viewlen / 2,
         y=numb_seq / 2,
@@ -696,6 +705,8 @@ def plot_sequence_alignment(
         fill_color=None,
     )
     p_sumview.add_glyph(msa_source, previewrect)
+
+    print("previewrect added...")
     p_sumview.yaxis.visible = False
     p_sumview.grid.visible = False
 
@@ -720,7 +731,7 @@ def plot_sequence_alignment(
         min_border=0,
         toolbar_location="below",
     )
-
+    print("p_aln created...")
     seqtext = Text(
         x="x",
         y="y",
@@ -739,8 +750,10 @@ def plot_sequence_alignment(
     )
     # adds in colors over the seq text
     p_aln.add_glyph(msa_source, aln_rects)
+    print("aln_rects added...")
     # adds in the sequence text
     p_aln.add_glyph(msa_source, seqtext)
+    print("seqtext added...")
 
     p_aln.grid.visible = False
     p_aln.xaxis.major_label_text_font_style = "bold"
@@ -751,6 +764,7 @@ def plot_sequence_alignment(
     cons_colors, cons_text = get_cons_diff_colorNseq(
         cons_seq=cons_seq, parent_seq=parent_seq
     )
+    print("got through get_cons_diff_colorNseq...")
     cons_source = ColumnDataSource(
         dict(
             x=x,
@@ -780,6 +794,7 @@ def plot_sequence_alignment(
         y_range=(Range1d(0, 1)),
         tools=[cons_hover, "xpan,reset"],
     )
+    print("p_cons created...")
     cons_rects = Rect(
         x="x",
         y=0,
@@ -788,6 +803,7 @@ def plot_sequence_alignment(
         fill_color="cons_colors",
         line_color=None,
     )
+    print("cons_rects created...")
     cons_text = Text(
         x="x",
         y=0,
@@ -796,8 +812,11 @@ def plot_sequence_alignment(
         text_color="black",
         text_font_size=fontsize,
     )
+    print("cons_text created...")
     p_cons.add_glyph(cons_source, cons_rects)
+    print("cons_rects added...")
     p_cons.add_glyph(cons_source, cons_text)
+    print("cons_text added...")
 
     p_cons.xaxis.visible = False
     p_cons.yaxis.visible = True
@@ -878,10 +897,10 @@ def dummy_heatmap():
     # Returns an empty plot as a placeholder
     return hv.Curve([]).opts(title="No data available")
 
-def select_heatmap(plate):
+def select_heatmap(hm_dict, plate, unique_plates):
     if plate not in unique_plates:
         return hv.DynamicMap(dummy_heatmap)
-    heatmap = hm[plate].opts(tools=["tap"], active_tools=["tap"], framewise=True)
+    heatmap = hm_dict[plate].opts(tools=["tap"], active_tools=["tap"], framewise=True)
     return heatmap
 
 def create_heatmap_msa_layout(hm_view, update_msas):
