@@ -61,10 +61,17 @@ RUN pip install notebook
 # https://a-slide.github.io/pycoQC/installation/
 RUN pip install pycoQC
 
+# Download the required software packages using wget
+RUN wget -O /software/htslib-1.15.1.tar.bz2 https://github.com/samtools/htslib/releases/download/1.15.1/htslib-1.15.1.tar.bz2
+RUN wget -O /software/bcftools-1.15.1.tar.bz2 https://github.com/samtools/bcftools/releases/download/1.15.1/bcftools-1.15.1.tar.bz2
+RUN wget -O /software/samtools-1.15.1.tar.bz2 https://github.com/samtools/samtools/releases/download/1.15.1/samtools-1.15.1.tar.bz2
+
 # Install samtools
 RUN tar -xvjf /software/htslib-1.15.1.tar.bz2
 RUN tar -xvjf /software/bcftools-1.15.1.tar.bz2
 RUN tar -xvjf /software/samtools-1.15.1.tar.bz2
+
+# Build and Install
 WORKDIR /htslib-1.15.1/
 RUN make install
 WORKDIR /bcftools-1.15.1/
@@ -101,6 +108,10 @@ RUN apt-get update && \
     add-apt-repository ppa:ubuntu-toolchain-r/test && \
     apt-get update && \
     apt-get install -y libstdc++6
+
+# Download and extract minimap2
+RUN wget -O /software/minimap2-2.24.tar.bz2 https://github.com/lh3/minimap2/releases/download/v2.24/minimap2-2.24.tar.bz2
+RUN tar -xvjf /software/minimap2-2.24.tar.bz2 -C /software
 
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
 RUN cp -r /software/minimap2-2.24/* /usr/local/bin
