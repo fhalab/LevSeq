@@ -41,24 +41,25 @@ output_notebook()
 pn.extension()
 pn.config.comms = "vscode"
 
-hv.extension('bokeh')
+hv.extension("bokeh")
 
 
 # Get barcode used
-def barcode_user(cl_args,i):
+def barcode_user(cl_args, i):
     try:
         # Set some default values if user did not provide barcodes
         fmin = 1
         fmax = 96
         bc_df = pd.read_csv(cl_args["summary"])
         rbc = bc_df["barcode_plate"][i]
-        logging.info(f'Demultiplex executed successfully for index {i}.')
+        logging.info(f"Demultiplex executed successfully for index {i}.")
 
         return int(fmin), int(fmax), int(rbc)
-    
+
     except Exception as e:
-        logging.error("Demultiplex failed to execute for index {i}.", exc_info = True)
+        logging.error("Demultiplex failed to execute for index {i}.", exc_info=True)
         raise
+
 
 # Get fastq.gz files from user provided path, exclude any from fastq_fail
 def cat_fastq_files(folder_path: str, output_path: str):
@@ -68,35 +69,40 @@ def cat_fastq_files(folder_path: str, output_path: str):
         output_file = output_path
 
         if not folder_path.is_dir():
-            raise ValueError(f"The provided path {folder_path} is not a valid directory")
-
+            raise ValueError(
+                f"The provided path {folder_path} is not a valid directory"
+            )
 
         # Find all fastq.gz files excluding those in fastq_fail folders
         fastq_files = []
         for root, dirs, files in os.walk(folder_path):
-            if 'fastq_fail' not in root:
+            if "fastq_fail" not in root:
                 for file in files:
-                    if file.endswith('.fastq.gz'):
+                    if file.endswith(".fastq.gz"):
                         fastq_files.append(Path(root) / file)
 
         # Concatenate the fastq.gz files
-        with gzip.open(output_file, 'wb') as f_out:
+        with gzip.open(output_file, "wb") as f_out:
             for fastq_file in fastq_files:
-                with gzip.open(fastq_file, 'rb') as f_in:
+                with gzip.open(fastq_file, "rb") as f_in:
                     shutil.copyfileobj(f_in, f_out)
-        logging.info(f'Combined fastq file created successfully in output directory')
+        logging.info(f"Combined fastq file created successfully in output directory")
         return str(output_file)
-        
+
     except Exception as e:
-        logging.error("Failed to create combined fastq file, veriry the input and output locations.",exc_info = True) 
+        logging.error(
+            "Failed to create combined fastq file, veriry the input and output locations.",
+            exc_info=True,
+        )
         raise
+
 
 # Create result folder
 def create_result_folder(cl_args: dict) -> str:
-    folder_name = cl_args.get('name')
+    folder_name = cl_args.get("name")
     if not folder_name:
         raise ValueError("The 'name' key is required in cl_args")
-    output_path = cl_args.get('output', os.getcwd())
+    output_path = cl_args.get("output", os.getcwd())
     result_folder = Path(output_path) / folder_name
     # Create the directory if it doesn't exist
     result_folder.mkdir(parents=True, exist_ok=True)
@@ -106,36 +112,52 @@ def create_result_folder(cl_args: dict) -> str:
 # Return and create filtered barcodes
 def filter_bc(cl_args, result_folder, i):
     front_min, front_max, rbc = barcode_user(cl_args, i)
-    barcode_path = 'levseq/barcoding/minion_barcodes.fasta'
+    barcode_path = "levseq/barcoding/minion_barcodes.fasta"
 
     front_prefix = "NB"
     back_prefix = "RB"
 
     barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
-    filter_barcodes(barcode_path, barcode_path_filter, (front_min, front_max), rbc, front_prefix, back_prefix)
+    filter_barcodes(
+        barcode_path,
+        barcode_path_filter,
+        (front_min, front_max),
+        rbc,
+        front_prefix,
+        back_prefix,
+    )
     return barcode_path_filter
 
+
 # Filter barcodes
-def filter_barcodes(input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix):
+def filter_barcodes(
+    input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix
+):
     front_min, front_max = barcode_range
     filtered_records = []
 
     for record in SeqIO.parse(input_fasta, "fasta"):
-        if (record.id.startswith(front_prefix) and front_min <= int(record.id[len(front_prefix):]) <= front_max) or \
-                (record.id.startswith(back_prefix) and int(record.id[len(back_prefix):]) == rbc):
-                    filtered_records.append(record)
+        if (
+            record.id.startswith(front_prefix)
+            and front_min <= int(record.id[len(front_prefix) :]) <= front_max
+        ) or (
+            record.id.startswith(back_prefix)
+            and int(record.id[len(back_prefix) :]) == rbc
+        ):
+            filtered_records.append(record)
 
     with open(output_fasta, "w") as output_handle:
         SeqIO.write(filtered_records, output_handle, "fasta")
+
 
 # Demultiplex the basecalled fastq into plate-well folders
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
     # Plan B to locate using relative path relying on the git folder
     current_file_dir = Path(__file__).parent
     # Obtain path of executable from package
-    #with resources.path('levseq.barcoding', 'demultiplex-x86') as executable_path:
+    # with resources.path('levseq.barcoding', 'demultiplex-x86') as executable_path:
     # ToDO! Fix this tech debt
-    executable_path = 'levseq/barcoding/demultiplex-x86'
+    executable_path = "levseq/barcoding/demultiplex-x86"
 
     # Get min and max sequence length if user specified, otherwise use default
     seq_min = 800
@@ -148,26 +170,29 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 # Variant calling using VariantCaller class and generate dataframe
 def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
     try:
-        vc = VariantCaller(experiment_name,
-                experiment_folder,
-                template_fasta,
-                filtered_barcodes,
-                padding_start=0,
-                padding_end=0)
-        variant_df = vc.get_variant_df(threshold=0.5,
-                                       min_depth=5)
-        logging.info('Variant calling to create consensus reads successful')
+        vc = VariantCaller(
+            experiment_name,
+            experiment_folder,
+            template_fasta,
+            filtered_barcodes,
+            padding_start=0,
+            padding_end=0,
+        )
+        variant_df = vc.get_variant_df(threshold=0.5, min_depth=5)
+        logging.info("Variant calling to create consensus reads successful")
         return variant_df
     except Exception as e:
-        logging.error("Variant calling failed",exc_info = True)
+        logging.error("Variant calling failed", exc_info=True)
         raise
+
 
 # Saving heatmaps and csv in the results folder
 def save_platemap_to_file(heatmaps, outputdir, name):
     if not os.path.exists(os.path.join(outputdir, "Platemaps")):
         os.makedirs(os.path.join(outputdir, "Platemaps"))
     file_path = os.path.join(outputdir, "Platemaps", name)
-    hv.renderer('bokeh').save(heatmaps, file_path)
+    # hv.renderer('bokeh').save(heatmaps, file_path)
+    heatmaps.save(file_path + ".html", embed=True)
 
 
 def save_csv(df, outputdir, name):
@@ -183,31 +208,41 @@ def create_df_v(variants_df):
     df_variants_ = variants_df.copy()
 
     # Fill in empty cells
-    df_variants_['Variant'].tolist()
-    df_variants_['Variant'] = df_variants_['Variant'].replace(np.nan, '', regex=True)
+    df_variants_["Variant"].tolist()
+    df_variants_["Variant"] = df_variants_["Variant"].replace(np.nan, "", regex=True)
 
     # Create nc_variant column
-    df_variants_['nc_variant'] = df_variants_.apply(lambda row: create_nc_variant(row['Variant'], row['refseq']), axis=1)
-    
+    df_variants_["nc_variant"] = df_variants_.apply(
+        lambda row: create_nc_variant(row["Variant"], row["refseq"]), axis=1
+    )
+
     # Translate nc_variant to aa_variant
-    df_variants_['aa_variant'] = df_variants_['nc_variant'].apply(lambda x: 'Deletion' if x == 'Deletion' else translate(x))
+    df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
+        lambda x: "Deletion" if x == "Deletion" else translate(x)
+    )
     # Fill in 'Deletion' in 'aa_variant' column
-    df_variants_.loc[df_variants_['nc_variant'] == 'Deletion', 'aa_variant'] = 'Deletion'
+    df_variants_.loc[
+        df_variants_["nc_variant"] == "Deletion", "aa_variant"
+    ] = "Deletion"
 
     # Compare aa_variant with translated refseq and generate mutations column
-    df_variants_['Mutations'] = df_variants_.apply(get_mutations, axis=1)
-    
-    # Fill in empty empty values 
-    df_variants_['Alignment Probability'] = df_variants_['Average mutation frequency'].fillna(0.0)
-    df_variants_['Alignment Count'] = df_variants_['Alignment Count'].fillna(0.0)
+    df_variants_["Mutations"] = df_variants_.apply(get_mutations, axis=1)
+
+    # Fill in empty empty values
+    df_variants_["Alignment Probability"] = df_variants_[
+        "Average mutation frequency"
+    ].fillna(0.0)
+    df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
 
     # Fill in Deletion into mutations Column
     for i in df_variants_.index:
-        if df_variants_['nc_variant'].iloc[i] == 'Deletion':
-            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace('', '-')
+        if df_variants_["nc_variant"].iloc[i] == "Deletion":
+            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace(
+                "", "-"
+            )
 
     # Add row and columns
-    Well = df_variants_['Well'].tolist()
+    Well = df_variants_["Well"].tolist()
     row = []
     column = []
     for well in Well:
@@ -216,57 +251,82 @@ def create_df_v(variants_df):
             if well[1:].isdigit():
                 column.append(well[1:])
             else:
-                column.append('')
+                column.append("")
         else:
-            row.append('')
-            column.append('')
+            row.append("")
+            column.append("")
 
-    df_variants_['Row'] = row
-    df_variants_['Column'] = column
-    df_variants_['Plate'] = df_variants_['name'].astype(str)
-    
+    df_variants_["Row"] = row
+    df_variants_["Column"] = column
+    df_variants_["Plate"] = df_variants_["name"].astype(str)
+
     # Update 'Plate' column from '1'-'9' to '01'-'09'
-    df_variants_['Plate'] = df_variants_['Plate'].apply(lambda x: f'0{x}' if len(x) == 1 else x)
+    df_variants_["Plate"] = df_variants_["Plate"].apply(
+        lambda x: f"0{x}" if len(x) == 1 else x
+    )
     # Select the desired columns in the desired order
-    restructured_df = df_variants_[['barcode_plate', 'Plate', 'Well', 'Variant', 'Alignment Count', 'Average mutation frequency', 'P value', 'P adj. value', 'Mutations', 'nc_variant', 'aa_variant']]
+    restructured_df = df_variants_[
+        [
+            "barcode_plate",
+            "Plate",
+            "Well",
+            "Variant",
+            "Alignment Count",
+            "Average mutation frequency",
+            "P value",
+            "P adj. value",
+            "Mutations",
+            "nc_variant",
+            "aa_variant",
+        ]
+    ]
     # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
-    restructured_df.loc[restructured_df['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
-    df_variants_.loc[df_variants_['Alignment Count'] < 6, ['Mutations', 'Variant']] = '#N.A.#'
-    restructured_df.loc[restructured_df['Mutations'] == '#PARENT#', ['Alignment Probability']] = 1.0
-    df_variants_.loc[df_variants_['Mutations'] == '#PARENT#', ['Alignment Probability']] = 1.0
-    
+    restructured_df.loc[
+        restructured_df["Alignment Count"] < 6, ["Mutations", "Variant"]
+    ] = "#N.A.#"
+    df_variants_.loc[
+        df_variants_["Alignment Count"] < 6, ["Mutations", "Variant"]
+    ] = "#N.A.#"
+    restructured_df.loc[
+        restructured_df["Mutations"] == "#PARENT#", ["Alignment Probability"]
+    ] = 1.0
+    df_variants_.loc[
+        df_variants_["Mutations"] == "#PARENT#", ["Alignment Probability"]
+    ] = 1.0
 
     return restructured_df, df_variants_
+
 
 def create_nc_variant(variant, refseq):
     if isinstance(variant, np.ndarray):
         variant = variant.tolist()
-    if variant == '' or pd.isnull(variant):
+    if variant == "" or pd.isnull(variant):
         return refseq
-    elif variant == '#PARENT#':
+    elif variant == "#PARENT#":
         return refseq
-    elif 'DEL' in variant:
-        return 'Deletion'
+    elif "DEL" in variant:
+        return "Deletion"
     else:
-        mutations = variant.split('_')
+        mutations = variant.split("_")
         nc_variant = list(refseq)
         for mutation in mutations:
             if len(mutation) >= 2:
-                position = int(re.findall(r'\d+', mutation)[0]) - 1
+                position = int(re.findall(r"\d+", mutation)[0]) - 1
                 original = mutation[0]
                 new = mutation[-1]
             if position < len(nc_variant) and nc_variant[position] == original:
                 nc_variant[position] = new
-        return ''.join(nc_variant)
+        return "".join(nc_variant)
+
 
 def get_mutations(row):
     try:
-        refseq_aa = translate(row['refseq'])
-        variant_aa = row['aa_variant']
-        alignment_count = row['Alignment Count']  
+        refseq_aa = translate(row["refseq"])
+        variant_aa = row["aa_variant"]
+        alignment_count = row["Alignment Count"]
 
-        if variant_aa == 'Deletion':
-            return ''
+        if variant_aa == "Deletion":
+            return ""
         else:
             mutations = []
             if len(refseq_aa) == len(variant_aa):
@@ -275,21 +335,25 @@ def get_mutations(row):
                         mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
                 if not mutations:
                     if alignment_count < 5:
-                        return '#N.A.#'
+                        return "#N.A.#"
                     else:
-                        return '#PARENT#'
+                        return "#PARENT#"
             else:
-                return 'LEN'
-        return '_'.join(mutations) if mutations else ''
+                return "LEN"
+        return "_".join(mutations) if mutations else ""
 
     except Exception as e:
-        logging.error("Translation to amino acids failed, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted.",exc_info = True)
+        logging.error(
+            "Translation to amino acids failed, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted.",
+            exc_info=True,
+        )
         raise
+
 
 # Process the summary file
 def process_ref_csv(cl_args):
-    ref_df = pd.read_csv(cl_args['summary'])
-    #barcode_path = pd.read_csv(cl_args['barcode_path'])
+    ref_df = pd.read_csv(cl_args["summary"])
+    # barcode_path = pd.read_csv(cl_args['barcode_path'])
 
     result_folder = create_result_folder(cl_args)
 
@@ -297,7 +361,9 @@ def process_ref_csv(cl_args):
     if os.path.exists(variant_csv_path):
         variant_df = pd.read_csv(variant_csv_path)
     else:
-        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+        variant_df = pd.DataFrame(
+            columns=["barcode_plate", "name", "refseq", "variant"]
+        )
     for i, row in ref_df.iterrows():
         barcode_plate = row["barcode_plate"]
         name = row["name"]
@@ -312,45 +378,49 @@ def process_ref_csv(cl_args):
         with open(temp_fasta_path, "w") as f:
             f.write(f">{name}\n{refseq}\n")
         # Create filtered barcode path
-        barcode_path = filter_bc(cl_args, name_folder, i) 
-        # Find fastq.gz files   
-        output_dir = Path(result_folder)/'basecalled_reads'
+        barcode_path = filter_bc(cl_args, name_folder, i)
+        # Find fastq.gz files
+        output_dir = Path(result_folder) / "basecalled_reads"
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = os.path.join(output_dir, f"basecalled.fastq.gz")
 
-        file_to_fastq = cat_fastq_files(cl_args.get('path'), output_file)
+        file_to_fastq = cat_fastq_files(cl_args.get("path"), output_file)
 
-        if not cl_args['skip_demultiplexing']: 
+        if not cl_args["skip_demultiplexing"]:
             demux_fastq(output_dir, name_folder, barcode_path)
-        if not cl_args['skip_variantcalling']: 
-            variant_result = call_variant(f"{name}", name_folder, temp_fasta_path, barcode_path)
+        if not cl_args["skip_variantcalling"]:
+            variant_result = call_variant(
+                f"{name}", name_folder, temp_fasta_path, barcode_path
+            )
             variant_result["barcode_plate"] = barcode_plate
             variant_result["name"] = name
             variant_result["refseq"] = refseq
 
             variant_df = pd.concat([variant_df, variant_result])
-        
+
         # Remove the temporary fasta file
-        #os.remove(temp_fasta_path)
+        # os.remove(temp_fasta_path)
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df
 
-# Run LevSeq 
+
+# Run LevSeq
+
 
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     # Create output folder
     result_folder = create_result_folder(cl_args)
 
     # Configure logging to save in the output directory
-    log_format = '%(asctime)s:%(levelname)s:%(message)s'
+    log_format = "%(asctime)s:%(levelname)s:%(message)s"
 
     # INFO level logger
-    info_handler = logging.FileHandler(os.path.join(result_folder, 'LevSeq_run.log'))
+    info_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_run.log"))
     info_handler.setLevel(logging.INFO)
     info_handler.setFormatter(logging.Formatter(log_format))
 
     # ERROR level logger
-    error_handler = logging.FileHandler(os.path.join(result_folder, 'LevSeq_error.log'))
+    error_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_error.log"))
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(logging.Formatter(log_format))
 
@@ -364,74 +434,82 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         variant_csv_path = os.path.join(result_folder, "variants.csv")
         if os.path.exists(variant_csv_path):
             variant_df = pd.read_csv(variant_csv_path)
-            df_variants,df_vis = create_df_v(variant_df)
+            df_variants, df_vis = create_df_v(variant_df)
         # Clean up and prepare dataframe for visualization
         else:
-            df_variants,df_vis = create_df_v(variant_df)
+            df_variants, df_vis = create_df_v(variant_df)
 
-        processed_csv = os.path.join(result_folder, 'visualization.csv')
-        df_vis.to_csv(processed_csv, index = False)
-        
+        processed_csv = os.path.join(result_folder, "visualization.csv")
+        df_vis.to_csv(processed_csv, index=False)
+
+        layout = generate_platemaps(df_vis, result_folder)
+
         # Generate heatmap
-        hm_, unique_plates, plate2rb = generate_platemaps(df_vis)
+        # hm_, unique_plates, plate2rb = generate_platemaps(df_vis)
 
-        plate_selector = pn.widgets.Select(name='Plate Name', options=list(unique_plates))
+        # plate_selector = pn.widgets.Select(name='Plate Name', options=list(unique_plates))
 
-        tap_stream = Tap(x=1, y="A")
+        # layout = generate_platemaps_with_dropdowns(df_vis, result_folder)
 
-        # Dynamic view that updates when plate selection changes, using @pn.depends
-        @pn.depends(plate=plate_selector.param.value)
-        def hm_view(plate):
-            heatmap = select_heatmap(hm_, plate, unique_plates)
-            tap_stream.source = heatmap  # Link tap_stream to the actual heatmap
-            tap_stream.add_subscriber(record_clicks)
-            return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
+        # tap_stream = Tap(x=1, y="A")
 
-        # Define callback function for updating MSA
-        @pn.depends(plate_name=plate_selector.param.value, x=tap_stream.param.x, y=tap_stream.param.y)
-        def update_msas(plate_name, x, y):
-            print(f"Plate Name: {plate_name}")
-            if x is None or y is None:
-                print("No coordinates selected")
-                return
-            row, col = map_coordinates(x, y)
-            if row is None:
-                print(f"Invalid row value: x={x}, y={y}")
-                return
-            print(f"Clicked coordinates: x={x}, y={y} -> row={row}, col={col}")
+        # # Dynamic view that updates when plate selection changes, using @pn.depends
+        # @pn.depends(plate=plate_selector.param.value)
+        # def hm_view(plate):
+        #     heatmap = select_heatmap(hm_, plate, unique_plates)
+        #     tap_stream.source = heatmap  # Link tap_stream to the actual heatmap
+        #     tap_stream.add_subscriber(record_clicks)
+        #     return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
 
-            nb = (row - 1) * 12 + col
+        # # Define callback function for updating MSA
+        # @pn.depends(plate_name=plate_selector.param.value, x=tap_stream.param.x, y=tap_stream.param.y)
+        # def update_msas(plate_name, x, y):
+        #     print(f"Plate Name: {plate_name}")
+        #     if x is None or y is None:
+        #         print("No coordinates selected")
+        #         return
+        #     row, col = map_coordinates(x, y)
+        #     if row is None:
+        #         print(f"Invalid row value: x={x}, y={y}")
+        #         return
+        #     print(f"Clicked coordinates: x={x}, y={y} -> row={row}, col={col}")
 
-            if nb < 10:
-                well_dir = f"NB0{nb}"
-            else:
-                well_dir = f"NB{nb}"
+        #     nb = (row - 1) * 12 + col
 
-            well = f"msa_{plate_name}_{y}{col}"
+        #     if nb < 10:
+        #         well_dir = f"NB0{nb}"
+        #     else:
+        #         well_dir = f"NB{nb}"
 
-            aln_path = os.path.join(
-                result_folder, plate_name, plate2rb[plate_name], well_dir, well + ".fa"
-            )
+        #     well = f"msa_{plate_name}_{y}{col}"
 
-            print(f"Loading MSA from {aln_path}")
+        #     aln_path = os.path.join(
+        #         result_folder, plate_name, plate2rb[plate_name], well_dir, well + ".fa"
+        #     )
 
-            return pn.panel(
-                plot_sequence_alignment(
-                    aln_path,
-                    parent_name=plate_name,
-                    markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well_dir} {well}: Row {row}, Column {col}",
-                )
-            )
+        #     print(f"Loading MSA from {aln_path}")
 
-        layout = create_heatmap_msa_layout(hm_view, update_msas)
+        #     return pn.panel(
+        #         plot_sequence_alignment(
+        #             aln_path,
+        #             parent_name=plate_name,
+        #             markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well_dir} {well}: Row {row}, Column {col}",
+        #         )
+        #     )
+
+        # layout = create_heatmap_msa_layout(hm_view, update_msas)
 
         # launch the panel
-        pn.serve(layout)
+        # pn.serve(layout)
+        # pn.show(layout)
 
         # Saving heatmap and csv
-        save_platemap_to_file(hm_, result_folder, cl_args['name'])
-        save_csv(df_variants, result_folder, cl_args['name'])
-        logging.info('Run successful, see visualization and results')
+        save_platemap_to_file(layout, result_folder, cl_args["name"])
+        save_csv(df_variants, result_folder, cl_args["name"])
+        logging.info("Run successful, see visualization and results")
     except Exception as e:
-        logging.error("An error occured while executing LevSeq, check log file for detail",exc_info = True)
+        logging.error(
+            "An error occured while executing LevSeq, check log file for detail",
+            exc_info=True,
+        )
         raise
