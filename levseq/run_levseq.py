@@ -187,12 +187,14 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
 
 
 # Saving heatmaps and csv in the results folder
-def save_platemap_to_file(heatmaps, outputdir, name):
+def save_platemap_to_file(heatmaps, outputdir, name, show_msa):
     if not os.path.exists(os.path.join(outputdir, "Platemaps")):
         os.makedirs(os.path.join(outputdir, "Platemaps"))
     file_path = os.path.join(outputdir, "Platemaps", name)
-    # hv.renderer('bokeh').save(heatmaps, file_path)
-    heatmaps.save(file_path + ".html", embed=True)
+    if show_msa:
+        heatmaps.save(file_path + "_msa.html", embed=True)
+    else:
+        hv.renderer("bokeh").save(heatmaps, file_path)
 
 
 def save_csv(df, outputdir, name):
@@ -442,69 +444,19 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         processed_csv = os.path.join(result_folder, "visualization.csv")
         df_vis.to_csv(processed_csv, index=False)
 
-        layout = generate_platemaps(df_vis, result_folder)
-
-        # Generate heatmap
-        # hm_, unique_plates, plate2rb = generate_platemaps(df_vis)
-
-        # plate_selector = pn.widgets.Select(name='Plate Name', options=list(unique_plates))
-
-        # layout = generate_platemaps_with_dropdowns(df_vis, result_folder)
-
-        # tap_stream = Tap(x=1, y="A")
-
-        # # Dynamic view that updates when plate selection changes, using @pn.depends
-        # @pn.depends(plate=plate_selector.param.value)
-        # def hm_view(plate):
-        #     heatmap = select_heatmap(hm_, plate, unique_plates)
-        #     tap_stream.source = heatmap  # Link tap_stream to the actual heatmap
-        #     tap_stream.add_subscriber(record_clicks)
-        #     return pn.Row(plate_selector, heatmap, sizing_mode="stretch_width")
-
-        # # Define callback function for updating MSA
-        # @pn.depends(plate_name=plate_selector.param.value, x=tap_stream.param.x, y=tap_stream.param.y)
-        # def update_msas(plate_name, x, y):
-        #     print(f"Plate Name: {plate_name}")
-        #     if x is None or y is None:
-        #         print("No coordinates selected")
-        #         return
-        #     row, col = map_coordinates(x, y)
-        #     if row is None:
-        #         print(f"Invalid row value: x={x}, y={y}")
-        #         return
-        #     print(f"Clicked coordinates: x={x}, y={y} -> row={row}, col={col}")
-
-        #     nb = (row - 1) * 12 + col
-
-        #     if nb < 10:
-        #         well_dir = f"NB0{nb}"
-        #     else:
-        #         well_dir = f"NB{nb}"
-
-        #     well = f"msa_{plate_name}_{y}{col}"
-
-        #     aln_path = os.path.join(
-        #         result_folder, plate_name, plate2rb[plate_name], well_dir, well + ".fa"
-        #     )
-
-        #     print(f"Loading MSA from {aln_path}")
-
-        #     return pn.panel(
-        #         plot_sequence_alignment(
-        #             aln_path,
-        #             parent_name=plate_name,
-        #             markdown_title=f"{cl_args['name']} {plate_name} {plate2rb[plate_name]} {well_dir} {well}: Row {row}, Column {col}",
-        #         )
-        #     )
-
-        # layout = create_heatmap_msa_layout(hm_view, update_msas)
-
-        # launch the panel
-        # pn.serve(layout)
-        # pn.show(layout)
+        layout = generate_platemaps(
+            max_combo_data=df_vis,
+            result_folder=result_folder,
+            show_msa=cl_args["show_msa"],
+        )
 
         # Saving heatmap and csv
-        save_platemap_to_file(layout, result_folder, cl_args["name"])
+        save_platemap_to_file(
+            heatmaps=layout,
+            outputdir=result_folder,
+            name=cl_args["name"],
+            show_msa=cl_args["show_msa"],
+        )
         save_csv(df_variants, result_folder, cl_args["name"])
         logging.info("Run successful, see visualization and results")
     except Exception as e:

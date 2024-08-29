@@ -68,7 +68,7 @@ pn.extension()
 pn.config.comms = "vscode"
 
 hv.extension("bokeh")
-
+hv.renderer('bokeh').webgl = True
 
 warnings.filterwarnings("ignore")
 
@@ -299,6 +299,7 @@ def generate_platemaps(
     max_combo_data,
     result_folder,
     cmap=None,
+    show_msa=False,
     widget_location="top_left",
 ):
     """Saves a plate heatmap html generated from from evSeq data.
@@ -315,6 +316,7 @@ def generate_platemaps(
         the most colorblind friendly, but highly intuitive). Otherwise
         you may pass any list -like object containing four colors (e.g.,
         ['#337D1F', '#94CD35', '#FFC300', '#C62C20'] for 'stoplight').
+    show_msa: bool, default False
     widget_location: string, default 'top_left'
         Location of the widget for navigating plots. Must be one of:
         ['left', 'bottom', 'right', 'top', 'top_left', 'top_right',
@@ -388,83 +390,82 @@ def generate_platemaps(
 
     # Create dropdowns
     plate_selector = pn.widgets.Select(name="Plate", options=list(unique_plates))
-    well_id_selector = pn.widgets.Select(name="Well ID", options=WELL_IDS)
 
-    # Generate plots for each plate
-    for plate in unique_plates:
+    if show_msa:
+        well_id_selector = pn.widgets.Select(name="Well ID", options=WELL_IDS)
 
-        # Split to just the information of interest
-        df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+        # Generate plots for each plate
+        for plate in unique_plates:
 
-        for well_id in WELL_IDS:
+            # Split to just the information of interest
+            df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
 
-            # Get the row and column
-            aln_path = os.path.join(
-                result_folder,
-                plate,
-                plate2barcode[plate],
-                well2nb(well_id),
-                f"msa_{plate}_{well_id}.fa",
+            for well_id in WELL_IDS:
+
+                # Get the row and column
+                aln_path = os.path.join(
+                    result_folder,
+                    plate,
+                    plate2barcode[plate],
+                    well2nb(well_id),
+                    f"msa_{plate}_{well_id}.fa",
+                )
+
+                hm_bokeh = hv.render(
+                    _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
+                )
+                aln = plot_sequence_alignment(
+                    aln_path,
+                    parent_name=plate,
+                    markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
+                )
+
+                # Make sure both plots have the same toolbar settings
+                # hm_bokeh.toolbar.active_drag = None
+                # aln.toolbar.active_drag = None
+
+                # generate a holoviews plot
+                hm_dict[(plate, well_id)] = gridplot(
+                    [[hm_bokeh], [aln]],
+                    toolbar_location="below",
+                    sizing_mode="fixed", # "stretch_width",
+                )
+
+        # Function to update the plots based on dropdown selection
+        @pn.depends(plate=plate_selector.param.value, well_id=well_id_selector.param.value)
+        def update_plot(plate, well_id):
+            return hm_dict.get(
+                (plate, well_id), pn.pane.Markdown("No plot available for this selection")
             )
 
-            print(f"Processing {aln_path}...")
+        # Create a dynamic plot area
+        plot_pane = pn.Column(update_plot)
 
-            hm_bokeh = hv.render(
-                _make_platemap(df, title=plate, cmap=None), backend="bokeh"
-            )
-            aln = plot_sequence_alignment(
-                aln_path,
-                parent_name=plate,
-                markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well_id}",
-            )
+        # Layout the dropdowns and the plot
+        layout = pn.Column(plate_selector, well_id_selector, plot_pane)
 
-            # Make sure both plots have the same toolbar settings
-            # hm_bokeh.toolbar.active_drag = None
-            # aln.toolbar.active_drag = None
+        return layout
 
+    else:
+    
+        # Generate plots for each plate
+        for plate in unique_plates:
+            
+            # Split to just the information of interest
+            df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+            
             # generate a holoviews plot
-            hm_dict[(plate, well_id)] = gridplot(
-                [[hm_bokeh], [aln]],
-                toolbar_location="below",
-                sizing_mode="stretch_width",
-            )
+            hm_dict[plate] = _make_platemap(df, title=plate, cmap=cmap)  
 
-    # Function to update the plots based on dropdown selection
-    @pn.depends(plate=plate_selector.param.value, well_id=well_id_selector.param.value)
-    def update_plot(plate, well_id):
-        return hm_dict.get(
-            (plate, well_id), pn.pane.Markdown("No plot available for this selection")
+        # plot from the dictionary
+        hm_holomap = hv.HoloMap(
+            hm_dict, 
+            kdims=['Plate']
         )
+        # Update widget location
+        hv.output(widget_location=widget_location)
 
-    # Create a dynamic plot area
-    plot_pane = pn.Column(update_plot)
-
-    # Layout the dropdowns and the plot
-    layout = pn.Column(plate_selector, well_id_selector, plot_pane)
-
-    # Serve the panel
-    # try:
-    #     layout.show()
-    # except:
-    #     print("Error serving the layout")
-
-    # # plot from the dictionary
-    # hm_holomap = hv.HoloMap(
-    #     hm_dict,
-    #     kdims=['Plate']
-    # ).opts(tools=['tap'], active_tools=['tap'])
-
-    # # Update widget location
-    # hv.output(widget_location=widget_location)
-
-    # return hm_holomap, unique_plates, plate2barcode
-    # try:
-    #     # Serve the layout
-    #     pn.serve(layout)
-    # except:
-    #     print("Error serving the layout")
-
-    return layout
+        return hm_holomap
 
 
 ########### Functions for the MSA alignment plot ###########
@@ -637,7 +638,8 @@ def plot_empty(msg="", plot_width=1200, plot_height=200) -> figure:
         tools="",
         x_range=(0, 1),
         y_range=(0, 2),
-        sizing_mode="stretch_width",
+        sizing_mode="fixed", # "stretch_width",
+        output_backend="webgl"
     )
     text = Label(x=0.3, y=1, text=msg)
     p.add_layout(text)
@@ -653,7 +655,7 @@ def plot_sequence_alignment(
     markdown_title: str = "Multiple sequence alignment",
     fontsize: str = "8pt",
     plot_width: int = 1200,
-    sizing_mode: str = "stretch_width",
+    sizing_mode: str = "fixed", # "stretch_width",
     palette: str = "viridis",
     row_height: float = 10,
     numb_nuc_zoom: int = 200,
@@ -763,7 +765,8 @@ def plot_sequence_alignment(
         tools="xpan, xwheel_zoom, tap, reset, save",
         min_border=0,
         toolbar_location="below",
-        sizing_mode="stretch_width",
+        sizing_mode="fixed", # "stretch_width",
+        output_backend="webgl"
     )
 
     sumview_rects = Rect(
@@ -793,7 +796,6 @@ def plot_sequence_alignment(
     hover = HoverTool(
         tooltips=[
             ("position", "@x"),
-            ("sequence_id", "@rev_ids"),
             ("sequenced_nuc", "@seq_nucs"),
             ("parent_nuc", "@parent_nucs"),
             ("cons_nuc", "@cons_nucs"),
@@ -810,6 +812,7 @@ def plot_sequence_alignment(
         tools=[hover, "xpan,reset"],
         min_border=0,
         toolbar_location="below",
+        output_backend="webgl"
     )
 
     seqtext = Text(
@@ -871,6 +874,7 @@ def plot_sequence_alignment(
         x_range=p_aln.x_range,
         y_range=(Range1d(0, 1)),
         tools=[cons_hover, "xpan,reset"],
+        output_backend="webgl"
     )
 
     cons_rects = Rect(
