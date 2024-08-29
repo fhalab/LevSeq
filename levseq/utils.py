@@ -19,13 +19,14 @@ import pandas as pd
 import pysam
 import os
 import numpy as np
+from copy import deepcopy
 from collections import defaultdict
 from scipy.stats import binomtest
 from statsmodels.stats.multitest import multipletests
 from pathlib import Path
 from scipy.stats import combine_pvalues
 from Bio import SeqIO
-
+from Bio.PDB.Polypeptide import aa1
 
 amino_acid_to_codon = {
     'A': 'GCT', 'R': 'CGT', 'N': 'AAT', 'D': 'GAT', 'C': 'TGT',
@@ -35,6 +36,8 @@ amino_acid_to_codon = {
     '*': 'TAA'
 }
 
+
+ALL_AAS = deepcopy(list(aa1))
 
 def translate(seq):
     table = {
