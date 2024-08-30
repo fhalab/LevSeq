@@ -52,6 +52,7 @@ from bokeh.models import (
     HoverTool,
     Label,
     Div,
+    FactorRange,
 )
 from bokeh.models.glyphs import Text, Rect
 from bokeh.layouts import column, gridplot, row, Spacer
@@ -355,9 +356,6 @@ def generate_platemaps(
         .to_dict()
     )
 
-    # dictionary for storing plots
-    hm_dict = {}
-
     # make logseqdepth column
     max_combo_df["logseqdepth"] = np.log(
         max_combo_df["Alignment Count"],
@@ -384,6 +382,10 @@ def generate_platemaps(
             list(max_combo_df["logseqdepth"]) + [np.log(1)], center
         )
 
+    # dictionary for storing plots
+    hm_dict = {}
+    aln_dict = {}
+
     # Uniform color levels
     for _hm in hm_dict.values():
         _hm.opts({"HeatMap": {"color_levels": color_levels}})
@@ -392,13 +394,20 @@ def generate_platemaps(
     plate_selector = pn.widgets.Select(name="Plate", options=list(unique_plates))
 
     if show_msa:
+
         well_id_selector = pn.widgets.Select(name="Well ID", options=WELL_IDS)
 
-        # Generate plots for each plate
+        # Generate plots for each plate and well ID
         for plate in unique_plates:
-
             # Split to just the information of interest
             df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+
+            # Generate the platemap plot once for each plate
+            hm_bokeh = hv.render(_make_platemap(df, title=plate, cmap=cmap), backend="bokeh")
+            hm_bokeh.toolbar.active_drag = None
+
+            # Store the platemap in the dictionary
+            hm_dict[plate] = hm_bokeh
 
             for well_id in WELL_IDS:
 
@@ -411,9 +420,6 @@ def generate_platemaps(
                     f"msa_{plate}_{well_id}.fa",
                 )
 
-                hm_bokeh = hv.render(
-                    _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
-                )
                 aln = plot_sequence_alignment(
                     aln_path,
                     parent_name=plate,
@@ -421,28 +427,28 @@ def generate_platemaps(
                 )
 
                 # Make sure both plots have the same toolbar settings
-                # hm_bokeh.toolbar.active_drag = None
-                # aln.toolbar.active_drag = None
+                aln.toolbar.active_drag = None
 
-                # generate a holoviews plot
-                hm_dict[(plate, well_id)] = gridplot(
-                    [[hm_bokeh], [aln]],
-                    toolbar_location="below",
-                    sizing_mode="fixed", # "stretch_width",
-                )
+                # Store the alignment plot in the dictionary
+                aln_dict[(plate, well_id)] = aln
 
-        # Function to update the plots based on dropdown selection
-        @pn.depends(plate=plate_selector.param.value, well_id=well_id_selector.param.value)
-        def update_plot(plate, well_id):
-            return hm_dict.get(
-                (plate, well_id), pn.pane.Markdown("No plot available for this selection")
-            )
+        # Function to update the platemap based on plate selection
+        @pn.depends(plate_selector.param.value)
+        def update_platemap(plate):
+            hm_bokeh = hm_dict.get(plate, pn.pane.Markdown("No platemap available for this plate"))
+            return pn.pane.Bokeh(hm_bokeh)
 
-        # Create a dynamic plot area
-        plot_pane = pn.Column(update_plot)
+        # Function to update the alignment plot based on plate and well_id selection
+        @pn.depends(plate_selector.param.value, well_id_selector.param.value)
+        def update_alignment_plot(plate, well_id):
+            aln = aln_dict.get((plate, well_id), pn.pane.Markdown("No alignment available for this selection"))
+            return pn.pane.Bokeh(aln)
 
-        # Layout the dropdowns and the plot
-        layout = pn.Column(plate_selector, well_id_selector, plot_pane)
+        # Layout the dropdowns and the plots
+        layout = pn.Column(
+            pn.Row(plate_selector, update_platemap),
+            pn.Row(well_id_selector, update_alignment_plot),
+        )
 
         return layout
 
@@ -498,13 +504,13 @@ def get_sequence_colors(seqs: list, palette="viridis") -> list[str]:
     return colors
 
 
-def get_sequence_diff_colorNseq(seqs: list, ids: list, parent_seq: str) -> tuple:
+def get_sequence_diff_colorNseq(seqs: list, seq_ids: list, parent_seq: str) -> tuple:
     """
     Get colors and nucleotides for input sequences highlighting differences from parent
 
     Args:
     - seqs: str, list of sequences
-    - ids: str, list of sequence ids
+    - seq_ids: str, list of sequence ids
     - parent_seq: str, parent sequence to compare against
 
     Returns:
@@ -522,13 +528,13 @@ def get_sequence_diff_colorNseq(seqs: list, ids: list, parent_seq: str) -> tuple
     # parent nuc or spacer annotation
     text_annot = []
 
-    for seq, id in zip(seqs, ids):
-        if id == "parent":
+    for seq, seq_id in zip(seqs, seq_ids):
+        if seq_id == "parent":
             for p in list(parent_seq):
                 block_colors.append(match_color)
                 nuc_textcolors.append(NUC_COLOR_DICT[p])
                 diff_nucs.append(" ")
-                text_annot.append(p)
+                text_annot.append(" ")
         else:
             for n, p in zip(list(seq), list(parent_seq)):
                 if n != p:
@@ -622,7 +628,7 @@ def get_cons_diff_colorNseq(cons_seq: str, parent_seq: str) -> tuple:
     return colors, cons_seq_diff
 
 
-def plot_empty(msg="", plot_width=1200, plot_height=200) -> figure:
+def plot_empty(msg="", plot_width=1000, plot_height=200) -> figure:
     """
     Return an empty bokeh plot with optional text displayed
 
@@ -653,29 +659,31 @@ def plot_sequence_alignment(
     aln_path: str,
     parent_name: str = "parent",
     markdown_title: str = "Multiple sequence alignment",
-    fontsize: str = "8pt",
-    plot_width: int = 1200,
+    fontsize: str = "4pt",
+    plot_width: int = 1000,
     sizing_mode: str = "fixed", # "stretch_width",
     palette: str = "viridis",
-    row_height: float = 10,
+    row_height: float = 8,
     numb_nuc_zoom: int = 200,
 ) -> figure:
 
     # get text from markdown
-    div = Div(
+    msa_title = Div(
         text=f"""
     {markdown_title}
     """
     )
 
+    # check if alignment file exists
     if not os.path.exists(aln_path):
-        p = plot_empty("alignment file not found", plot_width)
+        p = plot_empty("Alignment file not found", plot_width)
         return gridplot(
-            [[div], [p]],
-            toolbar_location="below",
+            [[msa_title], [p]],
+            toolbar_location=None,
             sizing_mode=sizing_mode,
         )
 
+    # read in alignment
     aln = AlignIO.read(aln_path, "fasta")
 
     seqs = [rec.seq for rec in (aln)]
@@ -692,27 +700,26 @@ def plot_sequence_alignment(
             break
 
     if len(seqs) <= 1:
-        p = plot_empty("needs at least two sequences", plot_width)
+        p = plot_empty("Alignment plot needs at least two sequences", plot_width)
         return p
 
     seq_nucs = [i for s in list(seqs) for i in s]
 
+    # get colors for the alignment
     if parent_seq == None:
-        block_colors = get_sequence_colors(seqs, palette=palette)
+        block_colors = get_sequence_colors(seqs=seqs, palette=palette)
         text = seq_nucs
         text_colors = "black"
     else:
         parent_nucs = [i for i in parent_seq] * numb_seq
-        # block_colors, nuc_textcolors, diff_nucs, text_annot
         (
             block_colors,
-            nuc_textcolors,
+            text_colors,
             diff_nucs,
-            text_annot,
-        ) = get_sequence_diff_colorNseq(seqs=seqs, ids=ids, parent_seq=parent_seq)
-        text = text_annot
-        text_colors = nuc_textcolors
+            text,
+        ) = get_sequence_diff_colorNseq(seqs=seqs, seq_ids=ids, parent_seq=parent_seq)
 
+    # get conservation values
     cons = get_cons(aln)
     cons_seq = get_cons_seq(aln)
     cons_nucs = [i for i in cons_seq] * numb_seq
@@ -747,7 +754,8 @@ def plot_sequence_alignment(
         )
     )
 
-    plot_height = len(seqs) * row_height + 50
+    plot_height = len(seqs) * row_height + 20
+
     x_range = Range1d(0, seq_len + 1, bounds="auto")
 
     if seq_len < numb_nuc_zoom:
@@ -755,7 +763,7 @@ def plot_sequence_alignment(
     view_range = (0, numb_nuc_zoom)
     viewlen = view_range[1] - view_range[0]
 
-    # preview sequence view (no text)
+    # preview overall full sequence view (no text)
     p_sumview = figure(
         title=None,
         width=plot_width,
@@ -764,11 +772,12 @@ def plot_sequence_alignment(
         y_range=(0, numb_seq),
         tools="xpan, xwheel_zoom, tap, reset, save",
         min_border=0,
-        toolbar_location="below",
+        toolbar_location=None,
         sizing_mode="fixed", # "stretch_width",
         output_backend="webgl"
     )
 
+    # add in the sequence text
     sumview_rects = Rect(
         x="x",
         y="recty",
@@ -780,6 +789,7 @@ def plot_sequence_alignment(
 
     p_sumview.add_glyph(msa_source, sumview_rects)
 
+    # add in the preview rectangle
     previewrect = Rect(
         x=viewlen / 2,
         y=numb_seq / 2,
@@ -788,6 +798,7 @@ def plot_sequence_alignment(
         line_color="black",
         fill_color=None,
     )
+
     p_sumview.add_glyph(msa_source, previewrect)
 
     p_sumview.yaxis.visible = False
@@ -802,17 +813,23 @@ def plot_sequence_alignment(
         ],
     )
 
-    # full sequence text view
+
+    if len(rev_ids) < 7:
+        aln_y_range = FactorRange(*rev_ids)  # Allows for categorical range with scrolling
+    else:
+        aln_y_range = rev_ids  # No need for scrolling if within limit
+
+    # full sequence detail view
     p_aln = figure(
         title=None,
         width=plot_width,
         height=plot_height,
         x_range=view_range,
-        y_range=rev_ids,
+        y_range=aln_y_range,
         tools=[hover, "xpan,reset"],
         min_border=0,
-        toolbar_location="below",
-        output_backend="webgl"
+        toolbar_location=None,
+        output_backend="webgl",
     )
 
     seqtext = Text(
@@ -823,6 +840,7 @@ def plot_sequence_alignment(
         text_color="text_colors",
         text_font_size=fontsize,
     )
+
     aln_rects = Rect(
         x="x",
         y="recty",
@@ -837,9 +855,16 @@ def plot_sequence_alignment(
     p_aln.add_glyph(msa_source, seqtext)
 
     p_aln.grid.visible = False
-    p_aln.xaxis.major_label_text_font_style = "bold"
+    # p_aln.xaxis.major_label_text_font_style = "bold"
+    p_aln.yaxis.major_label_text_font_size = "4pt"  # Adjust the size as needed
     p_aln.yaxis.minor_tick_line_width = 0
     p_aln.yaxis.major_tick_line_width = 0
+
+    # Add a vertical scroll range if y_range is large
+    if len(rev_ids) > 7:
+        p_aln.y_range = Range1d(start=0, end=7)  # Start with displaying first 30 entries
+        p_aln.y_range.start = 0  # Initial scroll position
+        p_aln.y_range.end = 7  # End of the initial scroll position
 
     # conservation plot
     cons_colors, cons_text = get_cons_diff_colorNseq(
@@ -870,7 +895,7 @@ def plot_sequence_alignment(
     p_cons = figure(
         title=None,
         width=plot_width,
-        height=50,
+        height=20,
         x_range=p_aln.x_range,
         y_range=(Range1d(0, 1)),
         tools=[cons_hover, "xpan,reset"],
@@ -899,7 +924,7 @@ def plot_sequence_alignment(
 
     p_cons.xaxis.visible = False
     p_cons.yaxis.visible = True
-    p_cons.yaxis.ticker = [0, 0.5, 1]
+    p_cons.yaxis.ticker = [1]
     p_cons.yaxis.axis_label = "Alignment conservation values"
     p_cons.yaxis.axis_label_orientation = "horizontal"
 
@@ -918,14 +943,15 @@ def plot_sequence_alignment(
         else { fontsize = 8.5; }
         text.text_font_size=fontsize+"pt";
     """
+
     callback = CustomJS(
         args=dict(
-            x_range=p_aln.x_range, rect=previewrect, text=seqtext, width=p_aln.width
+            x_range=p_aln.x_range, rect=previewrect, width=p_aln.width, # text=seqtext,
         ),
         code=jscode,
     )
     slider = RangeSlider(
-        start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10
+        start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10, sizing_mode="stretch_width"
     )  # , callback_policy="throttle")
     slider.js_on_change("value_throttled", callback)
 
@@ -941,176 +967,13 @@ def plot_sequence_alignment(
     callback = CustomJS(
         args=dict(slider=slider, range=p_aln.x_range, rect=previewrect), code=jscode
     )
+
     p_sumview.x_range.js_on_change("start", callback)
 
     p_sumview = gridplot(
-        [[div], [p_sumview], [slider], [p_cons], [p_aln]],
-        toolbar_location="below",
+        [[msa_title], [p_sumview], [slider], [p_cons], [p_aln]],
+        toolbar_location=None,
         sizing_mode=sizing_mode,
     )
 
     return p_sumview
-
-
-# Define a function to map the x, y coordinates to row and column indices
-# def map_coordinates(x, y):
-#     """
-#     Map x, y coordinates to row and column indices
-#     """
-#     row_mapping = {chr(i): i - 64 for i in range(65, 73)}  # Mapping A-H to 1-8
-#     try:
-#         col = int(round(float(x)))
-#     except ValueError:
-#         col = int(x)
-#     row = row_mapping.get(y.upper(), None)
-#     return row, col
-def map_coordinates(well_id):
-    row = ord(well_id[0]) - 64  # Convert 'A'-'H' to 1-8
-    col = int(well_id[1:])  # Convert '1'-'12' to an integer
-    return row, col
-
-
-# Define a callback function to print click coordinates
-def record_clicks(x, y):
-    """
-    A function to record the x, y coordinates of a click
-    """
-    print(f"Click recorded at x: {x}, y: {y}")
-
-
-def dummy_heatmap():
-    # Returns an empty plot as a placeholder
-    return hv.Curve([]).opts(title="No data available")
-
-
-def select_heatmap(hm_dict, plate, unique_plates):
-    if plate not in unique_plates:
-        return hv.DynamicMap(dummy_heatmap)
-    heatmap = hm_dict[plate].opts(tools=["tap"], active_tools=["tap"], framewise=True)
-    return heatmap
-
-
-def create_heatmap_msa_layout(hm_view, update_msas):
-    # Recreate all components and layout here
-    layout = pn.Column(hm_view, update_msas)
-    return layout
-
-
-# Main function to generate and handle heatmaps and selections
-# def generate_platemaps_with_dropdowns(
-#     max_combo_data,
-#     result_folder,
-#     cmap=None,
-#     widget_location="top_left",
-# ):
-#     # Convert to dataframe if necessary
-#     if isinstance(max_combo_data, str):
-#         max_combo_df = pd.read_csv(max_combo_data)
-#     else:
-#         max_combo_df = max_combo_data.copy()
-
-#     # Identify unique plates
-#     unique_plates = max_combo_df.Plate.unique()
-
-#     # Create a new DataFrame to modify without affecting the original
-#     temp_df = max_combo_df.copy()
-
-#     # Convert barcode_plate to string and modify its format
-#     temp_df["barcode_plate"] = temp_df["barcode_plate"].apply(
-#         lambda x: "RB0" + str(x) if x < 10 else "RB" + str(x)
-#     )
-
-#     # Create a dictionary with unique Plate to modified barcode_plate mapping
-#     plate2barcode = (
-#         temp_df[["Plate", "barcode_plate"]]
-#         .drop_duplicates("Plate")
-#         .set_index("Plate")["barcode_plate"]
-#         .to_dict()
-#     )
-
-#     # Dictionary for storing plots
-#     hm_dict = {}
-
-#     # Make logseqdepth column
-#     max_combo_df["logseqdepth"] = np.log(
-#         max_combo_df["Alignment Count"],
-#         out=np.zeros_like(max_combo_df["Alignment Count"], dtype=float),
-#         where=max_combo_df["Alignment Count"] != 0,
-#     )
-
-#     # Set the center
-#     center = np.log(10)
-
-#     add_min = False
-#     if max_combo_df["logseqdepth"].min() >= center:
-#         add_min = True
-
-#     # Adjust if it is greater than max of data (avoids ValueError)
-#     if max_combo_df["logseqdepth"].max() <= center:
-#         center = max_combo_df["logseqdepth"].median()
-
-#     # Center colormap
-#     # NOTE: Adjust the color mapping function as per your requirements.
-#     color_levels = None  # Replace with your color mapping logic.
-#     well_ids = [f"{chr(65 + i)}{j}" for i in range(8) for j in range(1, 13)]
-
-#     # Generate plots for each plate
-#     for plate in unique_plates:
-#         df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
-
-#         for well_id in well_ids:
-#             row, col = map_coordinates(well_id)
-#             nb = (row - 1) * 12 + col
-#             well = f"msa_NB{'0' if nb < 10 else ''}{nb}"
-#             aln_path = os.path.join(result_folder, plate, plate2barcode[plate], well + ".fa")
-
-#             heatmap = _make_platemap(df, title=plate, cmap=cmap)
-#             alignment_plot = plot_sequence_alignment(
-#                 aln_path,
-#                 markdown_title=f"{os.path.basename(result_folder)} {plate} {plate2barcode[plate]} {well}: Row {row}, Column {col}",
-#             )
-
-#             # Combine the heatmap and alignment into a Layout using the explicit `hv.Layout`
-#             # combined_layout = hv.Layout([heatmap, alignment_plot])
-#             bokeh_heatmap = hv.render(heatmap, backend='bokeh')
-
-#             # Combine into a gridplot
-#             combined_layout = gridplot([[bokeh_heatmap, alignment_plot]])
-
-#             hm_dict[(plate, well_id)] = combined_layout
-
-#     # Create a HoloMap from the generated plate maps
-#     hm_holomap = hv.HoloMap(hm_dict, kdims=["Plate", "Well"])
-
-#     return hm_holomap
-#     # Creating Dropdowns for Plate and Well
-#     # plate_selector = pn.widgets.Select(name="Plate name", options=list(unique_plates))
-#     # well_id_selector = pn.widgets.Select(name="Well", options=well_ids)
-
-#     # # Define the update function for MSA
-#     # @pn.depends(plate_selector.param.value, well_id_selector.param.value)
-#     # def update_msas(plate, well_id):
-#     #     row = ord(well_id[0]) - 64
-#     #     col = int(well_id[1:])
-#     #     nb = (row - 1) * 12 + col
-#     #     well = f"msa_NB{'0' if nb < 10 else ''}{nb}"
-#     #     aln_path = os.path.join(
-#     #         result_folder, plate, plate2barcode[plate], well + ".fa"
-#     #     )
-#     #     return plot_sequence_alignment(
-#     #         aln_path,
-#     #         markdown_title=f"{os.path.basename(result_folder)} {plate} {plate2barcode[plate]} {well}: Row {row}, Column {col}",
-#     #     )
-
-#     # # Layout for the interface
-#     # layout = pn.Column(
-#     #     pn.Row(plate_selector, hm_holomap),
-#     #     pn.Row(well_id_selector, update_msas),
-#     #     sizing_mode="stretch_width",
-#     # )
-
-#     # Update widget location
-#     # hv.output(widget_location=widget_location)
-
-
-#     # return layoutew
