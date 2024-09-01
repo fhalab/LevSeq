@@ -138,7 +138,7 @@ class VariantCaller:
             for fastq in fastq_list:
                 with open(fastq, 'r') as infile:
                     outfile.write(infile.read())
-                os.remove(fastq)
+                #os.remove(fastq)
         fastq_files_str = fastq_files
 
         # Alignment using minimap2

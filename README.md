@@ -21,13 +21,25 @@ After sequencing, variants are identified. For simple applications, we recommend
 1. **Basecalling**: This step converts Nanopore's FAST5 files to sequences. For basecalling, we use Nanopore's basecaller, Medaka, which can run in parallel with sequencing (recommended) or afterward.
 
 
-
 2. **Demultiplexing**: After sequencing, the reads, stored as bulk FASTQ files, are sorted. During demultiplexing, each read is assigned to its correct plate/well combination and stored as a FASTQ file.
 
 3. **Variant Calling**: For each sample, the consensus sequence is compared to the reference sequence. A variant is called if it differs from the reference sequence. The success of variant calling depends on the number of reads sequenced and their quality.
 
 
 ### Installation:
+
+### Other software
+LevSeq uses Samtools and Minimap2 so these need to be installed and added to your path.
+
+Check these work by running:
+
+```
+samtools
+```
+
+```
+minimap2
+```
 
 Installation via pip:
 
@@ -61,9 +73,6 @@ To build the docker image run (within the main folder that contains the `Dockerf
 `export DOCKER_DEFAULT_PLATFORM=linux/amd64` or add the flag `--platform linux/amd64` when building.
 
 i.e. you need to run on mac MX:
-```
-docker build  --platform linux/amd64 -t levseq .
-```
 This gives us the access to the minION command line interface via:
 
 ```
@@ -71,8 +80,11 @@ docker run levseq
 ```
 
 ```
- docker run -v /Users/arianemora/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
+ docker run -v /Users/arianemora/Documents/projects/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
+
+levseq --skip_demultiplex oligopools /Users/arianemora/Documents/projects/LevSeq/oligopools /Users/arianemora/Documents/projects/LevSeq/oligopools/oligopool_seqs.csv 
+
 
 ### Steps to rebuild the C++ executables
 

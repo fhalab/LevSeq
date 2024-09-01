@@ -35,13 +35,13 @@ import shutil
 import panel as pn
 import holoviews as hv
 from holoviews.streams import Tap
+import matplotlib
 
-output_notebook()
+#output_notebook()
+# pn.extension()
+# pn.config.comms = "vscode"
 
-pn.extension()
-pn.config.comms = "vscode"
-
-hv.extension("bokeh")
+# hv.extension("bokeh")
 
 
 # Get barcode used
