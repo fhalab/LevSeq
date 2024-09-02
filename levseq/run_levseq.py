@@ -121,7 +121,7 @@ def create_result_folder(cl_args: dict) -> str:
 
 
 # Return and create filtered barcodes
-def filter_bc(cl_args: dict, result_folder: Path, i: int) -> Path:
+def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
     front_min, front_max, rbc = barcode_user(cl_args, i)
 # Use importlib.resources to get the path to the barcode file
     try:
@@ -137,7 +137,7 @@ def filter_bc(cl_args: dict, result_folder: Path, i: int) -> Path:
 
     front_prefix = "NB"
     back_prefix = "RB"
-    barcode_path_filter = result_folder + "minion_barcodes_filtered.fasta"
+    barcode_path_filter = os.path.join(name_folder, "minion_barcodes_filtered.fasta")
     
     filter_barcodes(
         str(barcode_path),
