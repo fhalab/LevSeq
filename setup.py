@@ -1,7 +1,23 @@
-from setuptools import setup
+from setuptools import setup, find_packages, Command
 import os
 import re
 
+class CreateInitFile(Command):
+    description = 'create __init__.py file in barcoding directory'
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        init_path = os.path.join('levseq', 'barcoding', '__init__.py')
+        if not os.path.exists(init_path):
+            with open(init_path, 'w') as f:
+                f.write('# This file is automatically created during installation\n')
+        print(f"Created {init_path}")
 
 def read_version():
     path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'levseq/__init__.py')
@@ -39,6 +55,9 @@ setup(name='levseq',
       long_description_content_type='text/markdown',
       author=read_author(),
       author_email=read_email(),
+      cmdclass={
+          'create_init': CreateInitFile,
+      },
       url=read_git(),
       license='GPL3',
       project_urls={
@@ -58,6 +77,14 @@ setup(name='levseq',
       ],
       keywords=['Nanopore', 'ONT', 'evSeq'],
       packages=['levseq'],
+      include_package_data=True,
+      package_data={
+          'levseq.barcoding': [
+              'minion_barcodes.fasta',
+              'demultiplex',
+              'demultiplex-x86',
+          ],
+      },
       entry_points={
           'console_scripts': [
               'levseq = levseq.cmd:main'

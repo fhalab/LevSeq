@@ -1,0 +1,4 @@
+include levseq/barcoding/minion_barcodes.fasta
+include levseq/barcoding/__init__.py
+include levseq/barcoding/demultiplex
+include levseq/barcoding/demultiplex-x86

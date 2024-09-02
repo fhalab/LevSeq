@@ -69,7 +69,7 @@ def build_cli_parser():
     return parser
 
 
-# Execute MinION
+# Execute LevSeq
 def execute_LevSeq():
     # Build parser
     parser = build_cli_parser()
