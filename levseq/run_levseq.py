@@ -137,7 +137,7 @@ def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
 
     front_prefix = "NB"
     back_prefix = "RB"
-    barcode_path_filter = os.path.join(name_folder, "minion_barcodes_filtered.fasta")
+    barcode_path_filter = os.path.join(name_folder, "levseq_barcodes_filtered.fasta")
     
     filter_barcodes(
         str(barcode_path),
