@@ -27,6 +27,8 @@ from importlib import resources
 import subprocess
 from Bio import SeqIO
 import tqdm
+import platform
+import subprocess
 import os
 import re
 import gzip
@@ -69,31 +71,40 @@ def cat_fastq_files(folder_path: str, output_path: str):
         output_file = output_path
 
         if not folder_path.is_dir():
-            raise ValueError(
-                f"The provided path {folder_path} is not a valid directory"
-            )
+            raise ValueError(f"The provided path {folder_path} is not a valid directory")
 
-        # Find all fastq.gz files excluding those in fastq_fail folders
+        # Find all fastq and fastq.gz files excluding those in fastq_fail folders
         fastq_files = []
         for root, dirs, files in os.walk(folder_path):
             if "fastq_fail" not in root:
                 for file in files:
-                    if file.endswith(".fastq.gz"):
+                    if file.endswith((".fastq", ".fastq.gz")):
                         fastq_files.append(Path(root) / file)
 
-        # Concatenate the fastq.gz files
+        if not fastq_files:
+            raise ValueError(f"No FASTQ files found in {folder_path}")
+
+        # If there's only one file and it's already gzipped, just copy it
+        if len(fastq_files) == 1 and fastq_files[0].suffix == '.gz':
+            shutil.copy(fastq_files[0], output_file)
+            logging.info(f"Single gzipped FASTQ file copied to {output_file}")
+            return str(output_file)
+
+        # Concatenate the fastq files
         with gzip.open(output_file, "wb") as f_out:
             for fastq_file in fastq_files:
-                with gzip.open(fastq_file, "rb") as f_in:
-                    shutil.copyfileobj(f_in, f_out)
-        logging.info(f"Combined fastq file created successfully in output directory")
+                if fastq_file.suffix == '.gz':
+                    with gzip.open(fastq_file, "rb") as f_in:
+                        shutil.copyfileobj(f_in, f_out)
+                else:
+                    with open(fastq_file, "rb") as f_in:
+                        shutil.copyfileobj(f_in, f_out)
+
+        logging.info(f"Combined gzipped FASTQ file created successfully in {output_file}")
         return str(output_file)
 
     except Exception as e:
-        logging.error(
-            "Failed to create combined fastq file, veriry the input and output locations.",
-            exc_info=True,
-        )
+        logging.error(f"Failed to create combined fastq file, veriry the input and output locations. An error occurred while processing FASTQ files: {str(e)}", exc_info=True)
         raise
 
 
@@ -110,24 +121,34 @@ def create_result_folder(cl_args: dict) -> str:
 
 
 # Return and create filtered barcodes
-def filter_bc(cl_args, result_folder, i):
+def filter_bc(cl_args: dict, result_folder: Path, i: int) -> Path:
     front_min, front_max, rbc = barcode_user(cl_args, i)
-    barcode_path = "levseq/barcoding/minion_barcodes.fasta"
+# Use importlib.resources to get the path to the barcode file
+    try:
+        with resources.path('levseq.barcoding', 'minion_barcodes.fasta') as barcode_path:
+            barcode_path = Path(barcode_path)
+    except ImportError:
+        # Fallback method if the above fails
+        package_root = Path(__file__).resolve().parent.parent
+        barcode_path = package_root / "levseq" / "barcoding" / "minion_barcodes.fasta"
+    # Ensure the barcode file exists
+    if not barcode_path.exists():
+        raise FileNotFoundError(f"Barcode file not found: {barcode_path}")
 
     front_prefix = "NB"
     back_prefix = "RB"
-
-    barcode_path_filter = os.path.join(result_folder, "minion_barcodes_filtered.fasta")
+    barcode_path_filter = result_folder + "minion_barcodes_filtered.fasta"
+    
     filter_barcodes(
-        barcode_path,
-        barcode_path_filter,
+        str(barcode_path),
+        str(barcode_path_filter),
         (front_min, front_max),
         rbc,
         front_prefix,
         back_prefix,
     )
+    
     return barcode_path_filter
-
 
 # Filter barcodes
 def filter_barcodes(
@@ -149,23 +170,40 @@ def filter_barcodes(
     with open(output_fasta, "w") as output_handle:
         SeqIO.write(filtered_records, output_handle, "fasta")
 
-
-# Demultiplex the basecalled fastq into plate-well folders
+# Demultiplex fastq reads into plate and wells format
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
-    # Plan B to locate using relative path relying on the git folder
-    current_file_dir = Path(__file__).parent
-    # Obtain path of executable from package
-    # with resources.path('levseq.barcoding', 'demultiplex-x86') as executable_path:
-    # ToDO! Fix this tech debt
-    executable_path = "levseq/barcoding/demultiplex-x86"
+    # Determine the system architecture
+    system_architecture = platform.machine().lower()
+
+    # Choose the appropriate executable based on the architecture
+    if system_architecture == 'arm64':
+        executable_name = "demultiplex"
+    elif system_architecture == 'x86_64':
+        executable_name = "demultiplex-x86"
+    else:
+        raise ValueError(f"Unsupported architecture: {system_architecture}")
+
+    # Use importlib.resources to get the path to the executable
+    try:
+        with resources.path('levseq.barcoding', executable_name) as executable_path:
+            executable_path = Path(executable_path)
+    except ImportError:
+        # Fallback method if the above fails
+        package_root = Path(__file__).resolve().parent.parent
+        executable_path = package_root / "levseq" / "barcoding" / executable_name
+
+    # Ensure the executable exists
+    if not executable_path.exists():
+        raise FileNotFoundError(f"Executable not found: {executable_path}")
 
     # Get min and max sequence length if user specified, otherwise use default
-    seq_min = 800
+    seq_min = 800 
     seq_max = 5000
-    # Use subprocess to run the executable
-    prompt = f"{str(executable_path)} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w {100} -r {100} -m {seq_min} -x {seq_max}"
-    subprocess.run(prompt, shell=True)
 
+    # Use subprocess to run the executable
+    hard_path = 'levseq/barcoding/demultiplex'
+    prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
+    subprocess.run(prompt, shell=True, check=True)
 
 # Variant calling using VariantCaller class and generate dataframe
 def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
