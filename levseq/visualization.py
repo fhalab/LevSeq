@@ -395,62 +395,268 @@ def generate_platemaps(
 
     if show_msa:
 
-        well_id_selector = pn.widgets.Select(name="Well ID", options=WELL_IDS)
-
-        # Generate plots for each plate and well ID
         for plate in unique_plates:
+            
+            # Split to just the information of interest
+            df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+            
+            # generate a holoviews plot
+
+            hm_bokeh = hv.render(_make_platemap(df, title=plate, cmap=cmap), backend="bokeh")
+
+            hm_bokeh.toolbar_location = 'right'
+            hm_bokeh.toolbar.active_drag = None
+            hm_bokeh.toolbar.active_scroll = None
+
+            hm_dict[plate] = hm_bokeh
+
+        print(hm_dict)
+        
+        well_selector = pn.widgets.Select(name="Well", options=WELL_IDS)
+
+        def get_plate(plate):
+            # return hm_dict[plate]
             # Split to just the information of interest
             df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
 
-            # Generate the platemap plot once for each plate
-            hm_bokeh = hv.render(_make_platemap(df, title=plate, cmap=cmap), backend="bokeh")
+            hm_bokeh = hv.render(
+                    _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
+                )
+                
+            hm_bokeh.toolbar_location = 'right'
             hm_bokeh.toolbar.active_drag = None
+            hm_bokeh.toolbar.active_scroll = None
 
-            # Store the platemap in the dictionary
-            hm_dict[plate] = hm_bokeh
+            return hm_bokeh
 
-            for well_id in WELL_IDS:
+        def get_well(plate, well):
+            # Get the row and column
+            aln_path = os.path.join(
+                result_folder,
+                plate,
+                plate2barcode[plate],
+                well2nb(well),
+                f"msa_{plate}_{well}.fa",
+            )
 
-                # Get the row and column
-                aln_path = os.path.join(
-                    result_folder,
-                    plate,
-                    plate2barcode[plate],
-                    well2nb(well_id),
-                    f"msa_{plate}_{well_id}.fa",
-                )
+            aln = plot_sequence_alignment(
+                aln_path,
+                parent_name=plate,
+                markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well)} {well}",
+            )
 
-                aln = plot_sequence_alignment(
-                    aln_path,
-                    parent_name=plate,
-                    markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
-                )
+            aln.toolbar.active_drag = None
+            aln.toolbar.active_scroll = None
 
-                # Make sure both plots have the same toolbar settings
-                aln.toolbar.active_drag = None
+            return aln
 
-                # Store the alignment plot in the dictionary
-                aln_dict[(plate, well_id)] = aln
+        def get_plate_well(plate, well_id):
 
-        # Function to update the platemap based on plate selection
-        @pn.depends(plate_selector.param.value)
-        def update_platemap(plate):
+            # Split to just the information of interest
+            # df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+
+            # hm_bokeh = hv.render(
+            #         _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
+            #     )
+                
+            # hm_bokeh.toolbar_location = 'right'
+            # hm_bokeh.toolbar.active_drag = None
+            # hm_bokeh.toolbar.active_scroll = None
             hm_bokeh = hm_dict.get(plate, pn.pane.Markdown("No platemap available for this plate"))
-            return pn.pane.Bokeh(hm_bokeh)
+            
+            # Get the row and column
+            aln_path = os.path.join(
+                result_folder,
+                plate,
+                plate2barcode[plate],
+                well2nb(well_id),
+                f"msa_{plate}_{well_id}.fa",
+            )
 
-        # Function to update the alignment plot based on plate and well_id selection
-        @pn.depends(plate_selector.param.value, well_id_selector.param.value)
-        def update_alignment_plot(plate, well_id):
-            aln = aln_dict.get((plate, well_id), pn.pane.Markdown("No alignment available for this selection"))
-            return pn.pane.Bokeh(aln)
+            aln = plot_sequence_alignment(
+                aln_path,
+                parent_name=plate,
+                markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
+            )
 
-        # Layout the dropdowns and the plots
-        layout = pn.Column(
-            pn.Row(plate_selector, update_platemap),
-            pn.Row(well_id_selector, update_alignment_plot),
-        )
+            # generate a holoviews plot
+            return gridplot(
+                [[hm_bokeh], [aln]],
+                toolbar_location='right',
+                sizing_mode="fixed", # "stretch_width",
+            )
 
-        return layout
+        # @pn.depends(plate=plate_selector.param.value, watch=True)
+        # def update_plate(plate):
+        #     return get_plate(plate)
+
+        # @pn.depends(plate=plate_selector.param.value, well=well_selector.param.value)
+        # def update_well(plate, well):
+        #     return get_well(plate, well)
+
+        # @pn.depends(plate=plate_selector.param.value, well=well_selector.param.value)
+        # def update_well_selector(plate, well):
+        #     return get_plate_well(plate, well)
+
+        # return pn.Column(pn.Row(plate_selector, well_selector), update_well_selector)
+        # return pn.Column(pn.Row(plate_selector, update_plate), pn.Row(well_selector, update_well))
+        # Function to update the plots based on dropdown selection
+        @pn.depends(plate=plate_selector.param.value, well_id=well_selector.param.value)
+        def update_plot(plate, well_id):
+
+            return get_plate_well(plate, well_id)
+
+        # Create a dynamic plot area
+
+        # Layout the dropdowns and the plot
+        return pn.Column(pn.Row(plate_selector, well_selector), pn.Column(update_plot))
+
+        # Generate plots for each plate
+        # for plate in unique_plates:
+
+        #     # Split to just the information of interest
+        #     df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+
+        #     hm_bokeh = hv.render(
+        #             _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
+        #         )
+                
+        #     hm_bokeh.toolbar_location = 'right'
+        #     hm_bokeh.toolbar.active_drag = None
+        #     hm_bokeh.toolbar.active_scroll = None
+            
+        #     hm_dict[plate] = hm_bokeh
+            
+        #     for well_id in WELL_IDS:
+
+        #         # Get the row and column
+        #         aln_path = os.path.join(
+        #             result_folder,
+        #             plate,
+        #             plate2barcode[plate],
+        #             well2nb(well_id),
+        #             f"msa_{plate}_{well_id}.fa",
+        #         )
+
+        #         aln = plot_sequence_alignment(
+        #             aln_path,
+        #             parent_name=plate,
+        #             markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
+        #         )
+
+        #         # Make sure both plots have the same toolbar settings
+        #         # hm_bokeh.toolbar.active_drag = None
+        #         # aln.toolbar.active_drag = None
+
+        #         # generate a holoviews plot
+        #         hm_dict[(plate, well_id)] = gridplot(
+        #             [[hm_dict[plate]], [aln]],
+        #             toolbar_location=None,
+        #             sizing_mode="fixed", # "stretch_width",
+        #         )
+
+        # # Function to update the plots based on dropdown selection
+        # @pn.depends(plate=plate_selector.param.value, well_id=well_id_selector.param.value)
+        # def update_plot(plate, well_id):
+
+        #     hm_bokeh.toolbar_location = 'right'
+        #     hm_bokeh.toolbar.active_drag = None
+        #     hm_bokeh.toolbar.active_scroll = None
+            
+        #     hm_dict[plate] = hm_bokeh
+
+        #     return hm_dict.get(
+        #         (plate, well_id), pn.pane.Markdown("No plot available for this selection")
+        #     )
+
+        # # Create a dynamic plot area
+        # plot_pane = pn.Column(update_plot)
+
+        # # Layout the dropdowns and the plot
+        # layout = pn.Row(pn.Column(plate_selector, well_id_selector), plot_pane)
+
+        # return layout
+
+    # if show_msa:
+
+    #     well_id_selector = pn.widgets.Select(name="Well ID", options=WELL_IDS)
+
+    #     # Generate plots for each plate
+    #     for plate in unique_plates:
+            
+    #         # Split to just the information of interest
+    #         df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+            
+    #         # generate a holoviews plot
+    #         if plate not in hm_dict:
+    #             hm_dict[plate] = _make_platemap(df, title=plate, cmap=cmap)  
+
+    #         p = pn.pane.Bokeh(hv.render(hm_dict[plate], backend="bokeh"))
+        
+    #         # Split to just the information of interest
+    #         # df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+
+    #         # # Generate the platemap plot once for each plate
+    #         # hm_bokeh = hv.render(_make_platemap(df, title=plate, cmap=cmap), backend="bokeh")
+    #         # hm_bokeh.toolbar.active_drag = None
+
+    #         # Store the platemap in the dictionary
+    #         # hm_dict[plate] = hm_bokeh
+
+    #         for well_id in WELL_IDS:
+
+    #             # Get the row and column
+    #             aln_path = os.path.join(
+    #                 result_folder,
+    #                 plate,
+    #                 plate2barcode[plate],
+    #                 well2nb(well_id),
+    #                 f"msa_{plate}_{well_id}.fa",
+    #             )
+
+    #             aln = plot_sequence_alignment(
+    #                 aln_path,
+    #                 parent_name=plate,
+    #                 markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
+    #             )
+
+    #             # Make sure both plots have the same toolbar settings
+    #             aln.toolbar.active_drag = None
+
+    #             # Store the alignment plot in the dictionary
+    #             aln_dict[(plate, well_id)] = aln
+
+    #     # Function to update the platemap based on plate selection
+    #     # @pn.depends(plate_selector.param.value)
+    #     # def update_platemap(plate):
+    #     #     hm_bokeh = hm_dict.get(plate, pn.pane.Markdown("No platemap available for this plate"))
+    #     #     return pn.pane.Bokeh(hm_bokeh)
+
+    #     # Function to update the alignment plot based on plate and well_id selection
+    #     @pn.depends(plate_selector.param.value, well_id_selector.param.value)
+    #     def update_alignment_plot(plate, well_id):
+    #         aln = aln_dict.get((plate, well_id), pn.pane.Markdown("No alignment available for this selection"))
+    #         return pn.pane.Bokeh(aln)
+
+    #     def update_plot(event):
+    #         selected_plate = event.new
+    #         # Logic to update your plot `p` based on `selected_plate`
+    #         p.title.text = f"Selected Plate: {selected_plate}"
+    #         # For example, you could update the data source or other plot attributes here
+
+    #     # Watch the 'value' of plate_selector and call update_plot when it changes
+    #     plate_selector.param.watch(update_plot, 'value')
+
+        
+    #     p.link(p, callbacks={'value': plate_selector})     
+        
+    #     # Layout the dropdowns and the plots
+    #     layout = pn.Column(
+    #         pn.Row(plate_selector, p),
+    #         pn.Row(well_id_selector, update_alignment_plot),
+    #     )
+
+    #     return layout
 
     else:
     
@@ -701,7 +907,11 @@ def plot_sequence_alignment(
 
     if len(seqs) <= 1:
         p = plot_empty("Alignment plot needs at least two sequences", plot_width)
-        return p
+        return gridplot(
+            [[msa_title], [p]],
+            toolbar_location=None,
+            sizing_mode=sizing_mode,
+        )
 
     seq_nucs = [i for s in list(seqs) for i in s]
 
@@ -758,113 +968,197 @@ def plot_sequence_alignment(
 
     x_range = Range1d(0, seq_len + 1, bounds="auto")
 
-    if seq_len < numb_nuc_zoom:
-        numb_nuc_zoom = len(seqs[0])
-    view_range = (0, numb_nuc_zoom)
-    viewlen = view_range[1] - view_range[0]
+    # if seq_len < numb_nuc_zoom:
+    #     numb_nuc_zoom = len(seqs[0])
+    # view_range = (0, numb_nuc_zoom)
+    # viewlen = view_range[1] - view_range[0]
 
     # preview overall full sequence view (no text)
-    p_sumview = figure(
-        title=None,
-        width=plot_width,
-        height=numb_seq * 2 + 25,
-        x_range=x_range,
-        y_range=(0, numb_seq),
-        tools="xpan, xwheel_zoom, tap, reset, save",
-        min_border=0,
-        toolbar_location=None,
-        sizing_mode="fixed", # "stretch_width",
-        output_backend="webgl"
-    )
+    # p_sumview = figure(
+    #     title=None,
+    #     width=plot_width,
+    #     height=numb_seq * 2 + 25,
+    #     x_range=x_range,
+    #     y_range=(0, numb_seq),
+    #     tools="xpan, xwheel_zoom, tap, reset, save",
+    #     min_border=0,
+    #     toolbar_location=None,
+    #     sizing_mode="fixed", # "stretch_width",
+    #     output_backend="webgl"
+    # )
 
-    # add in the sequence text
-    sumview_rects = Rect(
-        x="x",
-        y="recty",
-        width=1,
-        height=1,
-        fill_color="block_colors",
-        line_color=None,
-    )
+    # # add in the sequence text
+    # sumview_rects = Rect(
+    #     x="x",
+    #     y="recty",
+    #     width=1,
+    #     height=1,
+    #     fill_color="block_colors",
+    #     line_color=None,
+    # )
 
-    p_sumview.add_glyph(msa_source, sumview_rects)
+    # p_sumview.add_glyph(msa_source, sumview_rects)
 
-    # add in the preview rectangle
-    previewrect = Rect(
-        x=viewlen / 2,
-        y=numb_seq / 2,
-        width=viewlen,
-        height=numb_seq * 0.99,
-        line_color="black",
-        fill_color=None,
-    )
+    # # # add in the preview rectangle
+    # # previewrect = Rect(
+    # #     x=viewlen / 2,
+    # #     y=numb_seq / 2,
+    # #     width=viewlen,
+    # #     height=numb_seq * 0.99,
+    # #     line_color="black",
+    # #     fill_color=None,
+    # # )
 
-    p_sumview.add_glyph(msa_source, previewrect)
+    # # p_sumview.add_glyph(msa_source, previewrect)
 
-    p_sumview.yaxis.visible = False
-    p_sumview.grid.visible = False
+    # p_sumview.yaxis.visible = False
+    # p_sumview.grid.visible = False
 
-    hover = HoverTool(
-        tooltips=[
-            ("position", "@x"),
-            ("sequenced_nuc", "@seq_nucs"),
-            ("parent_nuc", "@parent_nucs"),
-            ("cons_nuc", "@cons_nucs"),
-        ],
-    )
+    # hover = HoverTool(
+    #     tooltips=[
+    #         ("position", "@x"),
+    #         ("sequenced_nuc", "@seq_nucs"),
+    #         ("parent_nuc", "@parent_nucs"),
+    #         ("cons_nuc", "@cons_nucs"),
+    #     ],
+    # )
 
+    # if len(rev_ids) > 7:
+    #     aln_y_range = FactorRange(*rev_ids)  # Allows for categorical range with scrolling
+    # else:
+    #     aln_y_range = rev_ids  # No need for scrolling if within limit
 
-    if len(rev_ids) < 7:
-        aln_y_range = FactorRange(*rev_ids)  # Allows for categorical range with scrolling
-    else:
-        aln_y_range = rev_ids  # No need for scrolling if within limit
+    def aggregate_rectangles(msa_source):
+        aggregated_rects = []
+        colors = []
+        
+        current_color = None
+        current_start = None
+        current_width = 0
+        
+        last_y = None
+        
+        for (x, y, color) in zip(msa_source.data['x'], msa_source.data['recty'], msa_source.data['block_colors']):
+            if color != current_color or y != last_y:
+                # End the current rectangle if the color changes or we move to a new sequence
+                if current_color is not None:
+                    aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
+                    colors.append(current_color)
+                    
+                # Start a new rectangle
+                current_start = x
+                current_width = 1
+                current_color = color
+            else:
+                # Expand the current rectangle
+                current_width += 1
+            
+            last_y = y
+        
+        # Append the final rectangle
+        if current_color is not None:
+            aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
+            colors.append(current_color)
+        
+        return aggregated_rects, colors
 
-    # full sequence detail view
+    # Example usage
+    aggregated_rects, colors = aggregate_rectangles(msa_source)
+
+    # Update the ColumnDataSource with aggregated data
+    agg_x = [x for x, _, _ in aggregated_rects]
+    agg_width = [width for _, width, _ in aggregated_rects]
+    agg_y = [y for _, _, y in aggregated_rects]
+
+    agg_source = ColumnDataSource(dict(
+        x=agg_x,
+        width=agg_width,
+        y=agg_y,
+        fill_color=colors,
+    ))
+
+    # Plotting
     p_aln = figure(
         title=None,
         width=plot_width,
         height=plot_height,
-        x_range=view_range,
-        y_range=aln_y_range,
-        tools=[hover, "xpan,reset"],
+        x_range=(0, seq_len + 1),
+        y_range=rev_ids,
+        tools=["xpan,reset"],
         min_border=0,
         toolbar_location=None,
         output_backend="webgl",
     )
 
-    seqtext = Text(
+    # Add the aggregated rectangles
+    p_aln.rect(
         x="x",
         y="y",
-        text="text",
-        text_align="center",
-        text_color="text_colors",
-        text_font_size=fontsize,
+        width="width",
+        height=1,
+        fill_color="fill_color",
+        line_color=None,
+        source=agg_source,
     )
 
-    aln_rects = Rect(
-        x="x",
-        y="recty",
-        width=1,
-        height=1,
-        fill_color="block_colors",
-        line_color=None,
-    )
-    # adds in colors over the seq text
-    p_aln.add_glyph(msa_source, aln_rects)
-    # adds in the sequence text
-    p_aln.add_glyph(msa_source, seqtext)
+    # Add sequence text
+    # p_aln.add_glyph(msa_source, seqtext)
 
     p_aln.grid.visible = False
-    # p_aln.xaxis.major_label_text_font_style = "bold"
-    p_aln.yaxis.major_label_text_font_size = "4pt"  # Adjust the size as needed
+    # Remove all y-axis tick labels except for the first one
+        
+    # Access the y-axis and set major label overrides
+    p_aln.yaxis.visible = False
+    p_aln.yaxis.major_label_text_font_size = "0pt"
     p_aln.yaxis.minor_tick_line_width = 0
     p_aln.yaxis.major_tick_line_width = 0
 
+    # full sequence detail view
+    # p_aln = figure(
+    #     title=None,
+    #     width=plot_width,
+    #     height=plot_height,
+    #     x_range=(0, seq_len + 1),
+    #     y_range=rev_ids,
+    #     tools=["xpan,reset"], # [hover, "xpan,reset"],
+    #     min_border=0,
+    #     toolbar_location=None,
+    #     output_backend="webgl",
+    # )
+
+    # seqtext = Text(
+    #     x="x",
+    #     y="y",
+    #     text="text",
+    #     text_align="center",
+    #     text_color="text_colors",
+    #     text_font_size=fontsize,
+    # )
+
+    # aln_rects = Rect(
+    #     x="x",
+    #     y="recty",
+    #     width=1,
+    #     height=1,
+    #     fill_color="block_colors",
+    #     line_color=None,
+    # )
+    # # adds in colors over the seq text
+    # p_aln.add_glyph(msa_source, aln_rects)
+    # # adds in the sequence text
+    # p_aln.add_glyph(msa_source, seqtext)
+
+    # p_aln.grid.visible = False
+    # # p_aln.xaxis.major_label_text_font_style = "bold"
+    # p_aln.yaxis.major_label_text_font_size = "4pt"  # Adjust the size as needed
+    # p_aln.yaxis.minor_tick_line_width = 0
+    # p_aln.yaxis.major_tick_line_width = 0
+
     # Add a vertical scroll range if y_range is large
-    if len(rev_ids) > 7:
-        p_aln.y_range = Range1d(start=0, end=7)  # Start with displaying first 30 entries
-        p_aln.y_range.start = 0  # Initial scroll position
-        p_aln.y_range.end = 7  # End of the initial scroll position
+    # if len(rev_ids) > 7:
+    #     p_aln.y_range = Range1d(start=0, end=7)  # Start with displaying first 30 entries
+    #     p_aln.y_range.start = 0  # Initial scroll position
+    #     p_aln.y_range.end = 7  # End of the initial scroll position
 
     # conservation plot
     cons_colors, cons_text = get_cons_diff_colorNseq(
@@ -879,48 +1173,145 @@ def plot_sequence_alignment(
             cons_colors=cons_colors,
             parent_nucs=list(parent_seq),
             cons_nucs=list(cons_seq),
-            cons_text=cons_text,
+            # cons_text=cons_text,
         )
     )
 
-    cons_hover = HoverTool(
-        tooltips=[
-            ("position", "@x"),
-            ("cons_val", "@cons"),
-            ("parent_nuc", "@parent_nucs"),
-            ("cons_nuc", "@cons_nucs"),
-        ],
-    )
+    # # cons_hover = HoverTool(
+    # #     tooltips=[
+    # #         ("position", "@x"),
+    # #         ("cons_val", "@cons"),
+    # #         ("parent_nuc", "@parent_nucs"),
+    # #         ("cons_nuc", "@cons_nucs"),
+    # #     ],
+    # # )
 
+    # p_cons = figure(
+    #     title=None,
+    #     width=plot_width,
+    #     height=20,
+    #     x_range=p_aln.x_range,
+    #     y_range=(Range1d(0, 1)),
+    #     tools=["xpan,reset"],# [cons_hover, "xpan,reset"],
+    #     output_backend="webgl"
+    # )
+
+    # cons_rects = Rect(
+    #     x="x",
+    #     y=0,
+    #     width=1,
+    #     height="cons_height",
+    #     fill_color="cons_colors",
+    #     line_color=None,
+    # )
+
+    # cons_text = Text(
+    #     x="x",
+    #     y=0,
+    #     text="cons_text",
+    #     text_align="center",
+    #     text_color="black",
+    #     text_font_size=fontsize,
+    # )
+    # p_cons.add_glyph(cons_source, cons_rects)
+    # p_cons.add_glyph(cons_source, cons_text)
+
+    # p_cons.xaxis.visible = False
+    # p_cons.yaxis.visible = True
+    # p_cons.yaxis.ticker = [1]
+    # p_cons.yaxis.axis_label = "Alignment conservation values"
+    # p_cons.yaxis.axis_label_orientation = "horizontal"
+
+    # p_cons.grid.visible = False
+    # p_cons.background_fill_color = "white"
+
+    def aggregate_consensus(cons_source):
+        aggregated_rects = []
+        colors = []
+        texts = []
+        
+        current_color = None
+        current_start = None
+        current_width = 0
+        # current_text = []
+
+        # for (x, color, text) in zip(cons_source.data['x'], cons_source.data['cons_colors']), cons_source.data['cons_text']):
+        for (x, color) in zip(cons_source.data['x'], cons_source.data['cons_colors']):
+            if color != current_color:
+                # End the current rectangle if the color changes
+                if current_color is not None:
+                    aggregated_rects.append((current_start + current_width / 2, current_width))
+                    colors.append(current_color)
+                    # texts.append("".join(current_text))
+
+                # Start a new rectangle
+                current_start = x
+                current_width = 1
+                current_color = color
+                # current_text = [text]
+            else:
+                # Expand the current rectangle
+                current_width += 1
+                # current_text.append(text)
+
+        # Append the final rectangle
+        if current_color is not None:
+            aggregated_rects.append((current_start + current_width / 2, current_width))
+            colors.append(current_color)
+            # texts.append("".join(current_text))
+
+        return aggregated_rects, colors# , texts
+
+    # Example usage
+    # aggregated_rects, colors, texts = aggregate_consensus(cons_source)
+    aggregated_rects, colors = aggregate_consensus(cons_source)
+
+    # Update the ColumnDataSource with aggregated data
+    agg_x = [x for x, _ in aggregated_rects]
+    agg_width = [width for _, width in aggregated_rects]
+
+    agg_cons_source = ColumnDataSource(dict(
+        x=agg_x,
+        width=agg_width,
+        y=[0] * len(agg_x),  # y is constant in this case
+        cons_height=[2 * c for c in cons_source.data['cons']],
+        fill_color=colors,
+        # cons_text=texts,
+    ))
+
+    # Plotting the aggregated consensus sequence
     p_cons = figure(
         title=None,
         width=plot_width,
         height=20,
         x_range=p_aln.x_range,
-        y_range=(Range1d(0, 1)),
-        tools=[cons_hover, "xpan,reset"],
+        y_range=Range1d(0, 1),
+        tools=["xpan,reset"],
         output_backend="webgl"
     )
 
-    cons_rects = Rect(
+    # Add the aggregated rectangles
+    p_cons.rect(
         x="x",
         y=0,
-        width=1,
+        width="width",
         height="cons_height",
-        fill_color="cons_colors",
+        fill_color="fill_color",
         line_color=None,
+        source=agg_cons_source,
     )
 
-    cons_text = Text(
-        x="x",
-        y=0,
-        text="cons_text",
-        text_align="center",
-        text_color="black",
-        text_font_size=fontsize,
-    )
-    p_cons.add_glyph(cons_source, cons_rects)
-    p_cons.add_glyph(cons_source, cons_text)
+    # Add the aggregated consensus sequence text
+    # cons_text = Text(
+    #     x="x",
+    #     y=0,
+    #     text="cons_text",
+    #     text_align="center",
+    #     text_color="black",
+    #     text_font_size=fontsize,
+    # )
+
+    # p_cons.add_glyph(agg_cons_source, cons_text)
 
     p_cons.xaxis.visible = False
     p_cons.yaxis.visible = True
@@ -931,49 +1322,51 @@ def plot_sequence_alignment(
     p_cons.grid.visible = False
     p_cons.background_fill_color = "white"
 
-    # callback for slider move
-    jscode = """
-        var start = cb_obj.value[0];
-        var end = cb_obj.value[1];
-        x_range.setv({"start": start, "end": end})
-        rect.width = end-start;
-        rect.x = start+rect.width/2;
-        var fac = rect.width/width;
-        if (fac>=.22) { fontsize = 0;}
-        else { fontsize = 8.5; }
-        text.text_font_size=fontsize+"pt";
-    """
+    # # callback for slider move
+    # jscode = """
+    #     var start = cb_obj.value[0];
+    #     var end = cb_obj.value[1];
+    #     x_range.setv({"start": start, "end": end})
+    #     rect.width = end-start;
+    #     rect.x = start+rect.width/2;
+    #     var fac = rect.width/width;
+    #     if (fac>=.22) { fontsize = 0;}
+    #     else { fontsize = 8.5; }
+    #     text.text_font_size=fontsize+"pt";
+    # """
 
-    callback = CustomJS(
-        args=dict(
-            x_range=p_aln.x_range, rect=previewrect, width=p_aln.width, # text=seqtext,
-        ),
-        code=jscode,
-    )
-    slider = RangeSlider(
-        start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10, sizing_mode="stretch_width"
-    )  # , callback_policy="throttle")
-    slider.js_on_change("value_throttled", callback)
+    # callback = CustomJS(
+    #     args=dict(
+    #         x_range=p_aln.x_range, rect=previewrect, width=p_aln.width, # text=seqtext,
+    #     ),
+    #     code=jscode,
+    # )
+    # slider = RangeSlider(
+    #     start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10, sizing_mode="stretch_width"
+    # )  # , callback_policy="throttle")
+    # slider.js_on_change("value_throttled", callback)
 
-    # callback for plot drag
-    jscode = """
-        start = parseInt(range.start);
-        end = parseInt(range.end);
-        slider.value[0] = start;
-        rect.width = end-start;
-        rect.x = start+rect.width/2;
-    """
+    # # callback for plot drag
+    # jscode = """
+    #     start = parseInt(range.start);
+    #     end = parseInt(range.end);
+    #     slider.value[0] = start;
+    #     rect.width = end-start;
+    #     rect.x = start+rect.width/2;
+    # """
 
-    callback = CustomJS(
-        args=dict(slider=slider, range=p_aln.x_range, rect=previewrect), code=jscode
-    )
+    # callback = CustomJS(
+    #     args=dict(slider=slider, range=p_aln.x_range, rect=previewrect), code=jscode
+    # )
 
-    p_sumview.x_range.js_on_change("start", callback)
+    # p_sumview.x_range.js_on_change("start", callback)
 
-    p_sumview = gridplot(
-        [[msa_title], [p_sumview], [slider], [p_cons], [p_aln]],
+    
+
+    return gridplot(
+        # [[msa_title], [p_sumview], [slider], [p_cons], [p_aln]],
+        [[msa_title], [p_cons], [p_aln]],
+        # [[msa_title], [p_cons]],
         toolbar_location=None,
         sizing_mode=sizing_mode,
     )
-
-    return p_sumview
