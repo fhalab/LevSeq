@@ -847,7 +847,7 @@ def plot_empty(msg="", plot_width=1000, plot_height=200) -> figure:
     p = figure(
         width=plot_width,
         height=plot_height,
-        tools="",
+        # tools="",
         x_range=(0, 1),
         y_range=(0, 2),
         sizing_mode="fixed", # "stretch_width",
@@ -967,198 +967,241 @@ def plot_sequence_alignment(
     plot_height = len(seqs) * row_height + 20
 
     x_range = Range1d(0, seq_len + 1, bounds="auto")
+    
+    def aggregate_gray_blocks(x_vals, y_vals, colors, text):
+        aggregated_x = []
+        aggregated_y = []
+        aggregated_width = []
+        aggregated_height = []
+        aggregated_colors = []
+        aggregated_text = []
 
-    # if seq_len < numb_nuc_zoom:
-    #     numb_nuc_zoom = len(seqs[0])
-    # view_range = (0, numb_nuc_zoom)
-    # viewlen = view_range[1] - view_range[0]
-
-    # preview overall full sequence view (no text)
-    # p_sumview = figure(
-    #     title=None,
-    #     width=plot_width,
-    #     height=numb_seq * 2 + 25,
-    #     x_range=x_range,
-    #     y_range=(0, numb_seq),
-    #     tools="xpan, xwheel_zoom, tap, reset, save",
-    #     min_border=0,
-    #     toolbar_location=None,
-    #     sizing_mode="fixed", # "stretch_width",
-    #     output_backend="webgl"
-    # )
-
-    # # add in the sequence text
-    # sumview_rects = Rect(
-    #     x="x",
-    #     y="recty",
-    #     width=1,
-    #     height=1,
-    #     fill_color="block_colors",
-    #     line_color=None,
-    # )
-
-    # p_sumview.add_glyph(msa_source, sumview_rects)
-
-    # # # add in the preview rectangle
-    # # previewrect = Rect(
-    # #     x=viewlen / 2,
-    # #     y=numb_seq / 2,
-    # #     width=viewlen,
-    # #     height=numb_seq * 0.99,
-    # #     line_color="black",
-    # #     fill_color=None,
-    # # )
-
-    # # p_sumview.add_glyph(msa_source, previewrect)
-
-    # p_sumview.yaxis.visible = False
-    # p_sumview.grid.visible = False
-
-    # hover = HoverTool(
-    #     tooltips=[
-    #         ("position", "@x"),
-    #         ("sequenced_nuc", "@seq_nucs"),
-    #         ("parent_nuc", "@parent_nucs"),
-    #         ("cons_nuc", "@cons_nucs"),
-    #     ],
-    # )
-
-    # if len(rev_ids) > 7:
-    #     aln_y_range = FactorRange(*rev_ids)  # Allows for categorical range with scrolling
-    # else:
-    #     aln_y_range = rev_ids  # No need for scrolling if within limit
-
-    def aggregate_rectangles(msa_source):
-        aggregated_rects = []
-        colors = []
-        
-        current_color = None
-        current_start = None
+        current_x_start = None
+        current_y = None
         current_width = 0
-        
-        last_y = None
-        
-        for (x, y, color) in zip(msa_source.data['x'], msa_source.data['recty'], msa_source.data['block_colors']):
-            if color != current_color or y != last_y:
-                # End the current rectangle if the color changes or we move to a new sequence
-                if current_color is not None:
-                    aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
-                    colors.append(current_color)
-                    
-                # Start a new rectangle
-                current_start = x
-                current_width = 1
-                current_color = color
+
+        for i, (x, y, color, t) in enumerate(zip(x_vals, y_vals, colors, text)):
+            if color == "gray":
+                # Start or continue aggregating gray blocks
+                if current_x_start is None:
+                    current_x_start = x
+                    current_y = y
+                    current_width = 1
+                else:
+                    if y == current_y:
+                        # Continue aggregating in the same row
+                        current_width += 1
+                    else:
+                        # Row changed, finalize the current block
+                        aggregated_x.append(current_x_start + current_width / 2)
+                        aggregated_y.append(current_y)
+                        aggregated_width.append(current_width)
+                        aggregated_height.append(1)
+                        aggregated_colors.append("gray")
+                        aggregated_text.append("")
+
+                        # Start a new gray block for the new row
+                        current_x_start = x
+                        current_y = y
+                        current_width = 1
             else:
-                # Expand the current rectangle
-                current_width += 1
-            
-            last_y = y
-        
-        # Append the final rectangle
-        if current_color is not None:
-            aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
-            colors.append(current_color)
-        
-        return aggregated_rects, colors
+                # Add the current gray block if it exists
+                if current_x_start is not None:
+                    aggregated_x.append(current_x_start + current_width / 2)
+                    aggregated_y.append(current_y)
+                    aggregated_width.append(current_width)
+                    aggregated_height.append(1)
+                    aggregated_colors.append("gray")
+                    aggregated_text.append("")
 
-    # Example usage
-    aggregated_rects, colors = aggregate_rectangles(msa_source)
+                    # Reset aggregation variables
+                    current_x_start = None
+                    current_width = 0
 
-    # Update the ColumnDataSource with aggregated data
-    agg_x = [x for x, _, _ in aggregated_rects]
-    agg_width = [width for _, width, _ in aggregated_rects]
-    agg_y = [y for _, _, y in aggregated_rects]
+                # Add the non-gray block as it is
+                aggregated_x.append(x)
+                aggregated_y.append(y)
+                aggregated_width.append(1)
+                aggregated_height.append(1)
+                aggregated_colors.append(color)
+                aggregated_text.append(t)
 
-    agg_source = ColumnDataSource(dict(
-        x=agg_x,
-        width=agg_width,
-        y=agg_y,
-        fill_color=colors,
-    ))
+        # Add any remaining aggregated gray block
+        if current_x_start is not None:
+            aggregated_x.append(current_x_start + current_width / 2)
+            aggregated_y.append(current_y)
+            aggregated_width.append(current_width)
+            aggregated_height.append(1)
+            aggregated_colors.append("gray")
+            aggregated_text.append("")
+
+        return aggregated_x, aggregated_y, aggregated_width, aggregated_height, aggregated_colors, aggregated_text
+
+    # Aggregating gray blocks
+    agg_x, agg_y, agg_width, agg_height, agg_colors, agg_text = aggregate_gray_blocks(
+        msa_source.data['x'],
+        msa_source.data['y'],
+        msa_source.data['block_colors'],
+        msa_source.data['text']
+    )
+
+    # Create the updated ColumnDataSource with aggregated gray blocks
+    msa_source_aggregated = ColumnDataSource(
+        dict(
+            x=agg_x,
+            y=agg_y,
+            width=agg_width,
+            height=agg_height,
+            fill_color=agg_colors,
+            text=agg_text,
+        )
+    )
 
     # Plotting
-    p_aln = figure(
-        title=None,
-        width=plot_width,
-        height=plot_height,
-        x_range=(0, seq_len + 1),
-        y_range=rev_ids,
-        tools=["xpan,reset"],
-        min_border=0,
-        toolbar_location=None,
-        output_backend="webgl",
-    )
-
-    # Add the aggregated rectangles
-    p_aln.rect(
-        x="x",
-        y="y",
-        width="width",
-        height=1,
-        fill_color="fill_color",
-        line_color=None,
-        source=agg_source,
-    )
-
-    # Add sequence text
-    # p_aln.add_glyph(msa_source, seqtext)
-
-    p_aln.grid.visible = False
-    # Remove all y-axis tick labels except for the first one
-        
-    # Access the y-axis and set major label overrides
-    p_aln.yaxis.visible = False
-    p_aln.yaxis.major_label_text_font_size = "0pt"
-    p_aln.yaxis.minor_tick_line_width = 0
-    p_aln.yaxis.major_tick_line_width = 0
-
-    # full sequence detail view
     # p_aln = figure(
     #     title=None,
     #     width=plot_width,
     #     height=plot_height,
     #     x_range=(0, seq_len + 1),
     #     y_range=rev_ids,
-    #     tools=["xpan,reset"], # [hover, "xpan,reset"],
+    #     # tools=["xpan,reset"],
     #     min_border=0,
     #     toolbar_location=None,
     #     output_backend="webgl",
     # )
 
-    # seqtext = Text(
+    # # Add the aggregated rectangles
+    # p_aln.rect(
     #     x="x",
     #     y="y",
-    #     text="text",
-    #     text_align="center",
-    #     text_color="text_colors",
-    #     text_font_size=fontsize,
+    #     width="width",
+    #     height=1,
+    #     fill_color="fill_color",
+    #     line_color=None,
+    #     source=agg_source,
     # )
 
-    # aln_rects = Rect(
-    #     x="x",
-    #     y="recty",
-    #     width=1,
-    #     height=1,
-    #     fill_color="block_colors",
-    #     line_color=None,
+    # Create a new figure
+    p_aln = figure(
+        title=None,
+        width=plot_width,
+        height=plot_height,
+        x_range=(0, max(agg_x) + 1),
+        y_range=(-0.5, max(agg_y) + 0.5)
+    )
+
+    # Add aggregated rectangles (blocks of sequences)
+    rect_glyph = Rect(
+        x="x", y="y", width="width", height="height",
+        fill_color="fill_color", line_color=None
+    )
+
+    # # Add text glyph for the sequence letters
+    # text_glyph = Text(
+    #     x="x", y="y", text="text",
+    #     text_align="center", text_color="black", text_font_size="10pt"
     # )
-    # # adds in colors over the seq text
-    # p_aln.add_glyph(msa_source, aln_rects)
-    # # adds in the sequence text
+
+    # Add the rectangles to the plot
+    p_aln.add_glyph(msa_source_aggregated, rect_glyph)
+
+    # # Add the sequence text to the plot
+    # p.add_glyph(msa_source_aggregated, text_glyph)
+
+
+    # Add sequence text
     # p_aln.add_glyph(msa_source, seqtext)
 
+    p_aln.grid.visible = False
+    p_aln.yaxis.visible = False
+    p_aln.yaxis.major_label_text_font_size = "0pt"
+    p_aln.yaxis.minor_tick_line_width = 0
+    p_aln.yaxis.major_tick_line_width = 0
+
+    # def aggregate_rectangles(msa_source):
+    #     aggregated_rects = []
+    #     colors = []
+        
+    #     current_color = None
+    #     current_start = None
+    #     current_width = 0
+        
+    #     last_y = None
+        
+    #     for (x, y, color) in zip(msa_source.data['x'], msa_source.data['recty'], msa_source.data['block_colors']):
+    #         if color != current_color or y != last_y:
+    #             # End the current rectangle if the color changes or we move to a new sequence
+    #             if current_color is not None:
+    #                 aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
+    #                 colors.append(current_color)
+                    
+    #             # Start a new rectangle
+    #             current_start = x
+    #             current_width = 1
+    #             current_color = color
+    #         else:
+    #             # Expand the current rectangle
+    #             current_width += 1
+            
+    #         last_y = y
+        
+    #     # Append the final rectangle
+    #     if current_color is not None:
+    #         aggregated_rects.append((current_start + current_width / 2, current_width, last_y))
+    #         colors.append(current_color)
+        
+    #     return aggregated_rects, colors
+
+    # # Example usage
+    # aggregated_rects, colors = aggregate_rectangles(msa_source)
+
+    # # Update the ColumnDataSource with aggregated data
+    # agg_x = [x for x, _, _ in aggregated_rects]
+    # agg_width = [width for _, width, _ in aggregated_rects]
+    # agg_y = [y for _, _, y in aggregated_rects]
+
+    # agg_source = ColumnDataSource(dict(
+    #     x=agg_x,
+    #     width=agg_width,
+    #     y=agg_y,
+    #     fill_color=colors,
+    # ))
+
+    # # Plotting
+    # p_aln = figure(
+    #     title=None,
+    #     width=plot_width,
+    #     height=plot_height,
+    #     x_range=(0, seq_len + 1),
+    #     y_range=rev_ids,
+    #     tools=["xpan,reset"],
+    #     min_border=0,
+    #     toolbar_location=None,
+    #     output_backend="webgl",
+    # )
+
+    # # Add the aggregated rectangles
+    # p_aln.rect(
+    #     x="x",
+    #     y="y",
+    #     width="width",
+    #     height=1,
+    #     fill_color="fill_color",
+    #     line_color=None,
+    #     source=agg_source,
+    # )
+
+    # # Add sequence text
+    # # p_aln.add_glyph(msa_source, seqtext)
+
     # p_aln.grid.visible = False
-    # # p_aln.xaxis.major_label_text_font_style = "bold"
-    # p_aln.yaxis.major_label_text_font_size = "4pt"  # Adjust the size as needed
+    # # Remove all y-axis tick labels except for the first one
+        
+    # # Access the y-axis and set major label overrides
+    # p_aln.yaxis.visible = False
+    # p_aln.yaxis.major_label_text_font_size = "0pt"
     # p_aln.yaxis.minor_tick_line_width = 0
     # p_aln.yaxis.major_tick_line_width = 0
-
-    # Add a vertical scroll range if y_range is large
-    # if len(rev_ids) > 7:
-    #     p_aln.y_range = Range1d(start=0, end=7)  # Start with displaying first 30 entries
-    #     p_aln.y_range.start = 0  # Initial scroll position
-    #     p_aln.y_range.end = 7  # End of the initial scroll position
 
     # conservation plot
     cons_colors, cons_text = get_cons_diff_colorNseq(
@@ -1177,14 +1220,14 @@ def plot_sequence_alignment(
         )
     )
 
-    # # cons_hover = HoverTool(
-    # #     tooltips=[
-    # #         ("position", "@x"),
-    # #         ("cons_val", "@cons"),
-    # #         ("parent_nuc", "@parent_nucs"),
-    # #         ("cons_nuc", "@cons_nucs"),
-    # #     ],
-    # # )
+    # cons_hover = HoverTool(
+    #     tooltips=[
+    #         ("position", "@x"),
+    #         ("cons_val", "@cons"),
+    #         ("parent_nuc", "@parent_nucs"),
+    #         ("cons_nuc", "@cons_nucs"),
+    #     ],
+    # )
 
     # p_cons = figure(
     #     title=None,
@@ -1225,94 +1268,174 @@ def plot_sequence_alignment(
     # p_cons.grid.visible = False
     # p_cons.background_fill_color = "white"
 
-    def aggregate_consensus(cons_source):
-        aggregated_rects = []
-        colors = []
-        texts = []
+    # def aggregate_conservation(cons_source):
+    #     aggregated_rects = []
+    #     colors = []
+    #     heights = []
         
-        current_color = None
-        current_start = None
+    #     current_color = None
+    #     current_start_x = None
+    #     current_width = 0
+        
+    #     for x, height, color in zip(cons_source.data['x'], cons_source.data['cons_height'], cons_source.data['cons_colors']):
+    #         if height == 2:
+    #             if current_color == color and current_width > 0:
+    #                 # Continue expanding the block if it's the same color and cons_height == 2
+    #                 current_width += 1
+    #             else:
+    #                 # End the current block if we're starting a new one
+    #                 if current_width > 0:
+    #                     aggregated_rects.append((current_start_x + current_width / 2, current_width))
+    #                     colors.append(current_color)
+    #                     heights.append(2)  # Since we're aggregating, height will be 2
+                    
+    #                 # Start a new block
+    #                 current_start_x = x
+    #                 current_width = 1
+    #                 current_color = color
+    #         else:
+    #             # Non-aggregated block (height != 2): Keep as is
+    #             if current_width > 0:
+    #                 aggregated_rects.append((current_start_x + current_width / 2, current_width))
+    #                 colors.append(current_color)
+    #                 heights.append(2)
+                
+    #             # Add non-aggregated block directly
+    #             aggregated_rects.append((x + 0.5, 1))  # Single-width block
+    #             colors.append(color)
+    #             heights.append(height)
+    #             current_color = None
+    #             current_width = 0
+
+    #     # Handle the last block if needed
+    #     if current_width > 0:
+    #         aggregated_rects.append((current_start_x + current_width / 2, current_width))
+    #         colors.append(current_color)
+    #         heights.append(2)
+
+    #     return aggregated_rects, colors, heights
+
+    # # Example usage
+    # aggregated_cons_rects, colors, heights = aggregate_conservation(cons_source)
+
+    # # Update the ColumnDataSource with aggregated data
+    # agg_cons_x = [x for x, _ in aggregated_cons_rects]
+    # agg_cons_width = [width for _, width in aggregated_cons_rects]
+
+    # agg_cons_source = ColumnDataSource(dict(
+    #     x=agg_cons_x,
+    #     width=agg_cons_width,
+    #     y=[0] * len(agg_cons_x),  # y is constant
+    #     cons_height=heights,
+    #     fill_color=colors,
+    # ))
+
+    # # Plotting the aggregated conservation rectangles
+    # p_cons = figure(
+    #     title=None,
+    #     width=plot_width,
+    #     height=20,
+    #     x_range=p_aln.x_range,
+    #     y_range=(Range1d(0, 1)),
+    #     # tools=["xpan,reset"],
+    #     output_backend="webgl"
+    # )
+
+    # # Add the aggregated rectangles
+    # p_cons.rect(
+    #     x="x",
+    #     y=0,
+    #     width="width",
+    #     height="cons_height",
+    #     fill_color="fill_color",
+    #     line_color=None,
+    #     source=agg_cons_source,
+    # )
+
+    # # Hide the x-axis
+    # p_cons.xaxis.visible = False
+    # p_cons.yaxis.visible = True
+    # p_cons.yaxis.ticker = [1]
+    # p_cons.yaxis.axis_label = "Alignment conservation values"
+    # p_cons.yaxis.axis_label_orientation = "horizontal"
+    # p_cons.grid.visible = False
+    # p_cons.background_fill_color = "white"
+
+    def aggregate_conservation(x_vals, heights, colors):
+        aggregated_x = []
+        aggregated_height = []
+        aggregated_colors = []
+        current_x_start = None
         current_width = 0
-        # current_text = []
 
-        # for (x, color, text) in zip(cons_source.data['x'], cons_source.data['cons_colors']), cons_source.data['cons_text']):
-        for (x, color) in zip(cons_source.data['x'], cons_source.data['cons_colors']):
-            if color != current_color:
-                # End the current rectangle if the color changes
-                if current_color is not None:
-                    aggregated_rects.append((current_start + current_width / 2, current_width))
-                    colors.append(current_color)
-                    # texts.append("".join(current_text))
-
-                # Start a new rectangle
-                current_start = x
-                current_width = 1
-                current_color = color
-                # current_text = [text]
+        for i, (x, height, color) in enumerate(zip(x_vals, heights, colors)):
+            if color == "gray" and height == 2:
+                # Start or continue aggregating gray blocks with height = 2
+                if current_x_start is None:
+                    current_x_start = x
+                    current_width = 1
+                else:
+                    current_width += 1
             else:
-                # Expand the current rectangle
-                current_width += 1
-                # current_text.append(text)
+                # Add the current gray block if it exists
+                if current_x_start is not None:
+                    aggregated_x.append(current_x_start + current_width / 2)
+                    aggregated_height.append(2)
+                    aggregated_colors.append("gray")
+                    current_x_start = None
+                    current_width = 0
 
-        # Append the final rectangle
-        if current_color is not None:
-            aggregated_rects.append((current_start + current_width / 2, current_width))
-            colors.append(current_color)
-            # texts.append("".join(current_text))
+                # Add the non-gray or non-height-2 block as it is
+                aggregated_x.append(x)
+                aggregated_height.append(height)
+                aggregated_colors.append(color)
 
-        return aggregated_rects, colors# , texts
+        # Append the final aggregated gray block if any
+        if current_x_start is not None:
+            aggregated_x.append(current_x_start + current_width / 2)
+            aggregated_height.append(2)
+            aggregated_colors.append("gray")
 
-    # Example usage
-    # aggregated_rects, colors, texts = aggregate_consensus(cons_source)
-    aggregated_rects, colors = aggregate_consensus(cons_source)
+        return aggregated_x, aggregated_height, aggregated_colors
 
-    # Update the ColumnDataSource with aggregated data
-    agg_x = [x for x, _ in aggregated_rects]
-    agg_width = [width for _, width in aggregated_rects]
+    # Example usage with the conservation data
+    agg_cons_x, agg_cons_height, agg_cons_colors = aggregate_conservation(
+        cons_source.data['x'], cons_source.data['cons_height'], cons_source.data['cons_colors']
+    )
 
-    agg_cons_source = ColumnDataSource(dict(
-        x=agg_x,
-        width=agg_width,
-        y=[0] * len(agg_x),  # y is constant in this case
-        cons_height=[2 * c for c in cons_source.data['cons']],
-        fill_color=colors,
-        # cons_text=texts,
-    ))
+    # Create the updated ColumnDataSource with aggregated gray blocks
+    cons_source_aggregated = ColumnDataSource(
+        dict(
+            x=agg_cons_x,
+            height=agg_cons_height,
+            fill_color=agg_cons_colors,
+        )
+    )
 
-    # Plotting the aggregated consensus sequence
+    # Create a new figure for the aggregated conservation plot
     p_cons = figure(
         title=None,
         width=plot_width,
         height=20,
         x_range=p_aln.x_range,
-        y_range=Range1d(0, 1),
-        tools=["xpan,reset"],
+        y_range=(Range1d(0,1)),  # Adjusting y-range based on height 2
+        # tools=["xpan,reset"],
         output_backend="webgl"
     )
 
-    # Add the aggregated rectangles
-    p_cons.rect(
+    # Add aggregated rectangles (conservation bars)
+    cons_rects = Rect(
         x="x",
         y=0,
-        width="width",
-        height="cons_height",
+        width=1,
+        height="height",
         fill_color="fill_color",
-        line_color=None,
-        source=agg_cons_source,
+        line_color=None
     )
 
-    # Add the aggregated consensus sequence text
-    # cons_text = Text(
-    #     x="x",
-    #     y=0,
-    #     text="cons_text",
-    #     text_align="center",
-    #     text_color="black",
-    #     text_font_size=fontsize,
-    # )
+    p_cons.add_glyph(cons_source_aggregated, cons_rects)
 
-    # p_cons.add_glyph(agg_cons_source, cons_text)
-
+    # Hide the x-axis labels and keep the y-axis visible
     p_cons.xaxis.visible = False
     p_cons.yaxis.visible = True
     p_cons.yaxis.ticker = [1]
@@ -1322,46 +1445,6 @@ def plot_sequence_alignment(
     p_cons.grid.visible = False
     p_cons.background_fill_color = "white"
 
-    # # callback for slider move
-    # jscode = """
-    #     var start = cb_obj.value[0];
-    #     var end = cb_obj.value[1];
-    #     x_range.setv({"start": start, "end": end})
-    #     rect.width = end-start;
-    #     rect.x = start+rect.width/2;
-    #     var fac = rect.width/width;
-    #     if (fac>=.22) { fontsize = 0;}
-    #     else { fontsize = 8.5; }
-    #     text.text_font_size=fontsize+"pt";
-    # """
-
-    # callback = CustomJS(
-    #     args=dict(
-    #         x_range=p_aln.x_range, rect=previewrect, width=p_aln.width, # text=seqtext,
-    #     ),
-    #     code=jscode,
-    # )
-    # slider = RangeSlider(
-    #     start=0, end=seq_len, value=(0, numb_nuc_zoom), step=10, sizing_mode="stretch_width"
-    # )  # , callback_policy="throttle")
-    # slider.js_on_change("value_throttled", callback)
-
-    # # callback for plot drag
-    # jscode = """
-    #     start = parseInt(range.start);
-    #     end = parseInt(range.end);
-    #     slider.value[0] = start;
-    #     rect.width = end-start;
-    #     rect.x = start+rect.width/2;
-    # """
-
-    # callback = CustomJS(
-    #     args=dict(slider=slider, range=p_aln.x_range, rect=previewrect), code=jscode
-    # )
-
-    # p_sumview.x_range.js_on_change("start", callback)
-
-    
 
     return gridplot(
         # [[msa_title], [p_sumview], [slider], [p_cons], [p_aln]],
