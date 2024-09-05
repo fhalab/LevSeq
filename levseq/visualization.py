@@ -414,8 +414,52 @@ def generate_platemaps(
         
         well_selector = pn.widgets.Select(name="Well", options=WELL_IDS)
 
-        def get_plate(plate):
-            # return hm_dict[plate]
+        # def get_plate(plate):
+        #     # return hm_dict[plate]
+        #     # Split to just the information of interest
+        #     df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
+
+        #     hm_bokeh = hv.render(
+        #             _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
+        #         )
+                
+        #     hm_bokeh.toolbar_location = 'right'
+        #     hm_bokeh.toolbar.active_drag = None
+        #     hm_bokeh.toolbar.active_scroll = None
+
+        #     return hm_bokeh
+
+        # def get_well(plate, well):
+        #     # Get the row and column
+        #     aln_path = os.path.join(
+        #         result_folder,
+        #         plate,
+        #         plate2barcode[plate],
+        #         well2nb(well),
+        #         f"msa_{plate}_{well}.fa",
+        #     )
+
+        #     aln = plot_sequence_alignment(
+        #         aln_path,
+        #         parent_name=plate,
+        #         markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well)} {well}",
+        #     )
+
+        #     aln.toolbar.active_drag = None
+        #     aln.toolbar.active_scroll = None
+
+        #     return aln
+
+        def get_plate_well(plate, well_id):
+
+            """
+            Get the platemap and alignment plot for a given well
+
+            Args:
+            - plate: str, plate name
+            - well_id: str, well ID, ie. 'A1'
+            """
+
             # Split to just the information of interest
             df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
 
@@ -426,43 +470,7 @@ def generate_platemaps(
             hm_bokeh.toolbar_location = 'right'
             hm_bokeh.toolbar.active_drag = None
             hm_bokeh.toolbar.active_scroll = None
-
-            return hm_bokeh
-
-        def get_well(plate, well):
-            # Get the row and column
-            aln_path = os.path.join(
-                result_folder,
-                plate,
-                plate2barcode[plate],
-                well2nb(well),
-                f"msa_{plate}_{well}.fa",
-            )
-
-            aln = plot_sequence_alignment(
-                aln_path,
-                parent_name=plate,
-                markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well)} {well}",
-            )
-
-            aln.toolbar.active_drag = None
-            aln.toolbar.active_scroll = None
-
-            return aln
-
-        def get_plate_well(plate, well_id):
-
-            # Split to just the information of interest
-            # df = max_combo_df.loc[max_combo_df.Plate == plate].copy()
-
-            # hm_bokeh = hv.render(
-            #         _make_platemap(df, title=plate, cmap=cmap), backend="bokeh"
-            #     )
-                
-            # hm_bokeh.toolbar_location = 'right'
-            # hm_bokeh.toolbar.active_drag = None
-            # hm_bokeh.toolbar.active_scroll = None
-            hm_bokeh = hm_dict.get(plate, pn.pane.Markdown("No platemap available for this plate"))
+            # hm_bokeh = hm_dict.get(plate, pn.pane.Markdown("No platemap available for this plate"))
             
             # Get the row and column
             aln_path = os.path.join(
@@ -473,9 +481,12 @@ def generate_platemaps(
                 f"msa_{plate}_{well_id}.fa",
             )
 
+            # get the row and column of the well and its final nc_variant sequence
+
             aln = plot_sequence_alignment(
                 aln_path,
                 parent_name=plate,
+                well_seq=df[(df["Row"] == well_id[0]) & (df["Column"] == well_id[1:])]["nc_variant"].values[0],
                 markdown_title=f"{result_folder} {plate} {plate2barcode[plate]} {well2nb(well_id)} {well_id}",
             )
 
@@ -864,6 +875,7 @@ def plot_empty(msg="", plot_width=1000, plot_height=200) -> figure:
 def plot_sequence_alignment(
     aln_path: str,
     parent_name: str = "parent",
+    well_seq: str = "",
     markdown_title: str = "Multiple sequence alignment",
     fontsize: str = "4pt",
     plot_width: int = 1000,
@@ -873,6 +885,25 @@ def plot_sequence_alignment(
     numb_nuc_zoom: int = 200,
 ) -> figure:
 
+    """
+    Plot sequence alignment
+
+    Args:
+    - aln_path: str, path to the alignment file
+    - parent_name: str, name of the parent sequence
+    - well_seq: str, sequence of the well
+    - markdown_title: str, title of the plot
+    - fontsize: str, fontsize of the text
+    - plot_width: int, width of the plot
+    - sizing_mode: str, sizing mode of the plot
+    - palette: str, color palette
+    - row_height: float, height of the row
+    - numb_nuc_zoom: int, number of nucleotides to zoom in
+
+    Returns:
+    - figure: bokeh plot
+    """
+    
     # get text from markdown
     msa_title = Div(
         text=f"""
@@ -931,7 +962,12 @@ def plot_sequence_alignment(
 
     # get conservation values
     cons = get_cons(aln)
-    cons_seq = get_cons_seq(aln)
+
+    if well_seq == "":
+        cons_seq = get_cons_seq(aln)
+    else:
+        cons_seq = well_seq
+
     cons_nucs = [i for i in cons_seq] * numb_seq
 
     # coords of the plot
