@@ -69,6 +69,7 @@ demultiplexing and variant calling.
 ```
  docker run -v /Users/XXXX/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
+
 In this command: `/Users/XXXX/Documents/LevSeq/data` is a folder on your computer, which contains a subfolder `20240502` 
 
 ### Steps to rebuild the C++ executables
