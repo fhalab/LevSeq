@@ -9,6 +9,7 @@ Before using this repository, ensure the following preparations:
 - Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](http://biorxiv.org/cgi/content/short/2024.09.04.611255v1?rss=1).
 - Successfully install Oxford Nanopore's software. [Link to installation guide](https://nanoporetech.com/).
 - Clone this GitHub repository to your local directory.
+- Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
 
 ## How to Use LevSeq.
 
@@ -29,7 +30,19 @@ After sequencing, you can identify variants, demultiplex, and combine with your 
 
 ### Installation:
 
+We aimed to make LevSeq as simple to use as possible, this means you should be able to run it all using pip. However, if you have issues we recomend using the Docker instance!
+
+#### Dependencies 
+
+1. Samtools: https://www.htslib.org/download/ 
+2. Minimap2: https://github.com/lh3/minimap2
+
+Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
 Installation via pip:
+
+```
+conda create --name levseq python=3.10
+```
 
 ```
 pip install levseq
