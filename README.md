@@ -37,9 +37,7 @@ pip install levseq
 
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
 operating system (https://docs.docker.com/engine/install/).
-```
 
-```
 ### Development
 
 To build the package via pip you need to run:
@@ -63,11 +61,15 @@ This gives us the access to the lebSeq command line interface via:
 ```
 docker run levseq
 ```
+Note! The docker image should work with linux, and mac, however, different mac architectures may have issues (owing to the different M1/M3 processers.)
+
 Basically the -v connects a folder on your computer with the output from the minION sequencer with the docker image that will take these results and then perform 
-demultiplexing and variant callingl
+demultiplexing and variant calling.
+
 ```
  docker run -v /Users/XXXX/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
+In this command: `/Users/XXXX/Documents/LevSeq/data` is a folder on your computer, which contains a subfolder `20240502` 
 
 ### Steps to rebuild the C++ executables
 
