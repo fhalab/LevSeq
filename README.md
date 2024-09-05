@@ -6,21 +6,21 @@ In directed evolution, sequencing every variant enhances data insight and create
 
 Before using this repository, ensure the following preparations:
 
-- Order forward and reverse primers compatible with the desired plasmid.
-- Successfully install Oxford Nanopore's software. [Link to installation guide](#).
+- Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](http://biorxiv.org/cgi/content/short/2024.09.04.611255v1?rss=1).
+- Successfully install Oxford Nanopore's software. [Link to installation guide](https://nanoporetech.com/).
 - Clone this GitHub repository to your local directory.
 
 ## How to Use LevSeq.
 
-The wet lab part is detailed in the method section. Once samples are prepared, the multiplexed sample is used for sequencing, and the sequencing data is stored in the `../data` folder on Nanopore.
+The wet lab part is detailed in the method section of the paper. 
 
-After sequencing, variants are identified. For simple applications, we recommend using the notebook `run_levseq.ipynb`.
+Once samples are prepared, the multiplexed sample is used for sequencing, and the sequencing data is stored in the `../data` folder as per the typical Nanopore flow (refer to Nanopore documentation for this).
 
-### Steps:
+After sequencing, you can identify variants, demultiplex, and combine with your variant function here! For simple applications, we recommend using the notebook `example/Example.ipynb`.
+
+### Steps of LevSeq:
 
 1. **Basecalling**: This step converts Nanopore's FAST5 files to sequences. For basecalling, we use Nanopore's basecaller, Medaka, which can run in parallel with sequencing (recommended) or afterward.
-
-
 
 2. **Demultiplexing**: After sequencing, the reads, stored as bulk FASTQ files, are sorted. During demultiplexing, each read is assigned to its correct plate/well combination and stored as a FASTQ file.
 
@@ -49,32 +49,30 @@ python setup.py sdist bdist_wheel
 
 To then install locally:
 ```
- pip install dist/levseq-0.1.0.tar.gz
+pip install dist/levseq-0.1.0.tar.gz
 ```
 
 To build the docker image run (within the main folder that contains the `Dockerfile`):
 
 ```
- docker build -t levseq .
+docker build -t levseq .
 ```
-**Note** when building on a mac with a MX chip, you need to set your docker env variable to: 
-`export DOCKER_DEFAULT_PLATFORM=linux/amd64` or add the flag `--platform linux/amd64` when building.
 
-i.e. you need to run on mac MX:
-```
-docker build  --platform linux/amd64 -t levseq .
-```
-This gives us the access to the minION command line interface via:
+This gives us the access to the lebSeq command line interface via:
 
 ```
 docker run levseq
 ```
-
+Basically the -v connects a folder on your computer with the output from the minION sequencer with the docker image that will take these results and then perform 
+demultiplexing and variant callingl
 ```
- docker run -v /Users/arianemora/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
+ docker run -v /Users/XXXX/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
 
 ### Steps to rebuild the C++ executables
+
+This is to run the code locally, rather than via the docker instance, note this will be dependent on your computer and may not 
+function as above, we highly recomend using the docker version for this reason.
 
 ### Mac intel chip
 To rebuild on mac move into the `source/source` folder and execute the following command:
@@ -93,3 +91,9 @@ make -j
 ```
 
 The demultiplex file should now function!
+
+### Issues
+
+If you have any issues, please post an issue! We're trying to make this as user friendly as possible but there may still be issues. 
+
+If you solve something code wise, submit a pull request! We would love community input.
