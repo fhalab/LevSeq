@@ -38,14 +38,15 @@ We aimed to make LevSeq as simple to use as possible, this means you should be a
 2. Minimap2: https://github.com/lh3/minimap2
 
 Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
+
 Installation via pip:
 
 ```
 conda create --name levseq python=3.10
 ```
-
+From the LevSeq folder run:
 ```
-pip install levseq
+pip install release/levseq-0.1.0.tar.gz
 ```
 
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
