@@ -1,4 +1,5 @@
 FROM ubuntu:latest
+
 # Do the usual things
 RUN apt-get update
 RUN apt-get install -y build-essential
@@ -97,6 +98,9 @@ RUN apt install gcc
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install tzdata package
+RUN apt-get update && \
+    apt-get clean
+        
 RUN apt-get update && apt-get install -y tzdata
 
 # Set your timezone

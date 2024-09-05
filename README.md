@@ -29,7 +29,7 @@ After sequencing, variants are identified. For simple applications, we recommend
 ### Installation:
 
 ### Other software
-LevSeq uses Samtools and Minimap2 so these need to be installed and added to your path.
+LevSeq uses Samtools and Minimap2 and clustal omega so these need to be installed and added to your path.
 
 Check these work by running:
 
@@ -39,6 +39,10 @@ samtools
 
 ```
 minimap2
+```
+
+```
+clustal-omega
 ```
 
 Installation via pip:
