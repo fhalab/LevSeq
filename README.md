@@ -35,7 +35,7 @@ We aimed to make LevSeq as simple to use as possible, this means you should be a
 
 #### Installing LevSeq
 
-We recommend using a conda environment for installation:
+We recommend using command line interface(Terminal) and a conda environment for installation:
 
 ```
 conda create --name levseq python=3.10
@@ -45,11 +45,11 @@ conda activate levseq
 
 1. Samtools: https://www.htslib.org/download/ 
 ```
-conda install samtools
+conda install -c bioconda -c conda-forge samtools
 ```
 2. Minimap2: https://github.com/lh3/minimap2
 ```
-conda install minimap2
+conda install -c bioconda -c conda-forge minimap2
 ```
 
 Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
