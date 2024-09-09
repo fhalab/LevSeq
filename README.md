@@ -1,19 +1,23 @@
 # Variant Sequencing with Nanopore
 
 In directed evolution, sequencing every variant enhances data insight and creates datasets suitable for AI/ML methods. This method is presented as an extension of the original Every Variant Sequencer using Illumina technology. With this approach, sequence variants can be generated within a day at an extremely low cost.
+
 ![Figure 1: LevSeq Workflow](manuscript/Figures/LevSeq_Figure-1.png)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
-## Prerequisites
 
-Before using this repository, ensure the following preparations:
 
-- Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](http://biorxiv.org/cgi/content/short/2024.09.04.611255v1?rss=1).
-- Successfully install Oxford Nanopore's software. [Link to installation guide](https://nanoporetech.com/).
-- Clone this GitHub repository to your local directory.
 - Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
+
 - A dockerized website and database for labs to locally host and visualize their data: https://github.com/fhalab/LevSeq_VDB/
 
-## How to Use LevSeq.
+## Setup
+
+For setting up the experimental side of LevSeq we suggest the following preparations:
+
+- Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](http://biorxiv.org/cgi/content/short/2024.09.04.611255v1?rss=1).
+- Successfully install Oxford Nanopore's software (this is only for if you are doing basecalling/minION processing). [Link to installation guide](https://nanoporetech.com/).
+
+## How to Use LevSeq
 
 The wet lab part is detailed in the method section of the paper. 
 
@@ -34,15 +38,21 @@ After sequencing, you can identify variants, demultiplex, and combine with your 
 
 We aimed to make LevSeq as simple to use as possible, this means you should be able to run it all using pip. However, if you have issues we recomend using the Docker instance!
 
-#### Installing LevSeq
-
 We recommend using command line interface(Terminal) and a conda environment for installation:
 ```
 git clone https://github.com/fhalab/LevSeq.git
+```
+
+```
 conda create --name levseq python=3.8
+```
+
+```
 conda activate levseq
 ```
+
 From the LevSeq folder, install the package using pip:
+
 ```
 pip install releases/levseq-0.1.0.tar.gz
 ```
@@ -52,10 +62,13 @@ pip install releases/levseq-0.1.0.tar.gz
 ```
 conda install -c bioconda -c conda-forge samtools
 ```
+or for mac users you can use: `brew install samtools`
+
 2. Minimap2: https://github.com/lh3/minimap2
 ```
 conda install -c bioconda -c conda-forge minimap2
 ```
+or for mac users you can use: `brew install minimap2`
 Once dependencies are all installed, you can run LevSeq using command line.
 
 ### Usage
