@@ -445,8 +445,6 @@ def process_ref_csv(cl_args):
 
 
 # Run LevSeq
-
-
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     # Create output folder
     result_folder = create_result_folder(cl_args)
