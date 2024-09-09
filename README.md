@@ -11,6 +11,7 @@ Before using this repository, ensure the following preparations:
 - Successfully install Oxford Nanopore's software. [Link to installation guide](https://nanoporetech.com/).
 - Clone this GitHub repository to your local directory.
 - Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
+- A dockerized website and database for labs to locally host and visualize their data: https://github.com/fhalab/LevSeq_VDB/
 
 ## How to Use LevSeq.
 
