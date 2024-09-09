@@ -64,9 +64,12 @@ levseq <name> <location to data folder> <location of reference csv file>
 3. Location of reference csv file, this file includes information of barcodes used for each plate and the DNA sequence used for reference for each plate
 
 #### Optional Arguments
---skip\_demultiplexing If enabled, demultiplexing step will be skipped
---skip\_variantcalling If enabled, variant valling step will be skipped
+--skip\_demultiplexing If enabled, demultiplexing step will be skipped 
+
+--skip\_variantcalling If enabled, variant valling step will be skipped 
+
 --output Save location for output, if not provided default to where the program is executed
+
 --show\_msa Showing multiple sequence alignment for each well
 
 ### Docker Installation (Recommended for full pipeline)  
