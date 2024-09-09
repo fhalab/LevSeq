@@ -39,30 +39,40 @@ We aimed to make LevSeq as simple to use as possible, this means you should be a
 
 Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
 
-Installation via pip:
+#### Installing LevSeq
+
+We recommend using a conda environment for installation:
 
 ```
 conda create --name levseq python=3.10
+conda activate levseq
 ```
-From the LevSeq folder run:
+From the LevSeq folder, install the package using pip:
 ```
 pip install release/levseq-0.1.0.tar.gz
 ```
+### Usage
+#### Command Line Interface
+LevSeq can be run using the command line interface. Here's the basic structure of the command:
 
+```
+levseq <name> <location to data folder> <location of reference csv file>
+```
+#### Required Arguments
+1. Name of the experiment, this will be the name of the output folder
+2. Location of basecalled fastq files, this is the direct output from using the MinKnow software for sequencing
+3. Location of reference csv file, this file includes information of barcodes used for each plate and the DNA sequence used for reference for each plate
+
+#### Optional Arguments
+--skip\_demultiplexing If enabled, demultiplexing step will be skipped
+--skip\_variantcalling If enabled, variant valling step will be skipped
+--output Save location for output, if not provided default to where the program is executed
+--show\_msa Showing multiple sequence alignment for each well
+
+### Docker Installation (Recommended for full pipeline)  
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
 operating system (https://docs.docker.com/engine/install/).
 
-### Development
-
-To build the package via pip you need to run:
-```
-python setup.py sdist bdist_wheel
-```
-
-To then install locally:
-```
-pip install dist/levseq-0.1.0.tar.gz
-```
 
 To build the docker image run (within the main folder that contains the `Dockerfile`):
 
