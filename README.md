@@ -33,6 +33,14 @@ After sequencing, you can identify variants, demultiplex, and combine with your 
 
 We aimed to make LevSeq as simple to use as possible, this means you should be able to run it all using pip. However, if you have issues we recomend using the Docker instance!
 
+#### Installing LevSeq
+
+We recommend using a conda environment for installation:
+
+```
+conda create --name levseq python=3.10
+conda activate levseq
+```
 #### Dependencies 
 
 1. Samtools: https://www.htslib.org/download/ 
@@ -46,14 +54,6 @@ conda install minimap2
 
 Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
 
-#### Installing LevSeq
-
-We recommend using a conda environment for installation:
-
-```
-conda create --name levseq python=3.10
-conda activate levseq
-```
 From the LevSeq folder, install the package using pip:
 ```
 pip install release/levseq-0.1.0.tar.gz
