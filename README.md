@@ -99,31 +99,8 @@ demultiplexing and variant calling.
 
 In this command: `/Users/XXXX/Documents/LevSeq/data` is a folder on your computer, which contains a subfolder `20240502` 
 
-### Steps to rebuild the C++ executables
+### Issues and Troubleshooting
 
-This is to run the code locally, rather than via the docker instance, note this will be dependent on your computer and may not 
-function as above, we highly recomend using the docker version for this reason.
-
-### Mac intel chip
-To rebuild on mac move into the `source/source` folder and execute the following command:
-
-```
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/local/bin/gcc-13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-13 ../source
-```
-
-Note it expects c to be installed in `/usr/local/bin` if this is not the case on your machine you will need to update 
-accordingly. 
-
-After building you need to make the make file with the following command:
-
-```
-make -j
-```
-
-The demultiplex file should now function!
-
-### Issues
-
-If you have any issues, please post an issue! We're trying to make this as user friendly as possible but there may still be issues. 
+If you have any issues, please check the LevSeq\_error.log find in the output direectory and report the issue. If the problem persists, please open an issue on the GitHub repository with the error details.
 
 If you solve something code wise, submit a pull request! We would love community input.
