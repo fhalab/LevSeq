@@ -36,7 +36,13 @@ We aimed to make LevSeq as simple to use as possible, this means you should be a
 #### Dependencies 
 
 1. Samtools: https://www.htslib.org/download/ 
+```
+conda install samtools
+```
 2. Minimap2: https://github.com/lh3/minimap2
+```
+conda install minimap2
+```
 
 Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
 
