@@ -38,7 +38,7 @@ We aimed to make LevSeq as simple to use as possible, this means you should be a
 We recommend using command line interface(Terminal) and a conda environment for installation:
 ```
 git clone https://github.com/fhalab/LevSeq.git
-conda create --name levseq python=3.10
+conda create --name levseq python=3.8
 conda activate levseq
 ```
 #### Dependencies 
