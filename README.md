@@ -41,6 +41,10 @@ git clone https://github.com/fhalab/LevSeq.git
 conda create --name levseq python=3.8
 conda activate levseq
 ```
+From the LevSeq folder, install the package using pip:
+```
+pip install releases/levseq-0.1.0.tar.gz
+```
 #### Dependencies 
 
 1. Samtools: https://www.htslib.org/download/ 
@@ -51,13 +55,8 @@ conda install -c bioconda -c conda-forge samtools
 ```
 conda install -c bioconda -c conda-forge minimap2
 ```
+Once dependencies are all installed, you can run LevSeq using command line.
 
-Once these are installed, you can install levSeq via pip, available as a release tar.gz file.
-
-From the LevSeq folder, install the package using pip:
-```
-pip install release/levseq-0.1.0.tar.gz
-```
 ### Usage
 #### Command Line Interface
 LevSeq can be run using the command line interface. Here's the basic structure of the command:
