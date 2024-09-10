@@ -65,8 +65,8 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
-RUN conda create --name minion2 python=3.9.18
-RUN echo "source activate minion2" > ~/.bashrc
+RUN conda create --name levseq python=3.8
+RUN echo "source activate levseq" > ~/.bashrc
 RUN conda install -c conda-forge h5py
 RUN pip install -r requirements.txt
 # Install all the software
@@ -145,6 +145,7 @@ WORKDIR /
 
 # Copy the binary from build-demultiplex stage
 COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/demultiplex
+RUN source activate levseq
 
 # Create the wheel
 RUN python setup.py sdist bdist_wheel
