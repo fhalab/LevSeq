@@ -112,6 +112,6 @@ setup(name='levseq',
                         'scikit-learn',
                         'statsmodels',
                         'tqdm'],
-      python_requires='>=3.8',
+      python_requires='==3.8',
       data_files=[("", ["LICENSE"])]
       )
