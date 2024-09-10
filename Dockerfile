@@ -1,4 +1,22 @@
-FROM ubuntu:latest
+FROM ubuntu:latest AS build-demultiplex
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc-13 \
+    g++-13 \
+    cmake \
+    git \
+    zlib1g-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /demultiplex
+
+COPY source/source .
+
+RUN find . -name "CMakeCache.txt" -delete && cmake . && make -j
+
+FROM ubuntu:latest AS dependencies
 # Do the usual things
 RUN apt-get update
 RUN apt-get install -y build-essential
@@ -48,7 +66,7 @@ RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
 RUN conda create --name minion2 python=3.9.18
-RUN activate minion2
+RUN echo "source activate minion2" > ~/.bashrc
 RUN conda install -c conda-forge h5py
 RUN pip install -r requirements.txt
 # Install all the software
@@ -116,13 +134,6 @@ RUN tar -xvjf /software/minimap2-2.24.tar.bz2 -C /software
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
 RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 
-# Install minION via pip and remove these two steps
-COPY dist/levseq-0.1.0.tar.gz /
-COPY dist/levseq-0.1.0-py3-none-any.whl /
-
-# Add in some sample data ToDo.!
-RUN pip install levseq-0.1.0.tar.gz
-
 # Set an entry point to CLI for pipeline
 COPY levseq /levseq
 COPY setup.py /
@@ -130,7 +141,16 @@ COPY README.md /
 COPY LICENSE /
 RUN mkdir /source
 COPY source /source
-RUN apt install g++ build-essential
 WORKDIR /
+
+# Copy the binary from build-demultiplex stage
+COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/demultiplex
+
+# Create the wheel
+RUN python setup.py sdist bdist_wheel
+
+# Install
+RUN pip install dist/levseq-0.1.0.tar.gz
 RUN python setup.py install
+
 ENTRYPOINT ["levseq"]

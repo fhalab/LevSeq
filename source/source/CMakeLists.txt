@@ -3,7 +3,10 @@ cmake_minimum_required (VERSION 3.14)
 project (my_app LANGUAGES CXX VERSION 1.0.0)
  
 set (seqan3_git_tag "3.3.0") # adapt as needed, e.g. "3.2.0" or "master"
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY /Users/ariane/Documents/code/MinION/source/source)
+
+# Place binaries in a bin/ folder inside the build directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 message (STATUS "Fetching SeqAn3 ${seqan3_git_tag}:")
  
 include (FetchContent)
