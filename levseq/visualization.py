@@ -75,13 +75,13 @@ hv.extension("bokeh")
 hv.renderer("bokeh").webgl = True
 
 # warnings.filterwarnings("ignore")
-warnings.filterwarnings("ignore", category=Warning)
+#warnings.filterwarnings("ignore", category=Warning)
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
+#with warnings.catch_warnings():
+#    warnings.simplefilter("ignore")
 
 # Redirect stderr to devnull to suppress any remaining output
-sys.stderr = open(os.devnull, "w")
+#sys.stderr = open(os.devnull, "w")
 
 ######## Define constants for MSA alignments ########
 
