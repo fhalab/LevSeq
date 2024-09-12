@@ -13,7 +13,7 @@ matplotlib
 ninetysix
 numpy
 pandas
-panel==1.4.4
+panel==1.2.3
 pybedtools
 pycoQC
 pyfaidx

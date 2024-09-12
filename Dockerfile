@@ -53,7 +53,6 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     fi && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda
 
-
 ENV PATH=$CONDA_DIR/bin:$PATH
 # -c conda-forge r-base
 COPY requirements.txt requirements.txt
@@ -66,18 +65,20 @@ RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
 RUN conda create --name levseq python=3.8
+# Add levseq to the path
+ENV PATH="/opt/conda/envs/levseq/bin:$PATH"
 RUN echo "source activate levseq" > ~/.bashrc
-RUN conda install -c conda-forge h5py
-RUN pip install -r requirements.txt
+RUN source activate levseq && conda install -c conda-forge h5py
+RUN source activate levseq && pip install -r requirements.txt
 # Install all the software
 COPY software /software
 
 # This will just make it easy to debug since then we can run stuff from the notebook
-RUN pip install notebook
+RUN source activate levseq && pip install notebook
 
 # install pycoQC which is a quality control for basecalled files
 # https://a-slide.github.io/pycoQC/installation/
-RUN pip install pycoQC
+RUN source activate levseq && pip install pycoQC
 
 # Download the required software packages using wget
 RUN wget -O /software/htslib-1.15.1.tar.bz2 https://github.com/samtools/htslib/releases/download/1.15.1/htslib-1.15.1.tar.bz2
@@ -102,15 +103,15 @@ WORKDIR /
 
 # Add folder that we'll output data to
 # COPY docker_data /docker_data
-RUN mkdir /minION_results
+RUN mkdir /levseq_results
 
 # Add to paths
 RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/minimap2:$PATH"
 
 # Install for demultiplexing
-RUN conda install conda-forge::gcc=13.1
-RUN conda install conda-forge::gxx
-RUN apt install gcc
+RUN source activate levseq && conda install conda-forge::gcc=13.1
+RUN source activate levseq && conda install conda-forge::gxx
+RUN source activate levseq && apt install gcc
 # Avoid prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -137,6 +138,7 @@ RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 # Set an entry point to CLI for pipeline
 COPY levseq /levseq
 COPY setup.py /
+COPY MANIFEST.in /
 COPY README.md /
 COPY LICENSE /
 RUN mkdir /source
@@ -145,13 +147,14 @@ WORKDIR /
 
 # Copy the binary from build-demultiplex stage
 COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/demultiplex
-RUN source activate levseq
 
 # Create the wheel
-RUN python setup.py sdist bdist_wheel
+RUN source activate levseq && python setup.py sdist bdist_wheel
 
 # Install
-RUN pip install dist/levseq-0.1.0.tar.gz
-RUN python setup.py install
+RUN source activate levseq && pip install dist/levseq-0.1.0.tar.gz
 
-ENTRYPOINT ["levseq"]
+# Add entry point script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh", "levseq"]
