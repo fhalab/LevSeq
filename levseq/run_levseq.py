@@ -226,7 +226,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
     # Choose the appropriate executable based on the architecture
     if system_architecture == 'arm64':
-        executable_name = "demultiplex-arm64-gcc12"
+        executable_name = "demultiplex"
     elif system_architecture == 'aarch64':
         executable_name = "demultiplex"
     elif system_architecture == 'x86_64':
