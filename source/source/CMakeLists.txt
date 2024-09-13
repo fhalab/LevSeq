@@ -6,7 +6,7 @@ set (seqan3_git_tag "3.3.0") # adapt as needed, e.g. "3.2.0" or "master"
 
 # Place binaries in a bin/ folder inside the build directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -flto")
 message (STATUS "Fetching SeqAn3 ${seqan3_git_tag}:")
  
 include (FetchContent)

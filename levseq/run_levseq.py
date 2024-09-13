@@ -226,7 +226,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
     # Choose the appropriate executable based on the architecture
     if system_architecture == 'arm64':
-        executable_name = "demultiplex"
+        executable_name = "demultiplex-arm64"
     elif system_architecture == 'aarch64':
         executable_name = "demultiplex"
     elif system_architecture == 'x86_64':
@@ -252,7 +252,6 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     seq_max = 5000
 
     # Use subprocess to run the executable
-    hard_path = 'levseq/barcoding/demultiplex'
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)
 
