@@ -1,18 +1,31 @@
-FROM gcc:13.2.0 AS build-demultiplex
+FROM ubuntu:latest AS build-demultiplex
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     cmake \
+    gcc-13 \
+    g++-13 \
     git \
     zlib1g-dev \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Set GCC 13 as the default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
 WORKDIR /demultiplex
 
 COPY source/source .
 
-RUN find . -name "CMakeCache.txt" -delete && cmake . && make -j
+# Use CMake with Release flag and specify the C and C++ compilers
+RUN find . -name "CMakeCache.txt" -delete \
+    && cmake -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_COMPILER=gcc-13 \
+             -DCMAKE_CXX_COMPILER=g++-13 \
+             . \
+    && make -j
+
 
 FROM ubuntu:latest AS dependencies
 # Do the usual things
@@ -150,7 +163,7 @@ COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/dem
 RUN source activate levseq && python setup.py sdist bdist_wheel
 
 # Install
-RUN source activate levseq && pip install dist/levseq-0.1.0.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.0.0.tar.gz
 
 # Add entry point script
 COPY entrypoint.sh /usr/local/bin/
