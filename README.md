@@ -70,7 +70,15 @@ conda install -c bioconda -c conda-forge minimap2
 ```
 or for mac users you can use: `brew install minimap2`
 Once dependencies are all installed, you can run LevSeq using command line.
-
+3. GCC
+For Mac M1 users: installation via homebrew
+```
+brew install gcc
+```
+For Linux users: installation via conda 
+```
+conda install conda-forge::gcc
+```
 ### Usage
 #### Command Line Interface
 LevSeq can be run using the command line interface. Here's the basic structure of the command:

@@ -1,9 +1,7 @@
-FROM ubuntu:latest AS build-demultiplex
+FROM gcc:13.2.0 AS build-demultiplex
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc-13 \
-    g++-13 \
     cmake \
     git \
     zlib1g-dev \
