@@ -409,9 +409,17 @@ def create_nc_variant(variant, refseq):
         return "".join(nc_variant)
 
 
+def is_valid_dna_sequence(sequence):
+    return all(nucleotide in 'ATGC' for nucleotide in sequence) and len(sequence) % 3 == 0
+
 def get_mutations(row):
     try:
-        refseq_aa = translate(row["refseq"])
+        refseq = row["refseq"]
+        
+        if not is_valid_dna_sequence(refseq):
+            return "Invalid refseq provided, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted."
+
+        refseq_aa = translate(refseq)
         variant_aa = row["aa_variant"]
         alignment_count = row["Alignment Count"]
 
@@ -436,9 +444,8 @@ def get_mutations(row):
         logging.error(
             "Translation to amino acids failed, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted.",
             exc_info=True,
-        )
+        )   
         raise
-
 
 # Process the summary file
 def process_ref_csv(cl_args):
@@ -452,7 +459,7 @@ def process_ref_csv(cl_args):
     else:
         variant_df = pd.DataFrame(
             columns=["barcode_plate", "name", "refseq", "variant"]
-        )
+       )
     for i, row in ref_df.iterrows():
         barcode_plate = row["barcode_plate"]
         name = row["name"]
