@@ -16,7 +16,7 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 \
 
 WORKDIR /demultiplex
 
-COPY source/source .
+COPY executable/source .
 
 # Use CMake with Release flag and specify the C and C++ compilers
 RUN find . -name "CMakeCache.txt" -delete \
@@ -152,8 +152,8 @@ COPY setup.py /
 COPY MANIFEST.in /
 COPY README.md /
 COPY LICENSE /
-RUN mkdir /source
-COPY source /source
+RUN mkdir /executable
+COPY executable /executable
 WORKDIR /
 
 # Copy the binary from build-demultiplex stage
