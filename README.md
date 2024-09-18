@@ -8,7 +8,7 @@ Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore tech
 
 - Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
 
-- A dockerized website and database for labs to locally host and visualize their data: https://github.com/fhalab/LevSeq_VDB/
+- A dockerized website and database for labs to locally host and visualize their data: website is available at: https://levseq.caltech.edu/ and code to host locally at: https://github.com/fhalab/LevSeq_VDB/
 
 ## Setup
 
@@ -44,7 +44,7 @@ git clone https://github.com/fhalab/LevSeq.git
 ```
 
 ```
-conda create --name levseq python=3.8
+conda create --name levseq python=3.8 -y
 ```
 
 ```
@@ -54,7 +54,7 @@ conda activate levseq
 From the LevSeq folder, install the package using pip:
 
 ```
-pip install releases/levseq-0.1.0.tar.gz
+pip install levseq
 ```
 #### Dependencies 
 
@@ -79,6 +79,7 @@ For Linux users: installation via conda
 ```
 conda install conda-forge::gcc
 ```
+
 ### Usage
 #### Command Line Interface
 LevSeq can be run using the command line interface. Here's the basic structure of the command:
