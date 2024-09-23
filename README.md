@@ -73,7 +73,7 @@ Once dependencies are all installed, you can run LevSeq using command line.
 3. GCC
 For Mac M1 users: installation via homebrew
 ```
-brew install gcc
+brew install gcc@13
 ```
 For Linux users: installation via conda 
 ```
