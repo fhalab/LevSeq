@@ -70,14 +70,16 @@ conda install -c bioconda -c conda-forge minimap2
 ```
 or for mac users you can use: `brew install minimap2`
 Once dependencies are all installed, you can run LevSeq using command line.
-3. GCC
-For Mac M1 users: installation via homebrew
+3. GCC version 13 and 14 are both needed
+For Mac M chip users: installation via homebrew
 ```
+brew install gcc@14
 brew install gcc@13
 ```
 For Linux users: installation via conda 
 ```
-conda install conda-forge::gcc
+conda install conda-forge::gcc=14
+conda install conda-forge::gcc=13
 ```
 
 ### Usage
