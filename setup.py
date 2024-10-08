@@ -82,6 +82,7 @@ setup(name='levseq',
           'levseq.barcoding': [
               'minion_barcodes.fasta',
               'demultiplex',
+              'demultiplex-arm64'
               'demultiplex-x86',
           ],
       },

@@ -16,9 +16,9 @@
 ###############################################################################
 
 __title__ = 'levseq'
-__description__ = 'MinION evseq Long caller'
-__url__ = 'https://github.com/fhalab/MinION/'
-__version__ = '0.1.0'
+__description__ = 'LevSeq nanopore sequencing'
+__url__ = 'https://github.com/fhalab/levseq/'
+__version__ = '1.0.0'
 __author__ = 'Yueming Long, Emreay Gursoy, Ariane Mora'
 __author_email__ = 'ylong@caltech.edu'
 __license__ = 'GPL3'

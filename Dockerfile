@@ -1,5 +1,33 @@
-FROM ubuntu:latest
+FROM ubuntu:latest AS build-demultiplex
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    gcc-13 \
+    g++-13 \
+    git \
+    zlib1g-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set GCC 13 as the default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+WORKDIR /demultiplex
+
+COPY executable/source .
+
+# Use CMake with Release flag and specify the C and C++ compilers
+RUN find . -name "CMakeCache.txt" -delete \
+    && cmake -DCMAKE_BUILD_TYPE=Release \
+             -DCMAKE_C_COMPILER=gcc-13 \
+             -DCMAKE_CXX_COMPILER=g++-13 \
+             . \
+    && make -j
+
+
+FROM ubuntu:latest AS dependencies
 # Do the usual things
 RUN apt-get update
 RUN apt-get install -y build-essential
@@ -36,7 +64,6 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     fi && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda
 
-
 ENV PATH=$CONDA_DIR/bin:$PATH
 # -c conda-forge r-base
 COPY requirements.txt requirements.txt
@@ -48,19 +75,21 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
-RUN conda create --name minion2 python=3.9.18
-RUN activate minion2
-RUN conda install -c conda-forge h5py
-RUN pip install -r requirements.txt
+RUN conda create --name levseq python=3.8
+# Add levseq to the path
+ENV PATH="/opt/conda/envs/levseq/bin:$PATH"
+RUN echo "source activate levseq" > ~/.bashrc
+RUN source activate levseq && conda install -c conda-forge h5py
+RUN source activate levseq && pip install -r requirements.txt
 # Install all the software
 COPY software /software
 
 # This will just make it easy to debug since then we can run stuff from the notebook
-RUN pip install notebook
+RUN source activate levseq && pip install notebook
 
 # install pycoQC which is a quality control for basecalled files
 # https://a-slide.github.io/pycoQC/installation/
-RUN pip install pycoQC
+RUN source activate levseq && pip install pycoQC
 
 # Download the required software packages using wget
 RUN wget -O /software/htslib-1.15.1.tar.bz2 https://github.com/samtools/htslib/releases/download/1.15.1/htslib-1.15.1.tar.bz2
@@ -85,22 +114,19 @@ WORKDIR /
 
 # Add folder that we'll output data to
 # COPY docker_data /docker_data
-RUN mkdir /minION_results
+RUN mkdir /levseq_results
 
 # Add to paths
 RUN export PATH="/htslib-1.15.1:/bcftools-1.15.1:/samtools-1.15.1:/software/minimap2:$PATH"
 
 # Install for demultiplexing
-RUN conda install conda-forge::gcc=13.1
-RUN conda install conda-forge::gxx
-RUN apt install gcc
+RUN source activate levseq && conda install conda-forge::gcc=13.1
+RUN source activate levseq && conda install conda-forge::gxx
+RUN source activate levseq && apt install gcc
 # Avoid prompts from apt
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install tzdata package
-RUN apt-get update && \
-    apt-get clean
-        
 RUN apt-get update && apt-get install -y tzdata
 
 # Set your timezone
@@ -120,21 +146,26 @@ RUN tar -xvjf /software/minimap2-2.24.tar.bz2 -C /software
 # For some reason it's not wanting to play nice so gonna just do it the ugly way...
 RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 
-# Install minION via pip and remove these two steps
-COPY dist/levseq-0.1.0.tar.gz /
-COPY dist/levseq-0.1.0-py3-none-any.whl /
-
-# Add in some sample data ToDo.!
-RUN pip install levseq-0.1.0.tar.gz
-
 # Set an entry point to CLI for pipeline
 COPY levseq /levseq
 COPY setup.py /
+COPY MANIFEST.in /
 COPY README.md /
 COPY LICENSE /
-RUN mkdir /source
-COPY source /source
-RUN apt install g++ build-essential
+RUN mkdir /executable
+COPY executable /executable
 WORKDIR /
-RUN python setup.py install
-ENTRYPOINT ["levseq"]
+
+# Copy the binary from build-demultiplex stage
+COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/demultiplex
+
+# Create the wheel
+RUN source activate levseq && python setup.py sdist bdist_wheel
+
+# Install
+RUN source activate levseq && pip install dist/levseq-1.0.0.tar.gz
+
+# Add entry point script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh", "levseq"]

@@ -62,16 +62,71 @@ def barcode_user(cl_args, i):
         logging.error("Demultiplex failed to execute for index {i}.", exc_info=True)
         raise
 
+# Split fastq file into 4000 reads per chunk
+def split_fastq_file(fastq_file: Path, output_dir: Path, reads_per_file: int):
+    """
+    Splits a FASTQ file into multiple files, each containing up to a specified number of reads.
+    
+    Parameters:
+    - fastq_file (Path): The input FASTQ file to be split.
+    - output_dir (Path): The directory where the split files will be saved.
+    - reads_per_file (int): The number of reads per output file.
+    """
+    try:
+        with open(fastq_file, "rt") as handle:
+            record_iter = SeqIO.parse(handle, "fastq")
+            file_count = 0
+            while True:
+                chunk = []
+                try:
+                    for _ in range(reads_per_file):
+                        chunk.append(next(record_iter))
+                except StopIteration:
+                    # End of the file reached
+                    if chunk:
+                        output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
+                        with open(output_file, "wt") as out_handle:
+                            SeqIO.write(chunk, out_handle, "fastq")
+                        logging.info(f"Created {output_file} with {len(chunk)} reads")
+                    break  # Exit the loop once we reach the end of the records
+                output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
+                with open(output_file, "wt") as out_handle:
+                    SeqIO.write(chunk, out_handle, "fastq")
+                logging.info(f"Created {output_file} with {len(chunk)} reads")
+                file_count += 1
+        
+        logging.info(f"Splitting complete for {fastq_file}. {file_count} parts created.")
+    except Exception as e:
+        logging.error(f"Failed to split FASTQ file {fastq_file}: {str(e)}", exc_info=True)
+        raise
 
-# Get fastq.gz files from user provided path, exclude any from fastq_fail
-def cat_fastq_files(folder_path: str, output_path: str):
+def cat_fastq_files(folder_path: str, output_path: str, reads_per_file: int = 4000):
+    """
+    Copies all .fastq and .fastq.gz files from the provided folder_path to the output_path.
+    If there's only one .fastq file, it will be split into smaller files of a specified number
+    of reads each.
+    
+    Parameters:
+    - folder_path (str): The path to the directory containing .fastq and .fastq.gz files.
+    - output_path (str): The path to the directory where the files should be copied or split.
+    - reads_per_file (int): The number of reads per output file when splitting a FASTQ file.
+    
+    Returns:
+    - str: The path to the output directory where the files were copied.
+    
+    Raises:
+    - ValueError: If the folder_path is not a valid directory or if no .fastq/.fastq.gz files are found.
+    - Exception: For any other errors that occur during file copying or splitting.
+    """
     try:
         folder_path = Path(folder_path)
         output_path = Path(output_path)
-        output_file = output_path
 
         if not folder_path.is_dir():
             raise ValueError(f"The provided path {folder_path} is not a valid directory")
+
+        if not output_path.exists():
+            output_path.mkdir(parents=True, exist_ok=True)
 
         # Find all fastq and fastq.gz files excluding those in fastq_fail folders
         fastq_files = []
@@ -84,29 +139,23 @@ def cat_fastq_files(folder_path: str, output_path: str):
         if not fastq_files:
             raise ValueError(f"No FASTQ files found in {folder_path}")
 
-        # If there's only one file and it's already gzipped, just copy it
-        if len(fastq_files) == 1 and fastq_files[0].suffix == '.gz':
-            shutil.copy(fastq_files[0], output_file)
-            logging.info(f"Single gzipped FASTQ file copied to {output_file}")
-            return str(output_file)
-
-        # Concatenate the fastq files
-        with gzip.open(output_file, "wb") as f_out:
+        # If there is only one FASTQ file, split it into smaller files
+        if len(fastq_files) == 1 and fastq_files[0].suffix == '.fastq':
+            logging.info(f"Splitting single FASTQ file into {reads_per_file} reads per file")
+            split_fastq_file(fastq_files[0], output_path, reads_per_file)
+        else:
+            # Copy each .fastq or .fastq.gz file to the output directory
             for fastq_file in fastq_files:
-                if fastq_file.suffix == '.gz':
-                    with gzip.open(fastq_file, "rb") as f_in:
-                        shutil.copyfileobj(f_in, f_out)
-                else:
-                    with open(fastq_file, "rb") as f_in:
-                        shutil.copyfileobj(f_in, f_out)
+                destination = output_path / fastq_file.name
+                shutil.copy(fastq_file, destination)
+                logging.info(f"Copied {fastq_file} to {destination}")
 
-        logging.info(f"Combined gzipped FASTQ file created successfully in {output_file}")
-        return str(output_file)
+        logging.info(f"All FASTQ files processed successfully to {output_path}")
+        return str(output_path)
 
     except Exception as e:
-        logging.error(f"Failed to create combined fastq file, veriry the input and output locations. An error occurred while processing FASTQ files: {str(e)}", exc_info=True)
+        logging.error(f"Failed to copy or split fastq files. An error occurred: {str(e)}", exc_info=True)
         raise
-
 
 # Create result folder
 def create_result_folder(cl_args: dict) -> str:
@@ -177,6 +226,8 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
 
     # Choose the appropriate executable based on the architecture
     if system_architecture == 'arm64':
+        executable_name = "demultiplex-arm64"
+    elif system_architecture == 'aarch64':
         executable_name = "demultiplex"
     elif system_architecture == 'x86_64':
         executable_name = "demultiplex-x86"
@@ -197,11 +248,10 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         raise FileNotFoundError(f"Executable not found: {executable_path}")
 
     # Get min and max sequence length if user specified, otherwise use default
-    seq_min = 800 
-    seq_max = 5000
+    seq_min = 100 
+    seq_max = 10000
 
     # Use subprocess to run the executable
-    hard_path = 'levseq/barcoding/demultiplex'
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)
 
@@ -359,9 +409,17 @@ def create_nc_variant(variant, refseq):
         return "".join(nc_variant)
 
 
+def is_valid_dna_sequence(sequence):
+    return all(nucleotide in 'ATGC' for nucleotide in sequence) and len(sequence) % 3 == 0
+
 def get_mutations(row):
     try:
-        refseq_aa = translate(row["refseq"])
+        refseq = row["refseq"]
+        
+        if not is_valid_dna_sequence(refseq):
+            return "Invalid refseq provided, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted."
+
+        refseq_aa = translate(refseq)
         variant_aa = row["aa_variant"]
         alignment_count = row["Alignment Count"]
 
@@ -386,14 +444,12 @@ def get_mutations(row):
         logging.error(
             "Translation to amino acids failed, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted.",
             exc_info=True,
-        )
+        )   
         raise
-
 
 # Process the summary file
 def process_ref_csv(cl_args):
     ref_df = pd.read_csv(cl_args["summary"])
-    # barcode_path = pd.read_csv(cl_args['barcode_path'])
 
     result_folder = create_result_folder(cl_args)
 
@@ -403,7 +459,7 @@ def process_ref_csv(cl_args):
     else:
         variant_df = pd.DataFrame(
             columns=["barcode_plate", "name", "refseq", "variant"]
-        )
+       )
     for i, row in ref_df.iterrows():
         barcode_plate = row["barcode_plate"]
         name = row["name"]
@@ -422,9 +478,8 @@ def process_ref_csv(cl_args):
         # Find fastq.gz files
         output_dir = Path(result_folder) / "basecalled_reads"
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = os.path.join(output_dir, f"basecalled.fastq.gz")
 
-        file_to_fastq = cat_fastq_files(cl_args.get("path"), output_file)
+        file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
 
         if not cl_args["skip_demultiplexing"]:
             demux_fastq(output_dir, name_folder, barcode_path)
@@ -445,8 +500,6 @@ def process_ref_csv(cl_args):
 
 
 # Run LevSeq
-
-
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     # Create output folder
     result_folder = create_result_folder(cl_args)

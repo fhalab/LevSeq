@@ -155,7 +155,7 @@ class VariantCaller:
         subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         # Remove SAM file
-        #os.remove(f"{output_dir}/{alignment_name}.sam")
+        os.remove(f"{output_dir}/{alignment_name}.sam")
 
     def _run_variant_thread(self, args):
         """
