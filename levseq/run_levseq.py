@@ -248,7 +248,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         raise FileNotFoundError(f"Executable not found: {executable_path}")
 
     # Get min and max sequence length if user specified, otherwise use default
-    seq_min = 100 
+    seq_min = 150 
     seq_max = 10000
 
     # Use subprocess to run the executable
