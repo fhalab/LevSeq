@@ -135,6 +135,19 @@ def _make_platemap(df, title, cmap=None):
 
     Called via `generate_platemaps`; see docs there.
     """
+    # Handle empty dataframe case
+    if df.empty:
+        # Create a dummy plot with a message
+        empty_df = pd.DataFrame({
+            'Row': list('ABCDEFGH'),
+            'Column': [str(i) for i in range(1, 13)],
+            'logseqdepth': [0] * 96,
+            'Mutations': [''] * 96,
+            'Alignment Count': [0] * 96,
+            'Alignment Probability': [0] * 96
+        })
+        df = empty_df
+
     # Convert SeqDepth to log for easier visualization.
     df["logseqdepth"] = np.log(
         df["Alignment Count"],
@@ -149,28 +162,30 @@ def _make_platemap(df, title, cmap=None):
     # Set some base opts
     opts = dict(invert_yaxis=True, title=title, show_legend=True)
 
-    # logseqdepth heatmap
-    seq_depth_cmap = list(reversed(cc.CET_D9))
-
-    # Set the center
-    center = np.log(10)
-
-    add_min = False
-    if df["logseqdepth"].min() >= center:
-        add_min = True
-
-    # Adjust if it is greater than max of data (avoids ValueError)
-    if df["logseqdepth"].max() <= center:
-        # Adjust the center
-        center = df["logseqdepth"].median()
-
-    # center colormap
-    if not add_min:
-        color_levels = ns.viz._center_colormap(df["logseqdepth"], center)
+    # Set the center and handle empty or zero-only data
+    if df["logseqdepth"].max() <= 0:
+        # For empty data, create minimal valid range
+        df["logseqdepth"] = 1  # Set to constant value
+        color_levels = [0.9, 1, 1.1]  # Create minimal valid range
+        seq_depth_cmap = ['#f7f7f7', '#f7f7f7']  # Use same color for uniform appearance
     else:
-        color_levels = ns.viz._center_colormap(
-            list(df["logseqdepth"]) + [np.log(1)], center
-        )
+        # Regular case with actual data
+        seq_depth_cmap = list(reversed(cc.CET_D9))
+        center = np.log(10)
+        add_min = False
+        
+        if df["logseqdepth"].min() >= center:
+            add_min = True
+
+        if df["logseqdepth"].max() <= center:
+            center = df["logseqdepth"].median()
+
+        if not add_min:
+            color_levels = ns.viz._center_colormap(df["logseqdepth"], center)
+        else:
+            color_levels = ns.viz._center_colormap(
+                list(df["logseqdepth"]) + [np.log(1)], center
+            )
 
     # Get heights
     n_rows = len(df["Row"].unique())
@@ -271,7 +286,9 @@ def _make_platemap(df, title, cmap=None):
 
     # Use in apply statement for residue labels
     def split_variant_labels(mutation_string):
-
+        if pd.isna(mutation_string) or mutation_string == '':
+            return ''
+            
         num_mutations = len(mutation_string.split("_"))
 
         if num_mutations > 4:
@@ -287,7 +304,7 @@ def _make_platemap(df, title, cmap=None):
 
     # Set the font size based on if #PARENT# is in a well and num of mutations
     max_num_mutations = _df["Labels"].apply(lambda x: len(x.split("\n"))).max()
-    has_parent = "#PARENT#" in _df["Labels"]
+    has_parent = "#PARENT#" in _df["Labels"].values
 
     if max_num_mutations > 3 or has_parent:
         label_fontsize = "8pt"
@@ -299,10 +316,12 @@ def _make_platemap(df, title, cmap=None):
         ["Column", "Row"],
         "Labels",
     ).opts(text_font_size=label_fontsize, **opts, text_color="#000000")
+    
     # return formatted final plot
     return (hm * boxes * labels).opts(
         frame_height=550, frame_width=550 * 3 // 2, border=50, show_legend=True
     )
+
 
 
 # Main function to return heatmap with or without alignment
