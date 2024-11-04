@@ -5,11 +5,11 @@ import numpy as np
 file_path = 'path_to_your_csv_file.csv'
 data = pd.read_csv(file_path)
 
-# Filter out rows with '*' or '-' in the "Mutations" column
-filtered_data = data[~data["Mutations"].str.contains(r"[*-]", na=False)]
+# Filter out rows with '*' or '-' in the "Substitutions" column
+filtered_data = data[~data["Substitutions"].str.contains(r"[*-]", na=False)]
 
 # Rename columns
-filtered_data = filtered_data.rename(columns={"Mutations": "Sample name", "Well": "Vial"})
+filtered_data = filtered_data.rename(columns={"Substitutions": "Sample name", "Well": "Vial"})
 
 # Group by plate and randomly select 8 'PARENT' rows per plate
 parent_data = filtered_data[filtered_data['Sample name'] == '#PARENT#']

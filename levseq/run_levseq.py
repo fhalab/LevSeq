@@ -315,8 +315,8 @@ def create_df_v(variants_df):
         df_variants_["nc_variant"] == "Deletion", "aa_variant"
     ] = "Deletion"
 
-    # Compare aa_variant with translated refseq and generate mutations column
-    df_variants_["Mutations"] = df_variants_.apply(get_mutations, axis=1)
+    # Compare aa_variant with translated refseq and generate Substitutions column
+    df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
 
     # Fill in empty empty values
     df_variants_["Alignment Probability"] = df_variants_[
@@ -324,10 +324,10 @@ def create_df_v(variants_df):
     ].fillna(0.0)
     df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
 
-    # Fill in Deletion into mutations Column
+    # Fill in Deletion into Substitutions Column
     for i in df_variants_.index:
         if df_variants_["nc_variant"].iloc[i] == "Deletion":
-            df_variants_.Mutations.iat[i] = df_variants_.Mutations.iat[i].replace(
+            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace(
                 "", "-"
             )
 
@@ -365,23 +365,23 @@ def create_df_v(variants_df):
             "Average mutation frequency",
             "P value",
             "P adj. value",
-            "Mutations",
+            "Substitutions",
             "nc_variant",
             "aa_variant",
         ]
     ]
-    # Set 'Mutations' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
+    # Set 'Substitutions' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
     restructured_df.loc[
-        restructured_df["Alignment Count"] < 6, ["Mutations", "Variant"]
+        restructured_df["Alignment Count"] < 6, ["Substitutions", "Variant"]
     ] = "#N.A.#"
     df_variants_.loc[
-        df_variants_["Alignment Count"] < 6, ["Mutations", "Variant"]
+        df_variants_["Alignment Count"] < 6, ["Substitutions", "Variant"]
     ] = "#N.A.#"
     restructured_df.loc[
-        restructured_df["Mutations"] == "#PARENT#", ["Alignment Probability"]
+        restructured_df["Substitutions"] == "#PARENT#", ["Alignment Probability"]
     ] = 1.0
     df_variants_.loc[
-        df_variants_["Mutations"] == "#PARENT#", ["Alignment Probability"]
+        df_variants_["Substitutions"] == "#PARENT#", ["Alignment Probability"]
     ] = 1.0
 
     return restructured_df, df_variants_
