@@ -1,0 +1,66 @@
+# This file may be used to create an environment for alignment visualiztion using:
+# platform: linux-64
+# conda env update --file LevSeq.yml --prune
+# test levseq pipeline python3 -m levseq.cmd MSA-240818-JR-F2 /var/lib/minknow/data/20240818_JR-SSM-MoPho-LZQ-F2/ /home/longy/20240819_CBR-ref.csv
+
+name: LevSeq
+channels:
+  - pyviz
+  - bioconda
+  - conda-forge
+  - salilab
+  - defaults
+dependencies:
+  - python=3.11
+  - biopandas
+  - biopython
+  - bokeh
+  - cairosvg
+  - firefox
+  - flake8
+  - fsspec
+  - geckodriver
+  - h5py
+  - holoviews
+  - hvplot
+  - ipykernel
+  - ipympl
+  - ipywidgets
+  - jupyter_bokeh
+  - jupyterlab
+  - logomaker
+  - mafft
+  - matplotlib
+  - mappy
+  - minimap2
+  - muscle
+  - notebook
+  - numpy
+  - pandas
+  - panel=1.4.4
+  - pillow
+  - pip
+  - plotly
+  - pybedtools
+  - pycoQC
+  - pyfaidx
+  - pymsaviz
+  - pyparsing
+  - pysam
+  - python-wget
+  - pyviz_comms
+  - pyyaml
+  - samtools
+  - scikit-learn
+  - scipy
+  - seaborn
+  - selenium
+  - seqtk
+  - statsmodels
+  - tqdm
+
+  - pip:
+    - blackcellmagic
+    - chai_lab
+    - ninetysix
+    - sciutil
