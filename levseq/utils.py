@@ -220,51 +220,45 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """
     rows_all = []
-    try:
-        bam = pysam.AlignmentFile(bam_file_path, "rb")
-        # Ensure the BAM file is indexed
-        if not os.path.exists(bam_file_path + ".bai"):
-            pysam.index(bam_file_path)
+    bam = pysam.AlignmentFile(bam_file_path, "rb")
+    # Ensure the BAM file is indexed
+    if not os.path.exists(bam_file_path + ".bai"):
+        pysam.index(bam_file_path)
 
-        cramHeader = bam.header.to_dict()
-        rows_all = []
-        seqs = []
-        read_ids = []
-        read_quals = []
+    cramHeader = bam.header.to_dict()
+    rows_all = []
+    seqs = []
+    read_ids = []
+    read_quals = []
 
-        for read in bam.fetch(until_eof=True):
-            if read.query_sequence is not None and len(read.query_sequence) > 0.9*len(ref_str) and read.cigartuples is not None:
-                seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
-                                                        read.query_qualities)
-                # Make it totally align
-                seq = "-" * read.reference_start + seq + "-" * (len(ref_str) - (read.reference_start + len(seq)))
-                seqs.append(seq)
-                #seqs.append(read.query_sequence)
-                read_ids.append(f'{read.query_name}')
-                read_quals.append(read.qual)
+    for read in bam.fetch(until_eof=True):
+        if read.query_sequence is not None and len(read.query_sequence) > 0.9*len(ref_str) and read.cigartuples is not None:
+            seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
+                                                    read.query_qualities)
+            # Make it totally align
+            seqs.append(read.query_sequence)
+            read_ids.append(f'{read.query_name}')
+            read_quals.append(read.qual)
 
-        # Check if we want to write a MSA
-        if msa_path is not None:
-            print("Writing MSA")
-            with open(msa_path, 'w+') as fout:
-                # Write the reference first
-                fout.write(f'>{parent_name}\n{ref_str}\n')
-                for i, seq in enumerate(seqs):
-                    fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
-            # # Align using clustal for debugging if you need the adapter! Here you would change above to use a different version
-            # print(f'/Users/ariane/Documents/code/MinION/software/./clustal-omega-1.2.3-macosx --force -i {msa_path} -o {msa_path.replace(".fa", "_msa.fa")}')
-            # os.system(f'/Users/ariane/Documents/code/MinION/software/./clustal-omega-1.2.3-macosx --force -i "{msa_path}" -o "{msa_path.replace(".fa", "_msa.fa")}"')
-            # seqs = [str(record.seq) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
-            # read_ids = [str(record.id) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
-        # Again check that we actually had enough reads for this to be considered a good well
-        if len(seqs) > min_coverage:
-            seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
-            # Seqs[0] is always the parent
-            rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
-
-        bam.close()
-    except:
-        print(bam_file_path, 'EMPTY')
+    # Check if we want to write a MSA
+    if msa_path is not None:
+        print("Writing MSA")
+        with open(msa_path, 'w+') as fout:
+            # Write the reference first
+            fout.write(f'>{parent_name}\n{ref_str}\n')
+            for i, seq in enumerate(seqs):
+                fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
+        # Align using clustal for debugging if you need the adapter! Here you would change above to use a different version
+        os.system(f'clustal-omega --force -i "{msa_path}" -o "{msa_path.replace(".fa", "_msa.fa")}"')
+        seqs = [str(record.seq) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
+        read_ids = [str(record.id) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
+    # Again check that we actually had enough reads for this to be considered a good well
+    if len(seqs) > min_coverage:
+        seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
+        # Seqs[0] is always the parent
+        ref_str = seqs[0]
+        rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
+    bam.close()
 
     if len(rows_all) > 1:  # Check if we have anything to return
         seq_df = pd.DataFrame(rows_all)
