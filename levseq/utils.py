@@ -471,4 +471,3 @@ def get_variant_label_for_well(seq_df, threshold):
         combined_p_value = float("nan")
 
     return label, probability, combined_p_value, mixed_well
-
