@@ -2,6 +2,7 @@ Bio
 biopandas
 biopython
 bokeh
+chai_lab
 fsspec
 h5py
 holoviews
