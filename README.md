@@ -49,6 +49,7 @@ conda create --name levseq python=3.8 -y
 
 ```
 conda activate levseq
+conda install bioconda::clustalo
 ```
 
 From the LevSeq folder, install the package using pip:
