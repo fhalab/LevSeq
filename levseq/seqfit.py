@@ -31,7 +31,7 @@ import torch.nn as nn
 from chai_lab.chai1 import run_inference
 
 # Enable Bokeh to display plots in the notebook
-hv.extension('bokeh')
+hv.extension("bokeh")
 pn.extension()
 output_notebook()
 
@@ -59,6 +59,7 @@ AA_DICT = {
     "Tyr": "Y",
     "Ter": "*",
 }
+
 
 def checkNgen_folder(folder_path: str) -> str:
 
@@ -241,6 +242,7 @@ def process_mutation(mutation: str) -> pd.Series:
 
     return pd.Series([num_sites, details])
 
+
 def prep_single_ssm(df: pd.DataFrame) -> pd.DataFrame:
     """
     Prepare the data for a single sitessm summary plot.
@@ -270,7 +272,10 @@ def prep_single_ssm(df: pd.DataFrame) -> pd.DataFrame:
 
     return single_ssm_df
 
-def get_single_ssm_site_df(single_ssm_df: pd.DataFrame, parent: str, site: str) -> pd.DataFrame:
+
+def get_single_ssm_site_df(
+    single_ssm_df: pd.DataFrame, parent: str, site: str
+) -> pd.DataFrame:
     """
     Get the single site SSM data for a given site with appended parent data.
 
@@ -309,6 +314,7 @@ def get_single_ssm_site_df(single_ssm_df: pd.DataFrame, parent: str, site: str) 
     # now merge the two dataframes
     return pd.concat([site_parent_df, site_df]).reset_index(drop=True).copy()
 
+
 def prep_aa_order(df: pd.DataFrame, add_na: bool = False) -> pd.DataFrame:
     """
     Prepare the data for a single sitessm summary plot.
@@ -322,14 +328,12 @@ def prep_aa_order(df: pd.DataFrame, add_na: bool = False) -> pd.DataFrame:
 
     # Define the order of x-axis categories
     x_order = list(AA_DICT.values())
-    
+
     if add_na:
         x_order += ["#N.A.#"]
 
     # Convert `Mutations` to a categorical column with specified order
-    df["mut_aa"] = pd.Categorical(
-        df["mut_aa"], categories=x_order, ordered=True
-    )
+    df["mut_aa"] = pd.Categorical(df["mut_aa"], categories=x_order, ordered=True)
 
     # Sort by the `x_order`, filling missing values
     return (
@@ -337,6 +341,7 @@ def prep_aa_order(df: pd.DataFrame, add_na: bool = False) -> pd.DataFrame:
         .reset_index(drop=True)
         .copy()
     )
+
 
 def get_parent2sitedict(df: pd.DataFrame) -> dict:
 
@@ -353,7 +358,8 @@ def get_parent2sitedict(df: pd.DataFrame) -> dict:
 
     site_dict = deepcopy(
         df[["Parent_Name", "parent_aa_loc"]]
-        .drop_duplicates().dropna()
+        .drop_duplicates()
+        .dropna()
         .groupby("Parent_Name")["parent_aa_loc"]
         .apply(list)
         .to_dict()
@@ -382,7 +388,7 @@ def get_y_label(y: str):
     elif y == "fitness_ee1/(ee1+ee2)":
         clean_y = "ee1/(ee1+ee2)"
     else:
-        clean_y=  y
+        clean_y = y
 
     # normalize the y label
     if "norm" in y.lower():
@@ -430,7 +436,7 @@ def plot_bar_point(
             [y, "Plate", "Well"],
         ).opts(color="orange", size=10, alpha=1, tools=["hover"])
         return bars * points * max_points
-    
+
     else:
         return bars * points
 
@@ -509,7 +515,9 @@ def plot_single_ssm_avg(
     - df: DataFrame containing mutation data.
     """
 
-    sliced_df = prep_aa_order(single_ssm_df[single_ssm_df["Parent_Name"] == parent_name].copy())
+    sliced_df = prep_aa_order(
+        single_ssm_df[single_ssm_df["Parent_Name"] == parent_name].copy()
+    )
 
     height = max(30 * sliced_df["site_numb"].nunique(), 160)
 
@@ -644,9 +652,9 @@ def get_chaistructure(
 
     # only rerun if the flag is set and the output folder doies not exists
     if ifrerun or not os.path.exists(output_subdir):
-        
+
         output_subdir = Path(checkNgen_folder(output_subdir))
-            
+
         fasta_path = Path(f"{output_subdir}/{seq_name}.fasta")
         fasta_path.write_text(input_fasta)
 
@@ -664,17 +672,16 @@ def get_chaistructure(
         renamed_output_files = []
 
         # get name of the output cif or pdb files
-        output_strcut_files = sorted(glob(f"{output_subdir}/*.cif") + glob(
-            f"{output_subdir}/*.pdb"
-        ))
+        output_strcut_files = sorted(
+            glob(f"{output_subdir}/*.cif") + glob(f"{output_subdir}/*.pdb")
+        )
 
         # rename the output files cif or pdb files
         for output_strcut_file in output_strcut_files:
-            renamed_output_file = output_strcut_file.replace(
-                "pred.model_idx", seq_name
-            )
+            renamed_output_file = output_strcut_file.replace("pred.model_idx", seq_name)
             os.rename(
-                output_strcut_file, renamed_output_file # output_strcut_file.replace("pred.model_idx", seq_name)
+                output_strcut_file,
+                renamed_output_file,  # output_strcut_file.replace("pred.model_idx", seq_name)
             )
             renamed_output_files.append(renamed_output_file)
 
@@ -688,10 +695,11 @@ def get_chaistructure(
                 "scores.model_idx", seq_name
             )
             os.rename(
-                output_scores_file, renamed_output_file # output_scores_file.replace("scores.model_idx", seq_name)
+                output_scores_file,
+                renamed_output_file,  # output_scores_file.replace("scores.model_idx", seq_name)
             )
             renamed_scores_files.append(renamed_output_file)
-    
+
     else:
         renamed_output_files = glob(f"{output_subdir}/*.cif") + glob(
             f"{output_subdir}/*.pdb"
@@ -787,9 +795,187 @@ def export_structure_as_html(
     return output_path
 
 
+def gen_seqfitvis(
+    seqfit_path: str,
+    output_dir: str = "",
+    protein_chain: str = "A",
+    chai_meta_data={
+        "smiles": "",
+        "smiles_name": "",
+        "cofactor_smiles": "",
+        "cofactor_name": "",
+        "joinsubcofactor": True,
+        "torch_device": "cuda",
+        "ifrerun": False,
+    },
+):
+
+    # normalized per plate to parent
+
+    df = pd.read_csv(seqfit_path)
+    # ignore deletion meaning "Mutations" == "-"
+    df = df[df["Mutations"] != "-"].copy()
+    # count number of sites mutated and append mutation details
+    # df["num_sites"] = df['Mutations'].apply(lambda x: 0 if x == "#PARENT#" else len(x.split("_")))
+
+    # Apply function to the column
+    df[["num_sites", "mut_dets"]] = df["Mutations"].apply(process_mutation)
+
+    # apply the norm function to all plates
+    df = df.groupby("Plate").apply(norm2parent).reset_index(drop=True).copy()
+
+    # add a new column called parent name to the df
+    # using the dict out put from match_plate2parent
+    # that matches the plate to the parent
+    parent_dict, plate2parent = match_plate2parent(df, parent_dict=None)
+    df["Parent_Name"] = df["Plate"].map(plate2parent)
+
+    parents = df["Parent_Name"].unique().tolist()
+    single_ssm_df = prep_single_ssm(df)
+    sites_dict = get_parent2sitedict(single_ssm_df)
+
+    struct_dict = {}
+
+    # get structures for all parents
+    for parent_name, parent_seq in parent_dict.items():
+        # get parent chai structure
+        chai_files, chai_scores_files = get_chaistructure(
+            chai_dir=os.path.join(os.path.dirname(seqfit_path), "chai"),
+            seq=parent_seq,
+            seq_name=parent_name,
+            **chai_meta_data,
+        )
+
+        # Export the 3D structure as an interactive HTML file
+        html_path = export_structure_as_html(
+            parent_name=parent_name,
+            file_path=chai_files[0],
+            output_dir=os.path.dirname(seqfit_path),
+            highlight_residues=[
+                {"chain": protein_chain, "resi": int(i[1:])}
+                for i in sites_dict.get(parent_name, [])
+            ],
+        )
+
+        struct_dict[parent_name] = html_path
+
+    def get_subplots(
+        parent,
+    ):
+
+        # Load HTML content from a file
+        with open(struct_dict[parent], "r") as file:
+            html_content = file.read()
+
+        # URL-encode the HTML content
+        data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(html_content)
+
+        # Embed in an iframe
+        iframe_code = f'<iframe id="viewerFrame" width="600" height="400" src="{data_url}"></iframe>'
+
+        # Create an HTML pane with the loaded content
+        html_pane = pn.pane.HTML(iframe_code)
+
+        site_dropdown = pn.widgets.Select(
+            name="Sites", options=sites_dict.get(parent, [])
+        )
+
+        def update_site_plot(site):
+
+            site_df = prep_aa_order(
+                get_single_ssm_site_df(single_ssm_df, parent=parent, site=site)
+            )
+
+            if site_df.empty:
+                return pn.pane.Markdown("### No data available for the selected site")
+
+            site_info = (
+                site_df["parent_aa_loc"].unique()[0] if not site_df.empty else "Unknown"
+            )
+
+            return plot_bar_point(
+                df=site_df,
+                x="mut_aa",
+                y="pdt_norm",
+                # y_label: str = None,
+                title=f"{site_info} for {parent}",
+                if_max=False,
+            )
+
+        site_plot = pn.Column(pn.bind(update_site_plot, site=site_dropdown))
+
+        return pn.Column(
+            html_pane,
+            agg_single_ssm_exp_avg(
+                single_ssm_df=single_ssm_df,
+                parent_name=parent,
+                # ys: list,
+            ),
+            site_dropdown,
+            site_plot,
+        )
+
+    # Dropdown for parent selection
+    parent_dropdown = pn.widgets.Select(name="Parent", options=parents)
+
+    # Initial parent plots
+    initial_subplots = get_subplots(parents[0])
+
+    # Panel layout
+    dashboard = pn.Column(
+        agg_parent_plot(df),
+        parent_dropdown,
+        pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
+    )
+
+    # Serve the dashboard
+    port = 8000  # Specify the port you want to use
+    server = pn.serve(dashboard, port=port, show=False, start=False)
+
+    # Generate HTML wrapper file with iframe pointing to the served Panel app
+    wrapper_html_content = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Interactive Panel Dashboard</title>
+    </head>
+    <body>
+        <iframe src="http://localhost:{port}" style="width: 100%; height: 100vh; border: none;"></iframe>
+    </body>
+    </html>
+    """
+
+    if not output_dir:
+        output_dir = os.path.dirname(seqfit_path)
+    else:
+        output_dir = checkNgen_folder(os.path.normpath(output_dir))
+
+    # Define the path where you want to save the HTML file
+    output_path = os.path.join(output_dir, "seqfit.html")
+
+    with open(output_path, "w") as f:
+        f.write(wrapper_html_content)
+
+    print(f"Wrapper HTML saved at {output_path}")
+    print(f"Access the interactive dashboard via: http://localhost:{port}")
+
+    try:
+        # dashboard.save("/home/fli/LevSeq/sandbox/HMC.html", embed=True)
+        # dashboard.servable()
+        pn.serve(dashboard, open=True, browser="chrome")
+    except:
+        pass
+
 
 class SeqFitVis:
-    def __init__(self, seqfit_path: str, protein_chain: str = "A", output_dir: str = "", chai_meta_data: dict = {
+    def __init__(
+        self,
+        seqfit_path: str,
+        protein_chain: str = "A",
+        output_dir: str = "",
+        chai_meta_data: dict = {
             "smiles": "",
             "smiles_name": "",
             "cofactor_smiles": "",
@@ -797,15 +983,16 @@ class SeqFitVis:
             "joinsubcofactor": True,
             "torch_device": "cuda",
             "ifrerun": False,
-        }):
+        },
+    ):
 
         """
         Initialize the SeqFitVis class.
-        
+
         Args:
         - seqfit_path (str): Path to the sequence fitness data file.
         - protein_chain (str): Chain identifier for the protein structure.
-        
+
         """
 
         self._seqfit_path = seqfit_path
@@ -854,14 +1041,13 @@ class SeqFitVis:
 
         return df.copy(), parent_dict
 
-
     def _gen_structure(self):
 
         struct_dict = {}
 
         # get structures for all parents
         for parent_name, parent_seq in self._parent_dict.items():
-        # get parent chai structure
+            # get parent chai structure
             chai_files, chai_scores_files = get_chaistructure(
                 chai_dir=os.path.join(os.path.dirname(self._seqfit_path), "chai"),
                 seq=parent_seq,
@@ -875,14 +1061,14 @@ class SeqFitVis:
                 file_path=chai_files[0],
                 output_dir=os.path.dirname(self._seqfit_path),
                 highlight_residues=[
-                    {"chain": self._protein_chain, "resi": int(i[1:])} for i in self._sites_dict.get(parent_name, [])
+                    {"chain": self._protein_chain, "resi": int(i[1:])}
+                    for i in self._sites_dict.get(parent_name, [])
                 ],
             )
 
             struct_dict[parent_name] = html_path
 
         return struct_dict
-
 
     def _get_subplots(
         self,
@@ -892,7 +1078,7 @@ class SeqFitVis:
         # Load HTML content from a file
         with open(self._struct_dict[parent], "r") as file:
             html_content = file.read()
-        
+
         # URL-encode the HTML content
         data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(html_content)
 
@@ -902,7 +1088,9 @@ class SeqFitVis:
         # Create an HTML pane with the loaded content
         html_pane = pn.pane.HTML(iframe_code)
 
-        site_dropdown = pn.widgets.Select(name="Sites", options=self._sites_dict.get(parent, []))
+        site_dropdown = pn.widgets.Select(
+            name="Sites", options=self._sites_dict.get(parent, [])
+        )
 
         def update_site_plot(site):
 
@@ -982,4 +1170,3 @@ class SeqFitVis:
         print(f"Access the interactive dashboard via: http://localhost:{port}")
 
         pn.serve(dashboard, open=True, browser="chrome")
-
