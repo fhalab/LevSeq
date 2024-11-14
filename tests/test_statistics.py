@@ -102,3 +102,72 @@ class TestStats(TestClass):
                                                'man whitney U stat', 'p-value'])
         stats_df
 
+    def test_mutation_summary(self):
+        from collections import defaultdict
+
+        mutation_dict = defaultdict(list)
+        for mutation in stats_df['mutation'].values:
+            mutations = mutation.split('_')
+            for m in mutations:
+                mutation_dict[m].append(mutation)
+
+        rows = []
+        with pd.ExcelWriter('mutations.xlsx', engine='xlsxwriter') as writer:
+            for mutation, mutations in mutation_dict.items():
+                # Here we want to now get the values for each of these i.e. the stats values for each one and summarize it maybe for now we'll just make a excel file
+                df1 = stats_df[stats_df['mutation'].isin(mutations)]
+                mutation = mutation.replace('*', '.')
+                df1.to_excel(writer, sheet_name=mutation)
+                # Also just take the mean of the mean lol and the sum of the number of the wells
+                rows.append(
+                    [mutation, np.sum(df1['number of wells with mutation'].values), '|'.join(set(list(mutations))),
+                     np.mean(df1['mean'].values),
+                     np.median(df1['median'].values), np.mean(df1['amount greater than parent mean'].values),
+                     np.max(df1['amount greater than parent mean'].values)])
+
+        df = pd.DataFrame(rows, columns=['mutation', 'number of wells with mutation',
+                                         'other-mutations', 'mean', 'median',
+                                         'mean amount greater than parent', 'max amount greater than parent'])
+
+    def test_pca(self):
+        from levseq.utils import *
+        from sklearn.preprocessing import OneHotEncoder
+
+        seqs = []
+        one_hots_nc = []
+        one_hots_aa = []
+        # Initialize OneHotEncoder
+        encoder = OneHotEncoder()
+        encoder.fit(np.array(['A', 'T', 'G', 'C', '-', '*']).reshape(-1, 1))
+
+        encoder_aa = OneHotEncoder()
+        encoder_aa.fit(np.array(aas).reshape(-1, 1))
+
+        for nc in processed_plate_df['nc_variant'].values:
+            seq = translate(nc)
+            one_hot_encoded = encoder.transform(np.array(list(nc)).reshape(-1, 1))
+            one_hot_encoded_array = one_hot_encoded.toarray().flatten()
+            one_hots_nc.append(one_hot_encoded_array)
+
+            one_hot_encoded = encoder_aa.transform(np.array(list(seq)).reshape(-1, 1))
+            one_hot_encoded_array = one_hot_encoded.toarray().flatten()
+            one_hots_aa.append(one_hot_encoded_array)
+
+        from sklearn.decomposition import PCA
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        pca = PCA(n_components=20)
+        X = np.array(one_hots_nc)
+        pca = pca.fit(X)
+        pcs = pca.transform(X)
+
+        processed_plate_df['PC 1'] = pcs[:, 0]
+        processed_plate_df['PC 2'] = pcs[:, 1]
+
+        sns.scatterplot(processed_plate_df, x='PC 1', y='PC 2', hue='pdt standard norm')
+        PC_values = np.arange(pca.n_components_) + 1
+        plt.plot(PC_values, (pca.explained_variance_ratio_ * 100), 'o-', linewidth=2, color='blue')
+        plt.title('Scree Plot')
+        plt.xlabel('Principal Component')
+        plt.ylabel('Variance Explained')
+        plt.show()
