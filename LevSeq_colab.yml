@@ -1,18 +1,22 @@
 # This file may be used to create an environment for alignment visualiztion using:
 # platform: linux-64
-# conda env update --file LevSeq.yml --prune
-# test levseq pipeline
+# conda env update --file LevSeq_colab.yml --prune
 # python3 -m levseq.cmd <name> <location to data folder> <location of reference csv file>
 
-name: LevSeq
+name: LevSeq_colab
 channels:
-  - pyviz
-  - bioconda
+  - pytorch
+  - pyg
+  - pytorch3d
+  - nvidia
   - conda-forge
   - salilab
+  - bioconda
+  - pyviz
   - defaults
+  - anaconda
 dependencies:
-  - python=3.12
+  - python=3.10
   - biopandas
   - biopython
   - bokeh
@@ -26,36 +30,29 @@ dependencies:
   - jupyter_bokeh
   - jupyterlab
   - logomaker
-  - mafft
   - matplotlib
-  - mappy
-  - minimap2
-  - muscle
   - notebook
   - numpy
   - pandas
-  - panel=1.4.4
+  - panel
   - pillow
   - pip
-  - pybedtools
-  - pycoQC
-  - pyfaidx
-  - pymsaviz
-  - pyparsing
   - pysam
   - python-wget
+  - pytorch
+  - pytorch-cuda
   - pyviz_comms
   - pyyaml
-  - samtools
+  - rdkit
   - scikit-learn
   - scipy
   - seaborn
   - selenium
-  - seqtk
   - statsmodels
   - tqdm
 
   - pip:
     - blackcellmagic
+    - chai_lab
     - ninetysix
     - sciutil
