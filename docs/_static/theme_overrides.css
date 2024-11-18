@@ -1,0 +1,68 @@
+/* Increase the width of the body */
+.wy-nav-content {
+      max-width: none;
+  }
+
+/* Set the GTDB-Tk logo size */
+.wy-side-nav-search .wy-dropdown>a img.logo, .wy-side-nav-search>a img.logo {
+   width: 100%;
+   max-width: 150px;
+}
+
+/* Change the visited link colour */
+a:visited, a {
+   color: #f79d2b;
+}
+.wy-menu-vertical a {
+   color: #e4fff7;
+}
+
+/* Style the header for argparse arguments */
+.option-list dt {
+    display: table;
+    margin: 6px 0;
+    font-size: 80%;
+    line-height: normal;
+    background: #e4fff7;
+    color: #f79d2b;
+    border-top: solid 3px #f7eb9d;
+    padding: 6px;
+    position: relative;
+}
+
+/* Theme for GTDB-Tk */
+
+/* Top left background */
+.wy-side-nav-search, .wy-nav-top {
+    background: #f79d2b;
+}
+
+/* Background when a link is clicked on the left */
+.wy-menu-vertical a:active {
+    background: #f7eb9d;
+}
+
+/* Border of search box */
+.wy-side-nav-search input[type=text] {
+    border-color: #f7eb9d;
+}
+
+/* Set the version colour */
+.wy-side-nav-search>div.version {
+    color: #ffffff;
+}
+
+/* Set the menu colour */
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color: #f7eb9d;
+}
+
+/* Change the row colour when mouseover */
+.row-even:hover td, .row-odd:hover td {
+    background-color: #f7eb9d !important;
+}
+
+/* Code highlight */
+.highlight {
+    background: #f7eb9d;
+}

@@ -1,0 +1,5 @@
+Sphinx
+sphinx_rtd_theme
+recommonmark
+sphinx_sitemap
+nbsphinx
