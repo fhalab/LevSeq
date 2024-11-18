@@ -2,9 +2,16 @@
 A script for visualzing the sequnece-fitness relationship
 """
 
+from typing import Optional, Dict, Union, List
+
 import re
 import os
 import html
+import psutil
+import socket
+import param
+
+import warnings
 
 from pathlib import Path
 from copy import deepcopy
@@ -17,23 +24,36 @@ import numpy as np
 import pandas as pd
 import biopandas as Bio
 
-from rdkit import Chem
-
 import panel as pn
 import holoviews as hv
 
 from bokeh.io import output_notebook, show
 from bokeh.plotting import figure
 
-import torch
-import torch.nn as nn
+import ninetysix as ns
 
-from chai_lab.chai1 import run_inference
+try:
+    from rdkit import Chem
+
+    import torch
+    import torch.nn as nn
+
+    from chai_lab.chai1 import run_inference
+
+    gen_struct = True
+
+except:
+    pass
+
+    gen_struct = False
+
 
 # Enable Bokeh to display plots in the notebook
 hv.extension("bokeh")
 pn.extension()
 output_notebook()
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Amino acid code conversion
 AA_DICT = {
@@ -86,7 +106,207 @@ def checkNgen_folder(folder_path: str) -> str:
     return folder_path
 
 
-def match_plate2parent(df: pd.DataFrame, parent_dict: dict | None = None) -> dict:
+def free_port(port):
+    """
+    Kill any processes using the specified port.
+    If the port is not free after this, return a new available port.
+    """
+    # Attempt to free the specified port by killing any process using it
+    for conn in psutil.net_connections(kind="inet"):
+        if conn.laddr.port == port:
+            try:
+                proc = psutil.Process(conn.pid)
+                proc.terminate()  # Attempt to terminate the process
+                proc.wait(timeout=3)  # Wait for the process to terminate
+                print(f"Terminated process {conn.pid} using port {port}.")
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                print(f"Could not terminate process {conn.pid} using port {port}.")
+
+    # Check if the specified port is still in use
+    if is_port_in_use(port):
+        # Find and return the next available port
+        port = find_free_port()
+        print(f"Port {port} is in use. Using new port {port}.")
+    return port
+
+
+def is_port_in_use(port):
+    """Check if a specific port is currently in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
+
+
+def find_free_port():
+    """Find an available port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+
+def work_up_lcms(
+    file,
+    products,
+    substrates=None,
+    drop_string=None,
+):
+    """Works up a standard csv file from Revali.
+    Parameters:
+    -----------
+    file: string
+        Path to the csv file
+    products: list of strings
+        Name of the peaks that correspond to the product
+    substrates: list of strings
+        Name of the peaks that correspond to the substrate
+    drop_string: string, default 'burn_in'
+        Name of the wells to drop, e.g., for the wash/burn-in period that are not samples.
+    Returns:
+    --------
+    plate: ns.Plate object (DataFrame-like)
+    """
+    # Read in the data
+    df = pd.read_csv(file, header=[1])
+    # Convert nans to 0
+    df = df.fillna(0)
+    # Only grab the Sample Acq Order No.s that have a numeric value
+    index = [True for _ in df["Sample Acq Order No"]]
+    for i, value in enumerate(df["Sample Acq Order No"]):
+        try:
+            int(value)
+        except ValueError:
+            index[i] = False
+    # Index on this
+    df = df[index]
+
+    def fill_vial_number(series):
+        for i, row in enumerate(series):
+            if pd.isna(row):
+                series[i] = series[i - 1]
+        return series
+
+    df["Sample Vial Number"] = fill_vial_number(df["Sample Vial Number"].copy())
+    # Remove unwanted wells
+    df = df[df["Sample Name"] != drop_string]
+    # Get wells
+    df.insert(0, "Well", df["Sample Vial Number"].apply(lambda x: x.split("-")[-1]))
+    # Rename
+    df = df.rename({"Sample Name": "Plate"}, axis="columns")
+    # Create minimal DataFrame
+    df = df[["Well", "Plate", "Compound Name", "Area"]].reset_index(drop=True)
+    # Pivot table; drop redundant values by only taking 'max' with aggfunc
+    # (i.e., a row is (value, NaN, NaN) and df is 1728 rows long;
+    # taking max to aggregate duplicates gives only (value) and 576 rows long)
+    df = df.pivot_table(
+        index=["Well", "Plate"], columns="Compound Name", values="Area", aggfunc="max"
+    ).reset_index()
+    # Get rows and columns
+    df.insert(1, "Column", df["Well"].apply(lambda x: int(x[1:])))
+    df.insert(1, "Row", df["Well"].apply(lambda x: x[0]))
+    # Set values as floats
+    cols = products + substrates if substrates is not None else products
+    for col in cols:
+        df[col] = df[col].astype(float)
+    plate = ns.Plate(df, value_name=products[-1]).set_as_location("Plate", idx=3)
+    plate.values = products
+    return plate
+
+
+# Function to process the plate files
+def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
+
+    """
+    Process the plate files to extract relevant data for downstream analysis.
+    Assume the same directory contains the plate files with the expected names.
+    The expected filenames are constructed based on the Plate values in the input CSV file.
+    The output DataFrame contains the processed data for the specified product
+    and is saved to a CSV file named 'seqfit.csv' in the same dirctory.
+
+    Args:
+    - product : str
+        The name of the product to be analyzed. ie pdt
+    - input_csv : str, ie 'HMC0225_HMC0226.csv'
+        The name of the input CSV file containing the plate data.
+
+    Returns:
+    - pd.DataFrame
+        A pandas DataFrame containing the processed data.
+    - str
+        The path of the output CSV file containing the processed data.
+    """
+
+    dir_path = os.path.dirname(input_csv)
+    print(f"Processing data from '{dir_path}'")
+
+    # Load the provided CSV file
+    results_df = pd.read_csv(input_csv)
+
+    # Extract the required columns: Plate, Well, Mutations, and nc_variant, and remove rows with '#N.A.#' and NaN values
+    filtered_df = results_df[["Plate", "Well", "Mutations", "nc_variant", "aa_variant"]]
+    filtered_df = filtered_df[(filtered_df["Mutations"] != "#N.A.#")].dropna()
+
+    # Extract the unique entries of Plate
+    unique_plates = filtered_df["Plate"].unique()
+
+    # Create an empty list to store the processed plate data
+    processed_data = []
+
+    # Iterate over unique Plates and search for corresponding CSV files in the current directory
+    for plate in unique_plates:
+        # Construct the expected filename based on the Plate value
+        filename = os.path.join(dir_path, f"{plate}.csv")
+
+        # Check if the file exists in the current directory
+        if os.path.isfile(filename):
+            print(f"Processing data for Plate: {plate}")
+            # Work up data to plate object
+            plate_object = work_up_lcms(filename, product)
+
+            # Extract attributes from plate_object as needed for downstream processes
+            if hasattr(plate_object, "df"):
+                # Assuming plate_object has a dataframe-like attribute 'df' that we can work with
+                plate_df = plate_object.df
+                plate_df["Plate"] = plate  # Add the plate identifier for reference
+
+                # Merge filtered_df with plate_df to retain Mutations and nc_variant columns
+                merged_df = pd.merge(
+                    plate_df, filtered_df, on=["Plate", "Well"], how="left"
+                )
+                columns_order = (
+                    ["Plate", "Well", "Row", "Column", "Mutations"]
+                    + product
+                    + ["nc_variant", "aa_variant"]
+                )
+                merged_df = merged_df[columns_order]
+                processed_data.append(merged_df)
+
+    # Concatenate all dataframes if available
+    if processed_data:
+        processed_df = pd.concat(processed_data, ignore_index=True)
+    else:
+        processed_df = pd.DataFrame(
+            columns=["Plate", "Well", "Row", "Column", "Mutations"]
+            + product
+            + ["nc_variant", "aa_variant"]
+        )
+
+    # Ensure all entries in 'Mutations' are treated as strings
+    processed_df["Mutations"] = processed_df["Mutations"].astype(str)
+
+    # Remove any rows with empty values
+    processed_df = processed_df.dropna()
+
+    seqfit_path = os.path.join(dir_path, "seqfit.csv")
+
+    # Optionally, save the processed DataFrame to a CSV file
+    processed_df.to_csv(seqfit_path, index=False)
+    print(f"Processed data saved to {seqfit_path} in the same directory")
+
+    # Return the processed DataFrame for downstream processes
+    return processed_df, seqfit_path
+
+
+def match_plate2parent(df: pd.DataFrame, parent_dict: Optional[Dict] = None) -> dict:
 
     """
     Find plate names correpsonding to each parent sequence.
@@ -289,16 +509,24 @@ def get_single_ssm_site_df(
     """
 
     # get the site data
-    site_df = single_ssm_df[
-        (single_ssm_df["Parent_Name"] == parent)
-        & (single_ssm_df["parent_aa_loc"] == site)
-    ].copy()
+    site_df = (
+        single_ssm_df[
+            (single_ssm_df["Parent_Name"] == parent)
+            & (single_ssm_df["parent_aa_loc"] == site)
+        ]
+        .reset_index(drop=True)
+        .copy()
+    )
 
     # get parents from those plates
-    site_parent_df = single_ssm_df[
-        (single_ssm_df["Mutations"] == "#PARENT#")
-        & (single_ssm_df["Plate"].isin(site_df["Plate"].unique()))
-    ].copy()
+    site_parent_df = (
+        single_ssm_df[
+            (single_ssm_df["Mutations"] == "#PARENT#")
+            & (single_ssm_df["Plate"].isin(site_df["Plate"].unique()))
+        ]
+        .reset_index(drop=True)
+        .copy()
+    )
 
     # rename those site_numb, mut_aa, parent_aa_loc None or NaN to corresponding parent values
     site_parent_df["mut_aa"] = site_parent_df["mut_aa"].fillna(
@@ -373,6 +601,20 @@ def get_parent2sitedict(df: pd.DataFrame) -> dict:
     return site_dict
 
 
+def get_x_label(x: str):
+    
+    """
+    Function to return the x-axis label based on the input string.
+    """
+
+    if "mut_aa" in x.lower():
+        clean_x = x.replace("mut_aa", "Amino acid substitutions")
+    else:
+        clean_x = x.replace("_", " ").capitalize()
+
+    return clean_x
+
+
 def get_y_label(y: str):
 
     """
@@ -400,6 +642,7 @@ def plot_bar_point(
     df: pd.DataFrame,
     x: str,
     y: str,
+    x_label: str = None,
     y_label: str = None,
     title: str = None,
     if_max: bool = False,
@@ -415,6 +658,7 @@ def plot_bar_point(
     # Display the plot
     bars.opts(
         title=title,
+        xlabel=x_label or get_x_label(x),
         ylabel=y_label or get_y_label(y),
         color=y,
         cmap="coolwarm",
@@ -519,7 +763,7 @@ def plot_single_ssm_avg(
         single_ssm_df[single_ssm_df["Parent_Name"] == parent_name].copy()
     )
 
-    height = max(30 * sliced_df["site_numb"].nunique(), 160)
+    height = max(20 * sliced_df["site_numb"].nunique() + 60, 160)
 
     return hv.HeatMap(
         data=sliced_df[["parent_aa_loc", "mut_aa", y]]
@@ -531,9 +775,6 @@ def plot_single_ssm_avg(
             key=lambda col: col.str.extract(r"(\d+)$").fillna(0).astype(int).iloc[:, 0]
             if col.name == "parent_aa_loc"
             else col
-            # key=lambda col: col[1:].astype(int)
-            # if col.name == "single_mutated_sites_w_parent"
-            # else col,
         )
         .reset_index(),
         kdims=["mut_aa", "parent_aa_loc"],
@@ -542,12 +783,11 @@ def plot_single_ssm_avg(
         height=height,
         width=width,
         cmap="coolwarm",
-        # color_levels=color_levels,
         colorbar=True,
-        colorbar_opts=dict(title=y, width=8),
+        colorbar_opts=dict(title=get_y_label(y), width=8),
         xrotation=45,
-        title=f"Average single site mutations for {parent_name}",
-        xlabel="Residue",
+        title=f"Average single site substitution for {parent_name}",
+        xlabel="Amino acid substitutions",
         ylabel="Position",
         invert_yaxis=True,
         tools=["hover"],
@@ -599,7 +839,7 @@ def get_chaistructure(
     seq_name: str,
     smiles: str = "",
     smiles_name: str = "",
-    cofactor_smiles: list | str = "",
+    cofactor_smiles: Union[List, str] = "",
     cofactor_name: str = "",
     joinsubcofactor: bool = True,
     torch_device: str = "cuda",
@@ -808,6 +1048,8 @@ def gen_seqfitvis(
         "torch_device": "cuda",
         "ifrerun": False,
     },
+    gen_struct: bool = False,
+    # port=8000,
 ):
 
     # normalized per plate to parent
@@ -836,48 +1078,61 @@ def gen_seqfitvis(
 
     struct_dict = {}
 
-    # get structures for all parents
-    for parent_name, parent_seq in parent_dict.items():
-        # get parent chai structure
-        chai_files, chai_scores_files = get_chaistructure(
-            chai_dir=os.path.join(os.path.dirname(seqfit_path), "chai"),
-            seq=parent_seq,
-            seq_name=parent_name,
-            **chai_meta_data,
-        )
+    if gen_struct:
+        # get structures for all parents
+        for parent_name, parent_seq in parent_dict.items():
+            # get parent chai structure
+            chai_files, chai_scores_files = get_chaistructure(
+                chai_dir=os.path.join(os.path.dirname(seqfit_path), "chai"),
+                seq=parent_seq,
+                seq_name=parent_name,
+                **chai_meta_data,
+            )
 
-        # Export the 3D structure as an interactive HTML file
-        html_path = export_structure_as_html(
-            parent_name=parent_name,
-            file_path=chai_files[0],
-            output_dir=os.path.dirname(seqfit_path),
-            highlight_residues=[
-                {"chain": protein_chain, "resi": int(i[1:])}
-                for i in sites_dict.get(parent_name, [])
-            ],
-        )
+            # Export the 3D structure as an interactive HTML file
+            html_path = export_structure_as_html(
+                parent_name=parent_name,
+                file_path=chai_files[0],
+                output_dir=os.path.dirname(seqfit_path),
+                highlight_residues=[
+                    {"chain": protein_chain, "resi": int(i[1:])}
+                    for i in sites_dict.get(parent_name, [])
+                ],
+            )
 
-        struct_dict[parent_name] = html_path
+            struct_dict[parent_name] = html_path
 
     def get_subplots(
         parent,
     ):
 
-        # Load HTML content from a file
-        with open(struct_dict[parent], "r") as file:
-            html_content = file.read()
+        if parent not in struct_dict:
+            html_pane = None
+        else:
+            # Load HTML content from a file
+            with open(struct_dict[parent], "r") as file:
+                html_content = file.read()
 
-        # URL-encode the HTML content
-        data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(html_content)
+            # URL-encode the HTML content
+            data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(
+                html_content
+            )
 
-        # Embed in an iframe
-        iframe_code = f'<iframe id="viewerFrame" width="600" height="400" src="{data_url}"></iframe>'
+            # Embed in an iframe
+            iframe_code = f'<iframe id="viewerFrame" width="600" height="400" src="{data_url}"></iframe>'
 
-        # Create an HTML pane with the loaded content
-        html_pane = pn.pane.HTML(iframe_code)
+            # Create an HTML pane with the loaded content
+            html_pane = pn.pane.HTML(iframe_code)
 
+        # Get the list of sites for the selected parent
+        site_options = sites_dict.get(parent, [])
+
+        # Set the initial site to the first item in the list if it exists
+        initial_site = site_options[0] if site_options else None
+
+        # Create a site dropdown with the initial site as the default
         site_dropdown = pn.widgets.Select(
-            name="Sites", options=sites_dict.get(parent, [])
+            name="Sites", options=site_options, value=initial_site
         )
 
         def update_site_plot(site):
@@ -928,245 +1183,14 @@ def gen_seqfitvis(
         pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
     )
 
-    # Serve the dashboard
-    port = 8000  # Specify the port you want to use
-    server = pn.serve(dashboard, port=port, show=False, start=False)
-
-    # Generate HTML wrapper file with iframe pointing to the served Panel app
-    wrapper_html_content = f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Interactive Panel Dashboard</title>
-    </head>
-    <body>
-        <iframe src="http://localhost:{port}" style="width: 100%; height: 100vh; border: none;"></iframe>
-    </body>
-    </html>
-    """
+    port = find_free_port()
 
     if not output_dir:
         output_dir = os.path.dirname(seqfit_path)
     else:
         output_dir = checkNgen_folder(os.path.normpath(output_dir))
 
-    # Define the path where you want to save the HTML file
-    output_path = os.path.join(output_dir, "seqfit.html")
+    # Serve the dashboard
+    pn.serve(dashboard, port=port, open=True, show=True, start=True)
 
-    with open(output_path, "w") as f:
-        f.write(wrapper_html_content)
-
-    print(f"Wrapper HTML saved at {output_path}")
     print(f"Access the interactive dashboard via: http://localhost:{port}")
-
-    try:
-        # dashboard.save("/home/fli/LevSeq/sandbox/HMC.html", embed=True)
-        # dashboard.servable()
-        pn.serve(dashboard, open=True, browser="chrome")
-    except:
-        pass
-
-
-class SeqFitVis:
-    def __init__(
-        self,
-        seqfit_path: str,
-        protein_chain: str = "A",
-        output_dir: str = "",
-        chai_meta_data: dict = {
-            "smiles": "",
-            "smiles_name": "",
-            "cofactor_smiles": "",
-            "cofactor_name": "",
-            "joinsubcofactor": True,
-            "torch_device": "cuda",
-            "ifrerun": False,
-        },
-    ):
-
-        """
-        Initialize the SeqFitVis class.
-
-        Args:
-        - seqfit_path (str): Path to the sequence fitness data file.
-        - protein_chain (str): Chain identifier for the protein structure.
-
-        """
-
-        self._seqfit_path = seqfit_path
-        self._protein_chain = protein_chain
-
-        if not output_dir:
-            self._output_dir = os.path.dirname(seqfit_path)
-        else:
-            self._output_dir = checkNgen_folder(output_dir)
-
-        self._chai_meta_data = chai_meta_data
-
-        self._df, self._parent_dict = self._preprocess_data()
-
-        self._parents = self._df["Parent_Name"].unique().tolist()
-        self._single_ssm_df = prep_single_ssm(self._df)
-        self._sites_dict = get_parent2sitedict(self._single_ssm_df)
-
-        print("Generating parents structures...")
-        self._struct_dict = self._gen_structure()
-
-        self._save_serve_dashboard()
-
-    def _preprocess_data(self):
-
-        """
-        Preprocess the sequence fitness data.
-        """
-
-        df = pd.read_csv(self._seqfit_path)
-        # ignore deletion meaning "Mutations" == "-"
-        df = df[df["Mutations"] != "-"].copy()
-        # count number of sites mutated and append mutation details
-
-        # Apply function to the column
-        df[["num_sites", "mut_dets"]] = df["Mutations"].apply(process_mutation)
-
-        # apply the norm function to all plates
-        df = df.groupby("Plate").apply(norm2parent).reset_index(drop=True).copy()
-
-        # add a new column called parent name to the df
-        # using the dict out put from match_plate2parent
-        # that matches the plate to the parent
-        parent_dict, plate2parent = match_plate2parent(df, parent_dict=None)
-        df["Parent_Name"] = df["Plate"].map(plate2parent)
-
-        return df.copy(), parent_dict
-
-    def _gen_structure(self):
-
-        struct_dict = {}
-
-        # get structures for all parents
-        for parent_name, parent_seq in self._parent_dict.items():
-            # get parent chai structure
-            chai_files, chai_scores_files = get_chaistructure(
-                chai_dir=os.path.join(os.path.dirname(self._seqfit_path), "chai"),
-                seq=parent_seq,
-                seq_name=parent_name,
-                **self._chai_meta_data,
-            )
-
-            # Export the 3D structure as an interactive HTML file
-            html_path = export_structure_as_html(
-                parent_name=parent_name,
-                file_path=chai_files[0],
-                output_dir=os.path.dirname(self._seqfit_path),
-                highlight_residues=[
-                    {"chain": self._protein_chain, "resi": int(i[1:])}
-                    for i in self._sites_dict.get(parent_name, [])
-                ],
-            )
-
-            struct_dict[parent_name] = html_path
-
-        return struct_dict
-
-    def _get_subplots(
-        self,
-        parent,
-    ):
-
-        # Load HTML content from a file
-        with open(self._struct_dict[parent], "r") as file:
-            html_content = file.read()
-
-        # URL-encode the HTML content
-        data_url = "data:text/html;charset=utf-8," + urllib.parse.quote(html_content)
-
-        # Embed in an iframe
-        iframe_code = f'<iframe id="viewerFrame" width="600" height="400" src="{data_url}"></iframe>'
-
-        # Create an HTML pane with the loaded content
-        html_pane = pn.pane.HTML(iframe_code)
-
-        site_dropdown = pn.widgets.Select(
-            name="Sites", options=self._sites_dict.get(parent, [])
-        )
-
-        def update_site_plot(site):
-
-            site_df = prep_aa_order(
-                get_single_ssm_site_df(self._single_ssm_df, parent=parent, site=site)
-            )
-
-            if site_df.empty:
-                return pn.pane.Markdown("### No data available for the selected site")
-
-            site_info = (
-                site_df["parent_aa_loc"].unique()[0] if not site_df.empty else "Unknown"
-            )
-
-            return plot_bar_point(
-                df=site_df,
-                x="mut_aa",
-                y="pdt_norm",
-                # y_label: str = None,
-                title=f"{site_info} for {parent}",
-                if_max=False,
-            )
-
-        site_plot = pn.Column(pn.bind(update_site_plot, site=site_dropdown))
-
-        return pn.Column(
-            html_pane,
-            agg_single_ssm_exp_avg(
-                single_ssm_df=self._single_ssm_df,
-                parent_name=parent,
-                # ys: list,
-            ),
-            site_dropdown,
-            site_plot,
-        )
-
-    def _save_serve_dashboard(self):
-
-        # Dropdown for parent selection
-        parent_dropdown = pn.widgets.Select(name="Parent", options=self._parents)
-
-        # Initial parent plots
-        initial_subplots = self._get_subplots(self._parents[0])
-
-        # Panel layout
-        dashboard = pn.Column(
-            agg_parent_plot(self._df),
-            parent_dropdown,
-            pn.Column(pn.bind(self._get_subplots, parent=parent_dropdown)),
-        )
-
-        # Serve the dashboard
-        port = 8000  # Specify the port you want to use
-        server = pn.serve(dashboard, port=port, show=False, start=False)
-
-        # Generate HTML wrapper file with iframe pointing to the served Panel app
-        wrapper_html_content = f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Interactive Panel Dashboard</title>
-        </head>
-        <body>
-            <iframe src="http://localhost:{port}" style="width: 100%; height: 100vh; border: none;"></iframe>
-        </body>
-        </html>
-        """
-
-        # Define the path where you want to save the HTML file
-        output_path = os.path.join(checkNgen_folder(self._output_dir), "seqfit.html")
-        with open(output_path, "w") as f:
-            f.write(wrapper_html_content)
-
-        print(f"Wrapper HTML saved at {output_path}")
-        print(f"Access the interactive dashboard via: http://localhost:{port}")
-
-        pn.serve(dashboard, open=True, browser="chrome")
