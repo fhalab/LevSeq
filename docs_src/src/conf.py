@@ -36,7 +36,8 @@ github_url = __url__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = ['sphinx.ext.napoleon', 'sphinx.ext.autodoc',
-               'recommonmark', 'sphinx_sitemap', 'nbsphinx']
+               'recommonmark', 'sphinx_sitemap', 'nbsphinx',
+              'sphinxcontrib.jquery']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -82,9 +83,9 @@ html_theme_options = {
 html_static_path = ['_static']
 
 html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
+    # 'css_files': [
+    #     '_static/theme_overrides.css',  # override wide tables in RTD theme
+    #     ],
     'display_github': True,
     'github_user': 'fhalab',
     'github_repo': 'LevSeq',

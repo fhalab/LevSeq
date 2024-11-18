@@ -12,7 +12,7 @@ Overview
 --------
 
 .. figure:: _static/overview.png
-   :width: 200
+   :width: 600
    :align: center
 
 Extending LevSeq
