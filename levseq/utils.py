@@ -242,7 +242,9 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
 
     # Check if we want to write a MSA
     if msa_path is not None:
-        print("Writing MSA")
+        print("Writing MSA, ", len(seqs))
+        if len(seqs) > 200:
+            seqs = seqs[:200]
         with open(msa_path, 'w+') as fout:
             # Write the reference first
             fout.write(f'>{parent_name}\n{ref_str}\n')

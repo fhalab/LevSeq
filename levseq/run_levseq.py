@@ -377,6 +377,7 @@ def create_df_v(variants_df):
     df_variants_.loc[
         df_variants_["Alignment Count"] < 6, ["Substitutions", "Variant"]
     ] = "#N.A.#"
+    # Ariane: I don't think we should do this, we should keep how many reads there were
     restructured_df.loc[
         restructured_df["Substitutions"] == "#PARENT#", ["Alignment Probability"]
     ] = 1.0
