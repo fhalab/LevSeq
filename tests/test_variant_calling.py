@@ -19,7 +19,7 @@ import shutil
 import tempfile
 import unittest
 from sciutil import *
-
+from levseq.run_levseq import *
 u = SciUtil()
 
 from levseq.variantcaller import *
@@ -300,4 +300,12 @@ class TestVariantCalling(TestClass):
         check_variants(df, parent_sequence)
         df.to_csv('TestMixedWells.csv')
 
-
+    def test_variant_calling_main(self):
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args["name"] = 'Laragen_Validation'
+        cl_args["output"] = '../manuscript/Data/'
+        cl_args['path'] = '../manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/no_sample_id/'
+        cl_args["summary"] = '../manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv'
+        variant_df = process_ref_csv(cl_args)
+        variant_df.to_csv('variant_NEW.csv', index=False)
+        print(variant_df.head())

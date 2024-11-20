@@ -173,15 +173,19 @@ class VariantCaller:
                     self._align_sequences(row["Path"], row['Barcodes'])
 
                 # Check alignment count
-                well_df = get_reads_for_well(self.experiment_name, bam_file, self.ref_str, msa_path=f'{row["Path"]}/msa_{barcode_id}.fa')
-                self.variant_dict[barcode_id]['Alignment Count'] = well_df['total_reads'].values[0] if well_df is not None else 0
+                well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file, self.ref_str,
+                                             msa_path=f'{row["Path"]}/msa_{barcode_id}.fa')
+                self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
                 if well_df is not None:
-                    #well_df.to_csv(row['Path'],f'{output_dir}seq_{barcode_id}.csv')
-                    label, freq, combined_p_value, mixed_well = get_variant_label_for_well(well_df, threshold)
+                    # Save everything so that users have comprehensive views of their data
+                    well_df.to_csv(f'{row["Path"]}/seq_{barcode_id}.csv', index=False)
+                    label, freq, combined_p_value, mixed_well, average_error_rate = get_variant_label_for_well(well_df,
+                                                                                                               threshold)
                     self.variant_dict[barcode_id]["Variant"] = label
                     self.variant_dict[barcode_id]["Mixed Well"] = mixed_well
                     self.variant_dict[barcode_id]["Average mutation frequency"] = freq
                     self.variant_dict[barcode_id]["P value"] = combined_p_value
+                    self.variant_dict[barcode_id]["Average error rate"] = average_error_rate
 
     def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=10):
         """
@@ -212,6 +216,7 @@ class VariantCaller:
         self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for b_id in self.variant_df['ID'].values]
         self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') if self.variant_dict[b_id].get('P value') else 1.0 for b_id in self.variant_df['ID'].values]
         self.variant_df['Alignment Count'] = [self.variant_dict[b_id].get('Alignment Count') for b_id in self.variant_df['ID'].values]
+        self.variant_df['Average error rate'] = [self.variant_dict[b_id].get('Average error rate') for b_id in self.variant_df['ID'].values]
 
         # Adjust p-values using bonferroni make it simple
         self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values

@@ -327,9 +327,7 @@ def create_df_v(variants_df):
     # Fill in Deletion into Substitutions Column
     for i in df_variants_.index:
         if df_variants_["nc_variant"].iloc[i] == "Deletion":
-            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace(
-                "", "-"
-            )
+            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "-")
 
     # Add row and columns
     Well = df_variants_["Well"].tolist()
@@ -370,20 +368,6 @@ def create_df_v(variants_df):
             "aa_variant",
         ]
     ]
-    # Set 'Substitutions' and 'Variant' columns to '#N.A.#' if 'Alignment Count' is smaller than 5
-    restructured_df.loc[
-        restructured_df["Alignment Count"] < 6, ["Substitutions", "Variant"]
-    ] = "#N.A.#"
-    df_variants_.loc[
-        df_variants_["Alignment Count"] < 6, ["Substitutions", "Variant"]
-    ] = "#N.A.#"
-    # Ariane: I don't think we should do this, we should keep how many reads there were
-    restructured_df.loc[
-        restructured_df["Substitutions"] == "#PARENT#", ["Alignment Probability"]
-    ] = 1.0
-    df_variants_.loc[
-        df_variants_["Substitutions"] == "#PARENT#", ["Alignment Probability"]
-    ] = 1.0
 
     return restructured_df, df_variants_
 
@@ -456,6 +440,7 @@ def process_ref_csv(cl_args):
 
     variant_csv_path = os.path.join(result_folder, "variants.csv")
     if os.path.exists(variant_csv_path):
+        print("Variant file existed, appending new results to the end of the file: ", variant_csv_path)
         variant_df = pd.read_csv(variant_csv_path)
     else:
         variant_df = pd.DataFrame(
