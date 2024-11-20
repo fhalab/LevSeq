@@ -163,7 +163,7 @@ COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/dem
 RUN source activate levseq && python setup.py sdist bdist_wheel
 
 # Install
-RUN source activate levseq && pip install dist/levseq-1.0.0.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.0.3.tar.gz
 
 # Add entry point script
 COPY entrypoint.sh /usr/local/bin/

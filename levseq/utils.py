@@ -28,6 +28,7 @@ from scipy.stats import combine_pvalues
 from Bio import SeqIO
 from Bio.PDB.Polypeptide import aa1
 
+
 amino_acid_to_codon = {
     'A': 'GCT', 'R': 'CGT', 'N': 'AAT', 'D': 'GAT', 'C': 'TGT',
     'Q': 'CAA', 'E': 'GAA', 'G': 'GGT', 'H': 'CAT', 'I': 'ATT',
@@ -190,11 +191,11 @@ def calculate_mutation_significance_across_well(seq_df):
         print('-----------------------------------------')
 
     # Using this we can calculate the significance of the different errors
-    for ref_seq, num_a, num_t, num_g, num_c, num_dels, num_reads, num_total_non_ref_reads in seq_df[
-        ['ref', 'A', 'T', 'G', 'C', 'N', 'total_reads', 'total_other']].values:
-        actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n = calc_mutation_significance_for_position_in_well(ref_seq, num_a,
+    for ref_seq, num_a, num_t, num_g, num_c, num_dels, num_insertions, num_reads, num_total_non_ref_reads in seq_df[
+        ['ref', 'A', 'T', 'G', 'C', 'N', 'I', 'total_reads', 'total_other']].values:
+        actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n, p_i = calc_mutation_significance_for_position_in_well(ref_seq, num_a,
                                                                                              num_t, num_g, num_c,
-                                                                                             num_dels, num_reads,
+                                                                                             num_dels, num_insertions, num_reads,
                                                                                              num_total_non_ref_reads,
                                                                                              mean_error)
         seq_df.at[i, 'p(a)'] = p_a
@@ -202,6 +203,7 @@ def calculate_mutation_significance_across_well(seq_df):
         seq_df.at[i, 'p(g)'] = p_g
         seq_df.at[i, 'p(c)'] = p_c
         seq_df.at[i, 'p(n)'] = p_n
+        seq_df.at[i, 'p(i)'] = p_n
         seq_df.at[i, 'p_value'] = p_value
         seq_df.at[i, 'percent_most_freq_mutation'] = val
         seq_df.at[i, 'most_frequent'] = actual_seq
@@ -219,23 +221,19 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
     """
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """
-    rows_all = []
     bam = pysam.AlignmentFile(bam_file_path, "rb")
     # Ensure the BAM file is indexed
     if not os.path.exists(bam_file_path + ".bai"):
         pysam.index(bam_file_path)
 
-    cramHeader = bam.header.to_dict()
     rows_all = []
     seqs = []
     read_ids = []
     read_quals = []
 
     for read in bam.fetch(until_eof=True):
-        if read.query_sequence is not None and len(read.query_sequence) > 0.9*len(ref_str) and read.cigartuples is not None:
-            seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
-                                                    read.query_qualities)
-            # Make it totally align
+        # Ensure we have at least 75% coverage
+        if read.query_sequence is not None and len(read.query_sequence) > 0.75*len(ref_str):
             seqs.append(read.query_sequence)
             read_ids.append(f'{read.query_name}')
             read_quals.append(read.qual)
@@ -254,21 +252,19 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
         os.system(f'clustal-omega --force -i "{msa_path}" -o "{msa_path.replace(".fa", "_msa.fa")}"')
         seqs = [str(record.seq) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
         read_ids = [str(record.id) for record in SeqIO.parse(msa_path.replace(".fa", "_msa.fa"), "fasta")]
-    # Again check that we actually had enough reads for this to be considered a good well
-    if len(seqs) > min_coverage:
-        seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
-        # Seqs[0] is always the parent
-        ref_str = seqs[0]
-        rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
+    # Do this for all wells
+    seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
+    # Seqs[0] is always the parent
+    ref_str = seqs[0]
+    rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
     bam.close()
 
     if len(rows_all) > 1:  # Check if we have anything to return
         seq_df = pd.DataFrame(rows_all)
         seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
-                          'C', 'p(c)', 'N', 'p(n)']
+                          'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
         return calculate_mutation_significance_across_well(seq_df)
-
 
 def make_row_from_read_pileup_across_well(well_df, ref_str, label):
     """
@@ -278,22 +274,31 @@ def make_row_from_read_pileup_across_well(well_df, ref_str, label):
     for col in well_df:
         vc = well_df[col].values
         ref_seq = ref_str[col]  # Keep track of the reference
+        total_reads = len(vc)  # Check if there are at least 25% with a different value compared to the reference.
+        total_other = len(vc[vc != ref_seq])
+        freq_non_ref = total_other / total_reads
+        actual_seq = ref_seq
+
+        # Dummy values that will be filled in later once we calculate the background error rate
+        if total_reads < 15:
+            warning = (f'WARNING: you had: {total_reads}, we recommend looking at the BAM file or using a '
+                       f'second sequencing method on this well.')
         if ref_seq != '-':
-            # Check if there are at least 25% with a different value compared to the reference.
-            total_reads = len(vc)
-            total_other = len(vc[vc != ref_seq])
-            freq_non_ref = total_other / total_reads
-            actual_seq = ref_seq
-            # Dummy values that will be filled in later once we calculate the background error rate
             rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
                          len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
-                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']),
-                         1.0])
+                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, 0,
+                         1.0, warning])
+        else:
+            # Keep track of the insertions and deletions depending on whether we had a value in the reference sequence
+            rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
+                         len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
+                         len(vc[vc == 'C']), 1.0, 0, 1.0, len(vc[vc != '-']),
+                         1.0, warning])
     return rows
 
 
-def calc_mutation_significance_for_position_in_well(ref_seq, num_a, num_t, num_g, num_c, num_dels, num_reads,
-                                num_total_non_ref_reads, background_error_rate):
+def calc_mutation_significance_for_position_in_well(ref_seq, num_a, num_t, num_g, num_c, num_dels, num_insertions,
+                                                    num_reads, num_total_non_ref_reads, background_error_rate):
     """
     Use the binomial test to check if we have a significant result for any of the observed reads.
     """
@@ -302,12 +307,13 @@ def calc_mutation_significance_for_position_in_well(ref_seq, num_a, num_t, num_g
     p_g = binomtest(num_g, num_reads, background_error_rate, 'greater').pvalue
     p_c = binomtest(num_c, num_reads, background_error_rate, 'greater').pvalue
     p_n = binomtest(num_dels, num_reads, background_error_rate, 'greater').pvalue
+    p_i = binomtest(num_insertions, num_reads, background_error_rate, 'greater').pvalue
     val = 0
     actual_seq = ref_seq
     p_value = float('nan')  # Could also use 0 not sure what is optimal here!
     if num_total_non_ref_reads == 0:
         val = 0.0  # i.e. they were 100% the reference
-        p_value = 1.0  # i.e. they are all this
+        p_value = 0.0  # i.e. they are all this
     else:
         if num_a > 0 and 'A' != ref_seq and num_a / num_reads > val:
             val = num_a / num_reads
@@ -329,63 +335,11 @@ def calc_mutation_significance_for_position_in_well(ref_seq, num_a, num_t, num_g
             val = num_dels / num_reads
             actual_seq = 'DEL'
             p_value = p_n
-    return actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n
-
-
-def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: list):
-    """
-    Generate the alignment from the cigar string.
-    Operation	Description	Consumes query	Consumes reference
-    0 M	alignment match (can be a sequence match or mismatch)	yes	yes
-    1 I	insertion to the reference	yes	no
-    2 D	deletion from the reference	no	yes
-    3 N	skipped region from the reference	no	yes
-    4 S	soft clipping (clipped sequences present in SEQ)	yes	no
-    5 H	hard clipping (clipped sequences NOT present in SEQ)	no	no
-    6 P	padding (silent deletion from padded reference)	no	no
-    7 =	sequence match	yes	yes
-    8 X	sequence mismatch	yes	yes
-    """
-    new_seq = ''
-    ref_seq = ''
-    qual = []
-    inserts = []
-    pos = 0
-    ref_pos = 0
-    for op, op_len in cigar:
-        if op == 0:  # alignment match (can be a sequence match or mismatch)
-            new_seq += alignment[pos:pos + op_len]
-            qual += query_qualities[pos:pos + op_len]
-
-            ref_seq += ref[ref_pos:ref_pos + op_len]
-            pos += op_len
-            ref_pos += op_len
-        elif op == 1:  # insertion to the reference
-            inserts.append(alignment[pos - 1:pos + op_len])
-            pos += op_len
-        elif op == 2:  # deletion from the reference
-            new_seq += '-' * op_len
-            qual += [-1] * op_len
-            ref_seq += ref[ref_pos:ref_pos + op_len]
-            ref_pos += op_len
-        elif op == 3:  # skipped region from the reference
-            new_seq += '*' * op_len
-            qual += [-2] * op_len
-            ref_pos += op_len
-        elif op == 4:  # soft clipping (clipped sequences present in SEQ)
-            inserts.append(alignment[pos:pos + op_len])
-            pos += op_len
-        elif op == 5:  # hard clipping (clipped sequences NOT present in SEQ)
-            continue
-        elif op == 6:  # padding (silent deletion from padded reference)
-            continue
-        elif op == 7:  # sequence mismatch
-            new_seq += alignment[pos:pos + op_len]
-            ref_seq += ref[ref_pos:ref_pos + op_len]
-            qual += query_qualities[pos:pos + op_len]
-            pos += op_len
-            ref_pos += op_len
-    return new_seq, ref_seq, qual, inserts
+        if num_insertions > 0 and '-' == ref_seq and num_insertions / num_reads > val:
+            val = num_insertions / num_reads
+            actual_seq = 'INS'
+            p_value = p_i
+    return actual_seq, val, p_value, p_a, p_t, p_g, p_c, p_n, p_i
 
 
 def postprocess_variant_df(df, cutoff=5, output_path=None):
@@ -402,14 +356,18 @@ def postprocess_variant_df(df, cutoff=5, output_path=None):
             if str(m) != 'nan':
                 m = m.split('_')
                 for mutation in m:
-                    if 'DEL' not in mutation:
+                    if 'DEL' not in mutation and 'INS' not in mutation:
                         position = mutation[1:-1] # i.e. trim off what it was
                         # Get the position and also keep what it was mutated to
                         mutation_map[position][mutation[-1]] += 1 # get what it was mutated too
-                    else:
+                    elif 'DEL' in mutation:
                         position = mutation[1:].replace('DEL', '')  # i.e. trim off what it was
                         # Get the position and also keep what it was mutated to
                         mutation_map[position]['DEL'] += 1  # get what it was mutated too
+                    elif 'INS' in mutation:
+                        position = mutation[1:].replace('INS', '')  # i.e. trim off what it was
+                        # Get the position and also keep what it was mutated to
+                        mutation_map[position]['INS'] += 1  # get what it was mutated too
                     positions.append(position)
         # Make into a DF that has positions and then the number and types of muattions
         positions = list(set(positions))
@@ -422,13 +380,14 @@ def postprocess_variant_df(df, cutoff=5, output_path=None):
             c_ = pos['C'] or 0
             g_ = pos['G'] or 0
             del_ = pos['DEL'] or 0
-            total = a_ + t_ + g_ + c_ + del_
-            rows.append([position, total, a_, t_, g_, c_, del_])
+            ins_ = pos['INS'] or 0
+            total = a_ + t_ + g_ + c_ + del_ + ins_
+            rows.append([position, total, a_, t_, g_, c_, del_, ins_])
             # CHeck if the well has a problem at a specific position
             if total > cutoff:
                 print(f"Warning! Position {position} in plate {plate} was mutated: {total} times. "
                       f"This may be an error with your parent.")
-        p_df = pd.DataFrame(rows, columns=['Position', 'Total wells mutated in', 'A', 'T', 'G', 'C', 'DEL'])
+        p_df = pd.DataFrame(rows, columns=['Position', 'Total wells mutated in', 'A', 'T', 'G', 'C', 'DEL', 'INS'])
         if output_path:
             # Save QC file if the user specifies a path.
             p_df.to_csv(f'{output_path}Plate_{plate}_QC.csv', index=False)

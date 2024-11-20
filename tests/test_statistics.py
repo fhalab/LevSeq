@@ -18,12 +18,18 @@
 import shutil
 import tempfile
 import unittest
+
+import pandas as pd
 from sciutil import *
 
 u = SciUtil()
+from scipy.stats import mannwhitneyu
+from tqdm import tqdm
 
 from levseq.variantcaller import *
 from levseq.simulation import *
+from levseq.utils import *
+from sklearn.preprocessing import OneHotEncoder
 
 
 class TestClass(unittest.TestCase):
@@ -60,9 +66,6 @@ class TestStats(TestClass):
     def test_stats_df(self):
         # Get them w.r.t to a mutation
         processed_plate_df = pd.DataFrame()
-        from scipy.stats import mannwhitneyu
-        from tqdm import tqdm
-
         parent = '#PARENT#'
         value_column = 'pdt'
         normalise = True
@@ -100,10 +103,11 @@ class TestStats(TestClass):
         stats_df = pd.DataFrame(rows, columns=['mutation', 'number of wells with mutation', 'mean',
                                                'amount greater than parent mean', f'greater than > {sd_cutoff} parent',
                                                'man whitney U stat', 'p-value'])
-        stats_df
+        stats_df # Save to use in the next one...
 
     def test_mutation_summary(self):
         from collections import defaultdict
+        stats_df = pd.DataFrame()
 
         mutation_dict = defaultdict(list)
         for mutation in stats_df['mutation'].values:
@@ -130,9 +134,8 @@ class TestStats(TestClass):
                                          'mean amount greater than parent', 'max amount greater than parent'])
 
     def test_pca(self):
-        from levseq.utils import *
-        from sklearn.preprocessing import OneHotEncoder
-
+        processed_plate_df = pd.DataFrame()
+        aas = ''
         seqs = []
         one_hots_nc = []
         one_hots_aa = []

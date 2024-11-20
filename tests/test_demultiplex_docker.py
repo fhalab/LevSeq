@@ -61,3 +61,5 @@ class TestDemultiplex(TestClass):
 
     def test_docker_data(self):
         """ Test running docker with the data works acurately."""
+        # levseq new_run ../Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/ ../Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv --skip_demultiplexing --output new_run
+        # Test the new LevSeq and what's with the issues in this.
