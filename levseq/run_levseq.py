@@ -39,14 +39,115 @@ import holoviews as hv
 from holoviews.streams import Tap
 import matplotlib
 
-#output_notebook()
-# pn.extension()
-# pn.config.comms = "vscode"
+import os
+import logging
+import pandas as pd
+from pathlib import Path
+import shutil
+import subprocess
+from Bio import SeqIO
+import platform
+import numpy as np
+import tqdm
 
-# hv.extension("bokeh")
+import os
+import logging
+import pandas as pd
+from pathlib import Path
+import shutil
+import subprocess
+from Bio import SeqIO
+import platform
+import numpy as np
+import tqdm
+import panel as pn
+import holoviews as hv
+from importlib import resources
+from holoviews.streams import Tap
 
+# Utility function to configure logging
+def configure_logging(result_folder):
+    log_format = "%(asctime)s:%(levelname)s:%(message)s"
+    info_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_run.log"))
+    info_handler.setLevel(logging.INFO)
+    info_handler.setFormatter(logging.Formatter(log_format))
 
-# Get barcode used
+    error_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_error.log"))
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(logging.Formatter(log_format))
+
+    logging.basicConfig(level=logging.INFO, handlers=[info_handler, error_handler])
+
+# Create result folder
+def create_result_folder(cl_args):
+    folder_name = cl_args.get("name")
+    if not folder_name:
+        raise ValueError("The 'name' key is required in cl_args")
+    output_path = cl_args.get("output", os.getcwd())
+    result_folder = Path(output_path) / folder_name
+    result_folder.mkdir(parents=True, exist_ok=True)
+    return str(result_folder)
+
+# Split FASTQ file into chunks
+def split_fastq_file(fastq_file: Path, output_dir: Path, reads_per_file: int):
+    try:
+        with open(fastq_file, "rt") as handle:
+            record_iter = SeqIO.parse(handle, "fastq")
+            file_count = 0
+            while True:
+                chunk = []
+                try:
+                    for _ in range(reads_per_file):
+                        chunk.append(next(record_iter))
+                except StopIteration:
+                    if chunk:
+                        output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
+                        with open(output_file, "wt") as out_handle:
+                            SeqIO.write(chunk, out_handle, "fastq")
+                        logging.info(f"Created {output_file} with {len(chunk)} reads")
+                    break
+                output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
+                with open(output_file, "wt") as out_handle:
+                    SeqIO.write(chunk, out_handle, "fastq")
+                logging.info(f"Created {output_file} with {len(chunk)} reads")
+                file_count += 1
+        logging.info(f"Splitting complete for {fastq_file}. {file_count} parts created.")
+    except Exception as e:
+        logging.error(f"Failed to split FASTQ file {fastq_file}: {str(e)}", exc_info=True)
+        raise
+
+# Concatenate or split FASTQ files
+def cat_fastq_files(folder_path: str, output_path: str, reads_per_file: int = 4000):
+    try:
+        folder_path = Path(folder_path)
+        output_path = Path(output_path)
+        if not folder_path.is_dir():
+            raise ValueError("The provided path is not a valid directory: %s" % folder_path)
+        if not output_path.exists():
+            output_path.mkdir(parents=True, exist_ok=True)
+        fastq_files = []
+        for root, dirs, files in os.walk(folder_path):
+            if "fastq_fail" not in root:
+                for file in files:
+                    if file.endswith(('.fastq', '.fastq.gz')):
+                        fastq_files.append(Path(root) / file)
+        if not fastq_files:
+            raise ValueError("No FASTQ files found in %s" % folder_path)
+        if len(fastq_files) == 1 and fastq_files[0].suffix == '.fastq':
+            logging.info("Splitting single FASTQ file into %d reads per file", reads_per_file)
+            split_fastq_file(fastq_files[0], output_path, reads_per_file)
+        else:
+            for fastq_file in fastq_files:
+                destination = output_path / fastq_file.name
+                shutil.copy(fastq_file, destination)
+                logging.info("Copied %s to %s", fastq_file, destination)
+        logging.info("All FASTQ files processed successfully to %s", output_path)
+        return str(output_path)
+    except Exception as e:
+        logging.error("Failed to copy or split fastq files. An error occurred: %s", str(e), exc_info=True)
+        raise
+
+# Filter barcodes
 def barcode_user(cl_args, i):
     try:
         # Set some default values if user did not provide barcodes
@@ -62,132 +163,19 @@ def barcode_user(cl_args, i):
         logging.error("Demultiplex failed to execute for index {i}.", exc_info=True)
         raise
 
-# Split fastq file into 4000 reads per chunk
-def split_fastq_file(fastq_file: Path, output_dir: Path, reads_per_file: int):
-    """
-    Splits a FASTQ file into multiple files, each containing up to a specified number of reads.
-    
-    Parameters:
-    - fastq_file (Path): The input FASTQ file to be split.
-    - output_dir (Path): The directory where the split files will be saved.
-    - reads_per_file (int): The number of reads per output file.
-    """
-    try:
-        with open(fastq_file, "rt") as handle:
-            record_iter = SeqIO.parse(handle, "fastq")
-            file_count = 0
-            while True:
-                chunk = []
-                try:
-                    for _ in range(reads_per_file):
-                        chunk.append(next(record_iter))
-                except StopIteration:
-                    # End of the file reached
-                    if chunk:
-                        output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
-                        with open(output_file, "wt") as out_handle:
-                            SeqIO.write(chunk, out_handle, "fastq")
-                        logging.info(f"Created {output_file} with {len(chunk)} reads")
-                    break  # Exit the loop once we reach the end of the records
-                output_file = output_dir / f"{fastq_file.stem}_part{file_count}.fastq"
-                with open(output_file, "wt") as out_handle:
-                    SeqIO.write(chunk, out_handle, "fastq")
-                logging.info(f"Created {output_file} with {len(chunk)} reads")
-                file_count += 1
-        
-        logging.info(f"Splitting complete for {fastq_file}. {file_count} parts created.")
-    except Exception as e:
-        logging.error(f"Failed to split FASTQ file {fastq_file}: {str(e)}", exc_info=True)
-        raise
-
-def cat_fastq_files(folder_path: str, output_path: str, reads_per_file: int = 4000):
-    """
-    Copies all .fastq and .fastq.gz files from the provided folder_path to the output_path.
-    If there's only one .fastq file, it will be split into smaller files of a specified number
-    of reads each.
-    
-    Parameters:
-    - folder_path (str): The path to the directory containing .fastq and .fastq.gz files.
-    - output_path (str): The path to the directory where the files should be copied or split.
-    - reads_per_file (int): The number of reads per output file when splitting a FASTQ file.
-    
-    Returns:
-    - str: The path to the output directory where the files were copied.
-    
-    Raises:
-    - ValueError: If the folder_path is not a valid directory or if no .fastq/.fastq.gz files are found.
-    - Exception: For any other errors that occur during file copying or splitting.
-    """
-    try:
-        folder_path = Path(folder_path)
-        output_path = Path(output_path)
-
-        if not folder_path.is_dir():
-            raise ValueError(f"The provided path {folder_path} is not a valid directory")
-
-        if not output_path.exists():
-            output_path.mkdir(parents=True, exist_ok=True)
-
-        # Find all fastq and fastq.gz files excluding those in fastq_fail folders
-        fastq_files = []
-        for root, dirs, files in os.walk(folder_path):
-            if "fastq_fail" not in root:
-                for file in files:
-                    if file.endswith((".fastq", ".fastq.gz")):
-                        fastq_files.append(Path(root) / file)
-
-        if not fastq_files:
-            raise ValueError(f"No FASTQ files found in {folder_path}")
-
-        # If there is only one FASTQ file, split it into smaller files
-        if len(fastq_files) == 1 and fastq_files[0].suffix == '.fastq':
-            logging.info(f"Splitting single FASTQ file into {reads_per_file} reads per file")
-            split_fastq_file(fastq_files[0], output_path, reads_per_file)
-        else:
-            # Copy each .fastq or .fastq.gz file to the output directory
-            for fastq_file in fastq_files:
-                destination = output_path / fastq_file.name
-                shutil.copy(fastq_file, destination)
-                logging.info(f"Copied {fastq_file} to {destination}")
-
-        logging.info(f"All FASTQ files processed successfully to {output_path}")
-        return str(output_path)
-
-    except Exception as e:
-        logging.error(f"Failed to copy or split fastq files. An error occurred: {str(e)}", exc_info=True)
-        raise
-
-# Create result folder
-def create_result_folder(cl_args: dict) -> str:
-    folder_name = cl_args.get("name")
-    if not folder_name:
-        raise ValueError("The 'name' key is required in cl_args")
-    output_path = cl_args.get("output", os.getcwd())
-    result_folder = Path(output_path) / folder_name
-    # Create the directory if it doesn't exist
-    result_folder.mkdir(parents=True, exist_ok=True)
-    return str(result_folder)
-
-
-# Return and create filtered barcodes
 def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
     front_min, front_max, rbc = barcode_user(cl_args, i)
-# Use importlib.resources to get the path to the barcode file
     try:
         with resources.path('levseq.barcoding', 'minion_barcodes.fasta') as barcode_path:
             barcode_path = Path(barcode_path)
     except ImportError:
-        # Fallback method if the above fails
         package_root = Path(__file__).resolve().parent.parent
         barcode_path = package_root / "levseq" / "barcoding" / "minion_barcodes.fasta"
-    # Ensure the barcode file exists
     if not barcode_path.exists():
         raise FileNotFoundError(f"Barcode file not found: {barcode_path}")
-
     front_prefix = "NB"
     back_prefix = "RB"
     barcode_path_filter = os.path.join(name_folder, "levseq_barcodes_filtered.fasta")
-    
     filter_barcodes(
         str(barcode_path),
         str(barcode_path_filter),
@@ -196,35 +184,27 @@ def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
         front_prefix,
         back_prefix,
     )
-    
     return barcode_path_filter
 
-# Filter barcodes
-def filter_barcodes(
-    input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix
-):
+# Filter barcodes from input fasta
+def filter_barcodes(input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix):
     front_min, front_max = barcode_range
     filtered_records = []
-
     for record in SeqIO.parse(input_fasta, "fasta"):
         if (
             record.id.startswith(front_prefix)
-            and front_min <= int(record.id[len(front_prefix) :]) <= front_max
+            and front_min <= int(record.id[len(front_prefix):]) <= front_max
         ) or (
             record.id.startswith(back_prefix)
-            and int(record.id[len(back_prefix) :]) == rbc
+            and int(record.id[len(back_prefix):]) == rbc
         ):
             filtered_records.append(record)
-
     with open(output_fasta, "w") as output_handle:
         SeqIO.write(filtered_records, output_handle, "fasta")
 
-# Demultiplex fastq reads into plate and wells format
+# Demultiplex fastq reads
 def demux_fastq(file_to_fastq, result_folder, barcode_path):
-    # Determine the system architecture
     system_architecture = platform.machine().lower()
-
-    # Choose the appropriate executable based on the architecture
     if system_architecture == 'arm64':
         executable_name = "demultiplex-arm64"
     elif system_architecture == 'aarch64':
@@ -233,29 +213,20 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         executable_name = "demultiplex-x86"
     else:
         raise ValueError(f"Unsupported architecture: {system_architecture}")
-
-    # Use importlib.resources to get the path to the executable
     try:
         with resources.path('levseq.barcoding', executable_name) as executable_path:
             executable_path = Path(executable_path)
     except ImportError:
-        # Fallback method if the above fails
         package_root = Path(__file__).resolve().parent.parent
         executable_path = package_root / "levseq" / "barcoding" / executable_name
-
-    # Ensure the executable exists
     if not executable_path.exists():
         raise FileNotFoundError(f"Executable not found: {executable_path}")
-
-    # Get min and max sequence length if user specified, otherwise use default
     seq_min = 150 
     seq_max = 10000
-
-    # Use subprocess to run the executable
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)
 
-# Variant calling using VariantCaller class and generate dataframe
+# Variant calling using VariantCaller class
 def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
     try:
         vc = VariantCaller(
@@ -272,27 +243,7 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
     except Exception as e:
         logging.error("Variant calling failed", exc_info=True)
         raise
-
-
-# Saving heatmaps and csv in the results folder
-def save_platemap_to_file(heatmaps, outputdir, name, show_msa):
-    if not os.path.exists(os.path.join(outputdir, "Platemaps")):
-        os.makedirs(os.path.join(outputdir, "Platemaps"))
-    file_path = os.path.join(outputdir, "Platemaps", name)
-    if show_msa:
-        heatmaps.save(file_path + "_msa.html", embed=True)
-    else:
-        hv.renderer("bokeh").save(heatmaps, file_path)
-
-
-def save_csv(df, outputdir, name):
-    if not os.path.exists(os.path.join(outputdir, "Results")):
-        os.makedirs(os.path.join(outputdir, "Results"))
-    file_path = os.path.join(outputdir, "Results", name + ".csv")
-    df.to_csv(file_path)
-
-
-# Generate dataframe for visualization
+# Full version of create_df_v function
 def create_df_v(variants_df):
     # Make copy of dataframe
     df_variants_ = variants_df.copy()
@@ -318,7 +269,7 @@ def create_df_v(variants_df):
     # Compare aa_variant with translated refseq and generate Substitutions column
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
 
-    # Fill in empty empty values
+    # Fill in empty values
     df_variants_["Alignment Probability"] = df_variants_[
         "Average mutation frequency"
     ].fillna(0.0)
@@ -371,7 +322,7 @@ def create_df_v(variants_df):
 
     return restructured_df, df_variants_
 
-
+# Helper functions for create_df_v
 def create_nc_variant(variant, refseq):
     if isinstance(variant, np.ndarray):
         variant = variant.tolist()
@@ -392,7 +343,6 @@ def create_nc_variant(variant, refseq):
             if position < len(nc_variant) and nc_variant[position] == original:
                 nc_variant[position] = new
         return "".join(nc_variant)
-
 
 def is_valid_dna_sequence(sequence):
     return all(nucleotide in 'ATGC' for nucleotide in sequence) and len(sequence) % 3 == 0
@@ -417,7 +367,7 @@ def get_mutations(row):
                     if refseq_aa[i] != variant_aa[i]:
                         mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
                 if not mutations:
-                    if alignment_count < 5:
+                    if alignment_count < 15:
                         return "#N.A.#"
                     else:
                         return "#PARENT#"
@@ -432,102 +382,118 @@ def get_mutations(row):
         )   
         raise
 
-# Process the summary file
-def process_ref_csv(cl_args):
+# Save plate maps and CSV
+def save_platemap_to_file(heatmaps, outputdir, name, show_msa):
+    if not os.path.exists(os.path.join(outputdir, "Platemaps")):
+        os.makedirs(os.path.join(outputdir, "Platemaps"))
+    file_path = os.path.join(outputdir, "Platemaps", name)
+    if show_msa:
+        heatmaps.save(file_path + "_msa.html", embed=True)
+    else:
+        hv.renderer("bokeh").save(heatmaps, file_path)
+
+def save_csv(df, outputdir, name):
+    if not os.path.exists(os.path.join(outputdir, "Results")):
+        os.makedirs(os.path.join(outputdir, "Results"))
+    file_path = os.path.join(outputdir, "Results", name + ".csv")
+    df.to_csv(file_path)
+
+# Function to process the reference CSV and generate variants
+def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
     ref_df = pd.read_csv(cl_args["summary"])
-
     result_folder = create_result_folder(cl_args)
-
     variant_csv_path = os.path.join(result_folder, "variants.csv")
+
     if os.path.exists(variant_csv_path):
-        print("Variant file existed, appending new results to the end of the file: ", variant_csv_path)
         variant_df = pd.read_csv(variant_csv_path)
     else:
-        variant_df = pd.DataFrame(
-            columns=["barcode_plate", "name", "refseq", "variant"]
-       )
-    for i, row in ref_df.iterrows():
+        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    
+    for i, row in tqdm_fn(ref_df.iterrows(), total=len(ref_df), desc="Processing Samples"):
         barcode_plate = row["barcode_plate"]
         name = row["name"]
         refseq = row["refseq"].upper()
 
-        # Create a subfolder for the current iteration using the name value
         name_folder = os.path.join(result_folder, name)
         os.makedirs(name_folder, exist_ok=True)
-
-        # Write the refseq to a temporary fasta file
+        
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
-        with open(temp_fasta_path, "w") as f:
-            f.write(f">{name}\n{refseq}\n")
-        # Create filtered barcode path
+        if not os.path.exists(temp_fasta_path):
+            with open(temp_fasta_path, "w") as f:
+                f.write(f">{name}\n{refseq}\n")
+        else:
+            logging.info(f"Fasta file for {name} already exists. Skipping write.")
+        
         barcode_path = filter_bc(cl_args, name_folder, i)
-        # Find fastq.gz files
         output_dir = Path(result_folder) / "basecalled_reads"
         output_dir.mkdir(parents=True, exist_ok=True)
-
         file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
 
         if not cl_args["skip_demultiplexing"]:
-            demux_fastq(output_dir, name_folder, barcode_path)
+            try:
+                demux_fastq(output_dir, name_folder, barcode_path)
+            except Exception as e:
+                logging.error("An error occurred during demultiplexing for sample {}. Skipping this sample.".format(name), exc_info=True)
+                continue
+        
         if not cl_args["skip_variantcalling"]:
-            variant_result = call_variant(
-                f"{name}", name_folder, temp_fasta_path, barcode_path
-            )
-            variant_result["barcode_plate"] = barcode_plate
-            variant_result["name"] = name
-            variant_result["refseq"] = refseq
+            try:
+                variant_result = call_variant(
+                    f"{name}", name_folder, temp_fasta_path, barcode_path
+                )
+                variant_result["barcode_plate"] = barcode_plate
+                variant_result["name"] = name
+                variant_result["refseq"] = refseq
 
-            variant_df = pd.concat([variant_df, variant_result])
-
-        # Remove the temporary fasta file
-        # os.remove(temp_fasta_path)
+                variant_df = pd.concat([variant_df, variant_result])
+            except Exception as e:
+                logging.error("An error occurred during variant calling for sample {}. Skipping this sample.".format(name), exc_info=True)
+                continue
+    
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df
 
-
-# Run LevSeq
+# Main function to run LevSeq and ensure saving of intermediate results if an error occurs
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
-    # Create output folder
     result_folder = create_result_folder(cl_args)
+    configure_logging(result_folder)
 
-    # Configure logging to save in the output directory
-    log_format = "%(asctime)s:%(levelname)s:%(message)s"
-
-    # INFO level logger
-    info_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_run.log"))
-    info_handler.setLevel(logging.INFO)
-    info_handler.setFormatter(logging.Formatter(log_format))
-
-    # ERROR level logger
-    error_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_error.log"))
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(logging.Formatter(log_format))
-
-    # Configure the root logger
-    logging.basicConfig(level=logging.INFO, handlers=[info_handler, error_handler])
+    variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    
     try:
-        # Process summary file by row using demux, call_variant function
-        variant_df = process_ref_csv(cl_args)
-
-        # Check if variants.csv already exist
+        variant_df = process_ref_csv(cl_args, tqdm_fn)
+        if variant_df.empty:
+            logging.warning("No data found during CSV processing. The CSV is empty.")
+    except Exception as e:
+        variant_csv_path = os.path.join(result_folder, "variants_partial.csv")
+        variant_df.to_csv(variant_csv_path, index=False)
+        logging.error("An error occurred during processing summary file. Partial results saved at {}".format(variant_csv_path), exc_info=True)
+        raise
+    
+    try:
         variant_csv_path = os.path.join(result_folder, "variants.csv")
         if os.path.exists(variant_csv_path):
             variant_df = pd.read_csv(variant_csv_path)
-            df_variants, df_vis = create_df_v(variant_df)
-        # Clean up and prepare dataframe for visualization
-        else:
-            df_variants, df_vis = create_df_v(variant_df)
-
-        processed_csv = os.path.join(result_folder, "visualization.csv")
+        
+        if variant_df.empty:
+            raise ValueError("The variant DataFrame is empty after processing. Unable to continue.")
+        
+        df_variants, df_vis = create_df_v(variant_df)
+        processed_csv = os.path.join(result_folder, "visualization_partial.csv")
         df_vis.to_csv(processed_csv, index=False)
-
+    except Exception as e:
+        processed_csv = os.path.join(result_folder, "visualization_partial.csv")
+        if 'df_vis' in locals():
+            df_vis.to_csv(processed_csv, index=False)
+        logging.error("An error occurred while preparing data for visualization. Partial visualization saved at {}".format(processed_csv), exc_info=True)
+        raise
+    
+    try:
         layout = generate_platemaps(
             max_combo_data=df_vis,
             result_folder=result_folder,
             show_msa=cl_args["show_msa"],
         )
-
-        # Saving heatmap and csv
         save_platemap_to_file(
             heatmaps=layout,
             outputdir=result_folder,
@@ -537,8 +503,11 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         save_csv(df_variants, result_folder, cl_args["name"])
         logging.info("Run successful, see visualization and results")
     except Exception as e:
-        logging.error(
-            "An error occured while executing LevSeq, check log file for detail",
-            exc_info=True,
-        )
+        partial_csv_path = os.path.join(result_folder, "variants_partial.csv")
+        df_variants.to_csv(partial_csv_path, index=False)
+        logging.error("An error occurred during visualization. Partial CSV saved at {}".format(partial_csv_path), exc_info=True)
         raise
+
+# This modification saves the results at each critical stage, ensuring that even in the case of failure,
+# the user has access to intermediate results and does not lose all the progress.
+
