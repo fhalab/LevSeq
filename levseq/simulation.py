@@ -118,6 +118,7 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
     variant_df = get_dummy_plate_df(run_label, 'Well', number_of_wells)
     mutant_to_well_df = {}
     current_well = 0
+    insert_map = defaultdict(list)
     variant_df['True Mixed Well'] = False
     for mutant in tqdm(mutated_sequence):
         parent_name = 'Parent'
@@ -130,11 +131,11 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
             quals.append(100)  # Dummy don't need
 
         well_df = make_well_df_from_reads(reads, read_ids, quals)
-        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name, insert_map)
         well_df = pd.DataFrame(rows_all)
         well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
-                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
-                           'p(g)', 'C', 'p(c)', 'N', 'p(n)']
+                          'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
+                          'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
         well_df = calculate_mutation_significance_across_well(well_df)
         if qc_files_path is not None:
             # Save QC data
@@ -142,7 +143,7 @@ def make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequenc
             write_msa_for_df(qc_well_df, well_df, parent_name, parent_sequence,
                              os.path.join(qc_files_path, f'{run_label}_{current_well}.fa'),
                              os.path.join(qc_files_path, f'{run_label}_{current_well}.csv'))
-        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, frequency_cutoff)
+        label, frequency, combined_p_value, mixed_well, mean_mutation_rate = get_variant_label_for_well(well_df, frequency_cutoff)
         mutant_to_well_df[f'{mutant}_{current_well}'] = well_df
         variant_df.at[current_well, "Mixed Well"] = mixed_well
         variant_df.at[current_well, "Variant"] = label
