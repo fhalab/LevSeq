@@ -125,6 +125,7 @@ Note! The docker image should work with linux, and mac, however, different mac a
 Basically the -v connects a folder on your computer with the output from the minION sequencer with the docker image that will take these results and then perform 
 demultiplexing and variant calling.
 
+docker run -v /disk1/ariane/vscode/LevSeq/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28:/levseq_results/ levseq docker-test levseq_results/ levseq_results/LevSeq-T1.csv
 ```
  docker run -v /Users/XXXX/Documents/LevSeq/data:/levseq_results/ levseq 20240502 levseq_results/20240502/ levseq_results/20240502-YL-ParLQ-ep2.csv
 ```
