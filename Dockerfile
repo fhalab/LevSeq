@@ -75,7 +75,7 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
-RUN conda create --name levseq python=3.10
+RUN conda create --name levseq python=3.8
 # Add levseq to the path
 ENV PATH="/opt/conda/envs/levseq/bin:$PATH"
 RUN echo "source activate levseq" > ~/.bashrc
@@ -163,7 +163,7 @@ COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/dem
 RUN source activate levseq && python setup.py sdist bdist_wheel
 
 # Install --> should update this to the latest pip version
-RUN source activate levseq && pip install dist/levseq-1.0.3.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.1.1.tar.gz
 
 # Add entry point script
 COPY entrypoint.sh /usr/local/bin/

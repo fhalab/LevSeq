@@ -142,7 +142,7 @@ def _make_platemap(df, title, cmap=None):
             'Row': list('ABCDEFGH'),
             'Column': [str(i) for i in range(1, 13)],
             'logseqdepth': [0] * 96,
-            'Substitutions': [''] * 96,
+            'amino-acid_substitutions': [''] * 96,
             'Alignment Count': [0] * 96,
             'Alignment Probability': [0] * 96
         })
@@ -195,7 +195,7 @@ def _make_platemap(df, title, cmap=None):
 
     # add tooltips
     tooltips = [
-        ("Substitutions", "@Substitutions"),
+        ("amino-acid_substitutions", "@amino-acid_substitutions"),
         ("Alignment Count", "@Alignment Count"),
         ("Alignment Probability", "@Alignment Probability"),
     ]
@@ -211,7 +211,7 @@ def _make_platemap(df, title, cmap=None):
             kdims=["Column", "Row"],
             vdims=[
                 "logseqdepth",
-                "Substitutions",
+                "amino-acid_substitutions",
                 "Alignment Count",
                 "Alignment Probability",
             ],
@@ -300,7 +300,7 @@ def _make_platemap(df, title, cmap=None):
         return new_line_mutations
 
     _df = df.copy()
-    _df["Labels"] = _df["Substitutions"].apply(split_variant_labels)
+    _df["Labels"] = _df["amino-acid_substitutions"].apply(split_variant_labels)
 
     # Set the font size based on if #PARENT# is in a well and num of mutations
     max_num_mutations = _df["Labels"].apply(lambda x: len(x.split("\n"))).max()

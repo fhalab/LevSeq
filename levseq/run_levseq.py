@@ -312,33 +312,34 @@ def create_df_v(variants_df):
     df_variants_["Plate"] = df_variants_["Plate"].apply(
         lambda x: f"0{x}" if len(x) == 1 else x
     )
-	# Rename columns as per the request
-	df_variants_.rename(columns={
-		"Variant": "nucleotide_mutation",
-		"Substitutions": "amino-acid_substitutions",
-		"nc_variant": "nt_sequence",
-		"aa_variant": "aa_sequence"
+    # Rename columns as per the request
+    df_variants_.rename(columns={
+	"Variant": "nucleotide_mutation",
+	"Substitutions": "amino-acid_substitutions",
+	"nc_variant": "nt_sequence",
+	"aa_variant": "aa_sequence"
 	}, inplace=True)
 
-	# Select the desired columns in the desired order
-	restructured_df = df_variants_[
-		[
-			"barcode_plate",
-			"Plate",
-			"Well",
-			"Alignment Count",
-            "nucleotide_mutation",
-            "amino-acid_substitutions",
-            "Alignment Probability",
-			"Average mutation frequency",
-			"P value",
-			"P adj. value",
-			"nt_sequence",
-			"aa_sequence",
-		]
-	]
 
-	return restructured_df, df_variants_
+	# Select the desired columns in the desired order
+    restructured_df = df_variants_[
+            [
+                    "barcode_plate",
+                    "Plate",
+                    "Well",
+                    "Alignment Count",
+                    "nucleotide_mutation",
+                    "amino-acid_substitutions",
+                    "Alignment Probability",
+                    "Average mutation frequency",
+                    "P value",
+                    "P adj. value",
+                    "nt_sequence",
+                    "aa_sequence",
+            ]
+    ]
+
+    return restructured_df, df_variants_
 
 # Helper functions for create_df_v
 def create_nc_variant(variant, refseq):
