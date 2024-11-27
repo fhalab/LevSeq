@@ -48,6 +48,13 @@ except:
     gen_struct = False
 
 
+# Get them w.r.t to a mutation
+from scipy.stats import mannwhitneyu
+from tqdm import tqdm
+import pandas as pd
+import numpy as np
+from collections import defaultdict
+
 # Enable Bokeh to display plots in the notebook
 hv.extension("bokeh")
 pn.extension()
@@ -79,6 +86,88 @@ AA_DICT = {
     "Tyr": "Y",
     "Ter": "*",
 }
+
+def calculate_mutation_combinations(stats_df):
+    mutation_dict = defaultdict(list)
+    for mutation in stats_df['mutation'].values:
+        mutations = mutation.split('_')
+        for m in mutations:
+            mutation_dict[m].append(mutation)
+
+    rows = []
+    with pd.ExcelWriter('mutations.xlsx', engine='xlsxwriter') as writer:
+        for mutation, mutations in mutation_dict.items():
+            # Here we want to now get the values for each of these i.e. the stats values for each one and summarize it maybe for now we'll just make a excel file
+            df1 = stats_df[stats_df['mutation'].isin(mutations)]
+            mutation = mutation.replace('*', '.')
+            df1.to_excel(writer, sheet_name=mutation)
+            # Also just take the mean of the mean lol and the sum of the number of the wells
+            rows.append([mutation, np.sum(df1['number of wells with mutation'].values), '|'.join(set(list(mutations))),
+                         np.mean(df1['mean'].values),
+                         np.median(df1['median'].values), np.mean(df1['amount greater than parent mean'].values),
+                         np.max(df1['amount greater than parent mean'].values)])
+
+    df = pd.DataFrame(rows, columns=['mutation', 'number of wells with mutation',
+                                     'other-mutations', 'mean', 'median',
+                                     'mean amount greater than parent', 'max amount greater than parent'])
+    df.sort_values(by='mean amount greater than parent', ascending=False)
+    return df
+
+
+def normalise_calculate_stats(processed_plate_df, value_columns, normalise='standard', stats_method='mannwhitneyu',
+                              parent_label='#PARENT#'):
+    parent = parent_label
+    # if nomrliase normalize with standard normalisation
+    normalised_value_columns = []
+    normalised_df = pd.DataFrame()
+    if normalise:
+        for plate in set(processed_plate_df['Plate'].values):
+            for value_column in value_columns:
+                sub_df = processed_plate_df[processed_plate_df['Plate'] == plate]
+                parent_values = sub_df[sub_df['Mutations'] == parent][value_column].values
+                parent_mean = np.mean(parent_values)
+                parent_sd = np.std(parent_values)
+
+                # For each plate we normalise to the parent of that plate
+                sub_df[f'{value_column} plate standard norm'] = (sub_df[value_column].values - parent_mean) / parent_sd
+                normalised_value_columns.append(f'{value_column} plate standard norm')
+                normalised_df = pd.concat([normalised_df, sub_df])
+    else:
+        normalised_df = processed_plate_df
+
+    normalised_value_columns = list(set(normalised_value_columns))
+    processed_plate_df = normalised_df
+
+    sd_cutoff = 1.5  # The number of standard deviations we want above the parent values
+    # Now for all the other mutations we want to look if they are significant, first we'll look at combinations and then individually
+    grouped_by_mutations = processed_plate_df.groupby('Mutations')
+
+    rows = []
+    for mutation, grp in tqdm(grouped_by_mutations):
+        # Get the values and then do a ranksum test
+        if mutation != parent:
+            for value_column in normalised_value_columns:
+                parent_values = list(processed_plate_df[processed_plate_df['Mutations'] == parent][value_column].values)
+                parent_mean = np.mean(parent_values)
+                parent_sd = np.std(parent_values)
+
+                vals = list(grp[value_column].values)
+                U1, p = None, None
+                # Now check if there are 3 otherwise we just do > X S.D over - won't be sig anyway.
+                if len(grp) > 2:
+                    # Do stats
+                    U1, p = mannwhitneyu(parent_values, vals, method="exact")
+                mean_vals = np.mean(vals)
+                std_vals = np.std(vals)
+                median_vals = np.median(vals)
+                sig = mean_vals > ((sd_cutoff * parent_sd) + parent_mean)
+                rows.append(
+                    [value_column, mutation, len(grp), mean_vals, std_vals, median_vals, mean_vals - parent_mean, sig,
+                     U1, p])
+    stats_df = pd.DataFrame(rows, columns=['value_column', 'mutation', 'number of wells with mutation', 'mean', 'std',
+                                           'median', 'amount greater than parent mean',
+                                           f'greater than > {sd_cutoff} parent', 'man whitney U stat', 'p-value'])
+    return stats_df
 
 
 def checkNgen_folder(folder_path: str) -> str:
