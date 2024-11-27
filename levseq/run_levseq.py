@@ -249,7 +249,6 @@ def create_df_v(variants_df):
     df_variants_ = variants_df.copy()
 
     # Fill in empty cells
-    df_variants_["Variant"].tolist()
     df_variants_["Variant"] = df_variants_["Variant"].replace(np.nan, "", regex=True)
 
     # Create nc_variant column
@@ -269,17 +268,27 @@ def create_df_v(variants_df):
     # Compare aa_variant with translated refseq and generate Substitutions column
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
 
-    # Fill in empty values
-    df_variants_["Alignment Probability"] = df_variants_[
-        "Average mutation frequency"
-    ].fillna(0.0)
+    # Adding sequence quality to Alignment Probability before filling in empty values
+    def assign_alignment_probability(row):
+        if row["Variant"] == "#PARENT#":
+            if row["Alignment Count"] > 20:
+                return 1
+            elif 10 <= row["Alignment Count"] <= 20:
+                return (row["Alignment Count"] - 10) / 10  # Ranges from 0 to 1 linearly
+            else:
+                return 0
+        else:
+            return row["Average mutation frequency"]
+
+    df_variants_["Alignment Probability"] = df_variants_.apply(assign_alignment_probability, axis=1)
+    df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
     df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
 
     # Fill in Deletion into Substitutions Column
     for i in df_variants_.index:
         if df_variants_["nc_variant"].iloc[i] == "Deletion":
             df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "-")
-
+    
     # Add row and columns
     Well = df_variants_["Well"].tolist()
     row = []

@@ -15,17 +15,18 @@
 #                                                                             #
 ###############################################################################
 import pandas as pd
-
+import logging
 from levseq.utils import *
 import subprocess
 import os
+from collections import defaultdict
 import glob
 from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 from Bio import SeqIO
 import re
 from tqdm import tqdm
-
+import warnings
 '''
 Script for variant calling
 
@@ -36,7 +37,11 @@ The variant caller starts from demultiplexed fastq files.
 3) Call variant with soft alignment
 
 '''
-
+# Set up logging with a default level of WARNING
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+# Suppress numpy warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 class VariantCaller:
     """
@@ -113,79 +118,72 @@ class VariantCaller:
         else:
             return "NA"
 
-    def _align_sequences(self, output_dir: Path, filename, scores: list = [4, 2, 10],
-            alignment_name: str = "alignment_minimap") -> None:
-        """
-        Aligns sequences using minimap2, converts to BAM, sorts and indexes the BAM file.
+    def _align_sequences(self, output_dir, filename, scores=[4, 2, 10], alignment_name="alignment_minimap"):
+        try:
+            all_fastq = os.path.join(output_dir, '*.fastq')
+            fastq_list = glob.glob(all_fastq)
+            fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
 
-        Args:
-            - ref (Path): Path to the reference file.
-            - output_dir (str or Path): Directory to store output files.
-            - scores (list, optional): List of match, mismatch and gap opening scores. Defaults to [4,2,10].
-            - site_saturation (bool, optional): If True, uses site saturation parameters for minimap2. Defaults to False.
-            - alignment_name (str, optional): Name of the alignment file. Defaults to "alignment_minimap".
+            if not fastq_list:
+                logger.error("No FASTQ files found in the specified output directory.")
+                return
 
-        Returns:
-            - None
-        """
-        all_fastq = os.path.join(output_dir, '*.fastq')
-        fastq_list = glob.glob(all_fastq)
-        fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
-        
-        if not fastq_files:
-            raise FileNotFoundError("No FASTQ files found in the specified output directory.")
-        with open(fastq_files, 'w') as outfile:
-            for fastq in fastq_list:
-                with open(fastq, 'r') as infile:
-                    outfile.write(infile.read())
-                #os.remove(fastq)
-        fastq_files_str = fastq_files
+            # Combining fastq files into one
+            with open(fastq_files, 'w') as outfile:
+                for fastq in fastq_list:
+                    with open(fastq, 'r') as infile:
+                        outfile.write(infile.read())
 
-        # Alignment using minimap2
-        minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files_str}' > '{output_dir}/{alignment_name}.sam'"
-        subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Alignment using minimap2
+            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files}' > '{output_dir}/{alignment_name}.sam'"
+            subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
-        subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Convert SAM to BAM and sort
+            view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
+            subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
-        subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
+            subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"
-        subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Index the BAM file
+            index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"
+            subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # Remove SAM file
-        os.remove(f"{output_dir}/{alignment_name}.sam")
+            # Cleanup SAM file to save space
+            os.remove(f"{output_dir}/{alignment_name}.sam")
+        except Exception as e:
+            logger.error(f"Error during alignment for {filename}: {e}")
 
     def _run_variant_thread(self, args):
-        """
-        Runs a thread of variant calling.
-        """
-        barcode_ids, threshold, min_depth, output_dir = args[0], args[1], args[2], args[3]
-        for barcode_id in tqdm(barcode_ids):
-            row = self.variant_dict.get(barcode_id)
-            bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
-            # Check if the alignment file exists
-            if os.path.exists(row["Path"]):
-                if not os.path.exists(bam_file):
-                    # Try aligning the sequences
-                    print(f"Aligning sequences for {row['Path']}")
-                    self._align_sequences(row["Path"], row['Barcodes'])
+        barcode_ids, threshold, min_depth, output_dir = args
+        # Overall progress bar for all barcodes in this thread
+        with tqdm(barcode_ids, desc="Processing barcodes", leave=False) as pbar:
+            for barcode_id in pbar:
+                try:
+                    row = self.variant_dict.get(barcode_id)
+                    bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
 
-                # Check alignment count
-                well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file, self.ref_str,
-                                             msa_path=f'{row["Path"]}/msa_{barcode_id}.fa')
-                self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
-                if well_df is not None:
-                    # Save everything so that users have comprehensive views of their data
-                    well_df.to_csv(f'{row["Path"]}/seq_{barcode_id}.csv', index=False)
-                    label, freq, combined_p_value, mixed_well, average_error_rate = get_variant_label_for_well(well_df,
-                                                                                                               threshold)
-                    self.variant_dict[barcode_id]["Variant"] = label
-                    self.variant_dict[barcode_id]["Mixed Well"] = mixed_well
-                    self.variant_dict[barcode_id]["Average mutation frequency"] = freq
-                    self.variant_dict[barcode_id]["P value"] = combined_p_value
-                    self.variant_dict[barcode_id]["Average error rate"] = average_error_rate
+                    # Check if alignment file exists, if not, align sequences
+                    if not os.path.exists(bam_file):
+                        logger.info(f"Aligning sequences for {row['Path']}")
+                        self._align_sequences(row["Path"], row['Barcodes'])
+
+                    # Placeholder function calls to demonstrate workflow
+                    well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file, self.ref_str)
+                    self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
+                    
+                    if well_df is not None:
+                        well_df.to_csv(f"{row['Path']}/seq_{barcode_id}.csv", index=False)
+                        label, freq, combined_p_value, mixed_well, avg_error_rate = get_variant_label_for_well(well_df, threshold)
+                        self.variant_dict[barcode_id]['Variant'] = label
+                        self.variant_dict[barcode_id]['Mixed Well'] = mixed_well
+                        self.variant_dict[barcode_id]['Average mutation frequency'] = freq
+                        self.variant_dict[barcode_id]['P value'] = combined_p_value
+                        self.variant_dict[barcode_id]['Average error rate'] = avg_error_rate
+                except Exception as e:
+                    logger.error(f"Error processing barcode {barcode_id}: {e}")
+                finally:
+                    pbar.update(1)
 
     def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=10):
         """
