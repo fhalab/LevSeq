@@ -44,12 +44,11 @@ git clone https://github.com/fhalab/LevSeq.git
 ```
 
 ```
-conda create --name levseq python=3.8 -y
+conda create --name levseq python=3.10 -y
 ```
 
 ```
 conda activate levseq
-conda install bioconda::clustalo
 ```
 
 From the LevSeq folder, install the package using pip:
@@ -88,7 +87,7 @@ conda install conda-forge::gcc=13
 LevSeq can be run using the command line interface. Here's the basic structure of the command:
 
 ```
-levseq <name> <location to data folder> <location of reference csv file>
+levseq <name of the run you can make this whatever> <location to data folder> <location of reference csv file>
 ```
 #### Required Arguments
 1. Name of the experiment, this will be the name of the output folder
@@ -109,7 +108,8 @@ For installing the whole pipeline, you'll need to use the docker image. For this
 operating system (https://docs.docker.com/engine/install/).
 
 
-To build the docker image run (within the main folder that contains the `Dockerfile`):
+To build the docker image run (within the main folder that contains the `Dockerfile`). Note building does **not** work 
+on Mac M3 chip, please use a ubuntu machine to build the docker image!
 
 ```
 docker build -t levseq .
