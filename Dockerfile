@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     git \
     zlib1g-dev \
     build-essential \
+    libc6-dev \
+    linux-libc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set GCC 13 as the default compiler
@@ -75,7 +77,7 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
-RUN conda create --name levseq python=3.8
+RUN conda create --name levseq python=3.12
 # Add levseq to the path
 ENV PATH="/opt/conda/envs/levseq/bin:$PATH"
 RUN echo "source activate levseq" > ~/.bashrc
@@ -95,11 +97,13 @@ RUN source activate levseq && pip install pycoQC
 RUN wget -O /software/htslib-1.15.1.tar.bz2 https://github.com/samtools/htslib/releases/download/1.15.1/htslib-1.15.1.tar.bz2
 RUN wget -O /software/bcftools-1.15.1.tar.bz2 https://github.com/samtools/bcftools/releases/download/1.15.1/bcftools-1.15.1.tar.bz2
 RUN wget -O /software/samtools-1.15.1.tar.bz2 https://github.com/samtools/samtools/releases/download/1.15.1/samtools-1.15.1.tar.bz2
+RUN wget -O /software/minimap2-2.28.tar.bz2 https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28.tar.bz2
 
 # Install samtools
 RUN tar -xvjf /software/htslib-1.15.1.tar.bz2
 RUN tar -xvjf /software/bcftools-1.15.1.tar.bz2
 RUN tar -xvjf /software/samtools-1.15.1.tar.bz2
+RUN tar -xvjf /software/minimap2-2.28.tar.bz2
 
 # Build and Install
 WORKDIR /htslib-1.15.1/
@@ -108,6 +112,14 @@ WORKDIR /bcftools-1.15.1/
 RUN make install
 WORKDIR /samtools-1.15.1
 RUN make install
+WORKDIR /minimap2-2.28
+RUN make
+# Move the binary to PATH
+RUN cp minimap2 /usr/local/bin
+RUN chmod +x /usr/local/bin/minimap2
+
+# Verify the installation
+RUN minimap2 --version
 
 # Change back
 WORKDIR /
@@ -139,12 +151,6 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y libstdc++6
 
-# Download and extract minimap2
-RUN wget -O /software/minimap2-2.24.tar.bz2 https://github.com/lh3/minimap2/releases/download/v2.24/minimap2-2.24.tar.bz2
-RUN tar -xvjf /software/minimap2-2.24.tar.bz2 -C /software
-
-# For some reason it's not wanting to play nice so gonna just do it the ugly way...
-RUN cp -r /software/minimap2-2.24/* /usr/local/bin
 
 # Set an entry point to CLI for pipeline
 COPY levseq /levseq
