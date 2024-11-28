@@ -113,7 +113,7 @@ RUN make install
 WORKDIR /samtools-1.15.1
 RUN make install
 WORKDIR /minimap2-2.28
-RUN make
+RUN make || make arm_neon=1 aarch64=1 || make arm_neon=11
 # Move the binary to PATH
 RUN cp minimap2 /usr/local/bin
 RUN chmod +x /usr/local/bin/minimap2
