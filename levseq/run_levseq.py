@@ -359,10 +359,9 @@ def create_nc_variant(variant, refseq):
         mutations = variant.split("_")
         nc_variant = list(refseq)
         for mutation in mutations:
-            if len(mutation) >= 2:
-                position = int(re.findall(r"\d+", mutation)[0]) - 1
-                original = mutation[0]
-                new = mutation[-1]
+            position = int(re.findall(r"\d+", mutation)[0]) - 1
+            original = mutation[0]
+            new = mutation[-1]
             if position < len(nc_variant) and nc_variant[position] == original:
                 nc_variant[position] = new
         return "".join(nc_variant)

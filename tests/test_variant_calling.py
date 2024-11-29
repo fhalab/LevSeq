@@ -310,7 +310,7 @@ class TestVariantCalling(TestClass):
         # This should be mutated at 100% - the rate of our sequencing errror
         u.dp([f"Input parent: {parent_sequence}"])
         u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well])
-        well_df.to_csv('test.csv')
+        assert label == '+'
 
     def test_mixed_wells(self):
         # Test whether we're able to call mixed well populations
