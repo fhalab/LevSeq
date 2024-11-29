@@ -263,14 +263,14 @@ class TestVariantCalling(TestClass):
             quals.append(100)  # Dummy don't need
 
         well_df = make_well_df_from_reads(reads, read_ids, quals)
-        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name, defaultdict(list))
         well_df = pd.DataFrame(rows_all)
         well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                            'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
                            'p(g)',
-                           'C', 'p(c)', 'N', 'p(n)']
+                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warning']
         well_df = calculate_mutation_significance_across_well(well_df)
-        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
+        label, frequency, combined_p_value, mixed_well, mean_mutation_rate = get_variant_label_for_well(well_df, 0.5)
         # This should be mutated at 100% - the rate of our sequencing errror
         u.dp([f"Input parent: {parent_sequence}", f"Variant: {mutant}"])
         u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well])
@@ -279,6 +279,38 @@ class TestVariantCalling(TestClass):
         assert frequency != 1.0
         assert combined_p_value < 0.05
         assert mixed_well is False
+
+
+    def test_calling_variant_with_insert(self):
+        u.dp(["Testing calling variants using SSM with error"])
+
+        parent_sequence = "ATGAGT"
+        mutated_sequence = 'ATGAGT' # Not actually mutated
+        parent_name = 'parent'
+        reads = []
+        read_ids = []
+        quals = []
+        insert_map = defaultdict(list)
+        for i in range(0, 30):
+            read_ids.append(f'read_{i}')
+            reads.append(mutated_sequence)
+            insert_map[1].append('C')  # Making them all have an insert at C
+            quals.append(100)  # Dummy don't need
+
+        well_df = make_well_df_from_reads(reads, read_ids, quals)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name, insert_map)
+        well_df = pd.DataFrame(rows_all)
+        well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
+                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
+                           'p(g)',
+                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warning']
+        print(well_df['I'].describe())
+        well_df = calculate_mutation_significance_across_well(well_df)
+        label, frequency, combined_p_value, mixed_well, mean_mutation_rate = get_variant_label_for_well(well_df, 0.5)
+        # This should be mutated at 100% - the rate of our sequencing errror
+        u.dp([f"Input parent: {parent_sequence}"])
+        u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well])
+        well_df.to_csv('test.csv')
 
     def test_mixed_wells(self):
         # Test whether we're able to call mixed well populations

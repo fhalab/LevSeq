@@ -166,10 +166,11 @@ WORKDIR /
 COPY --from=build-demultiplex /demultiplex/bin/demultiplex /levseq/barcoding/demultiplex
 
 # Create the wheel
-RUN source activate levseq && python setup.py sdist bdist_wheel
+RUN source activate levseq
+RUN python setup.py sdist bdist_wheel
 
 # Install --> should update this to the latest pip version
-RUN source activate levseq && pip install dist/levseq-1.1.1.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.2.1.tar.gz
 
 # Add entry point script
 COPY entrypoint.sh /usr/local/bin/

@@ -243,6 +243,19 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
     except Exception as e:
         logging.error("Variant calling failed", exc_info=True)
         raise
+
+def assign_alignment_probability(row):
+    if row["Variant"] == "#PARENT#":
+        if row["Alignment Count"] > 20:
+            return 1
+        elif 10 <= row["Alignment Count"] <= 20:
+            return (row["Alignment Count"] - 10) / 10  # Ranges from 0 to 1 linearly
+        else:
+            return 0
+    else:
+        return row["Average mutation frequency"]
+
+
 # Full version of create_df_v function
 def create_df_v(variants_df):
     # Make copy of dataframe
@@ -258,7 +271,7 @@ def create_df_v(variants_df):
 
     # Translate nc_variant to aa_variant
     df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
-    lambda x: x if x in ["Deletion", "#N.A.#"] else translate(x)
+        lambda x: x if x in ["Deletion", "#N.A.#"] else translate(x)
     )
     # Fill in 'Deletion' in 'aa_variant' column
     df_variants_.loc[
@@ -269,17 +282,6 @@ def create_df_v(variants_df):
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
 
     # Adding sequence quality to Alignment Probability before filling in empty values
-    def assign_alignment_probability(row):
-        if row["Variant"] == "#PARENT#":
-            if row["Alignment Count"] > 20:
-                return 1
-            elif 10 <= row["Alignment Count"] <= 20:
-                return (row["Alignment Count"] - 10) / 10  # Ranges from 0 to 1 linearly
-            else:
-                return 0
-        else:
-            return row["Average mutation frequency"]
-
     df_variants_["Alignment Probability"] = df_variants_.apply(assign_alignment_probability, axis=1)
     df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
     df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
@@ -317,29 +319,28 @@ def create_df_v(variants_df):
     )
     # Rename columns as per the request
     df_variants_.rename(columns={
-	"Variant": "nucleotide_mutation",
-	"Substitutions": "amino-acid_substitutions",
-	"nc_variant": "nt_sequence",
-	"aa_variant": "aa_sequence"
-	}, inplace=True)
+        "Variant": "nucleotide_mutation",
+        "Substitutions": "amino-acid_substitutions",
+        "nc_variant": "nt_sequence",
+        "aa_variant": "aa_sequence"
+	    },inplace=True)
 
 
 	# Select the desired columns in the desired order
-    restructured_df = df_variants_[
-            [
-                    "barcode_plate",
-                    "Plate",
-                    "Well",
-                    "Alignment Count",
-                    "nucleotide_mutation",
-                    "amino-acid_substitutions",
-                    "Alignment Probability",
-                    "Average mutation frequency",
-                    "P value",
-                    "P adj. value",
-                    "nt_sequence",
-                    "aa_sequence",
-            ]
+    restructured_df = df_variants_[[
+            "barcode_plate",
+            "Plate",
+            "Well",
+            "Alignment Count",
+            "nucleotide_mutation",
+            "amino-acid_substitutions",
+            "Alignment Probability",
+            "Average mutation frequency",
+            "P value",
+            "P adj. value",
+            "nt_sequence",
+            "aa_sequence",
+        ]
     ]
 
     return restructured_df, df_variants_

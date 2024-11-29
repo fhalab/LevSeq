@@ -301,17 +301,13 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
             read_quals.append(read.qual)
 
     # Check if we want to write a MSA
-    # if msa_path is not None:
-    #     print("Writing MSA, ", len(seqs))
-    #     if len(seqs) > 30:
-    #         seqs = random.sample(seqs, 30)
-    #     with open(msa_path, 'w+') as fout:
-    #         # Write the reference first
-    #         fout.write(f'>{parent_name}\n{ref_str}\n')
-    #         for i, seq in enumerate(seqs):
-    #             fout.write(f'>{read_ids[i]}\n{"".join(seq)}\n')
-    #     # Align using clustal for debugging if you need the adapter! Here you would change above to use a different version
-    #     os.system(f'clustal-omega --force -i "{msa_path}" -o "{msa_path.replace(".fa", "_msa.fa")}"')
+    if msa_path is not None:
+        with open(msa_path, 'w+') as fout:
+            # Write the reference first
+            fout.write(f'>{parent_name}\n{ref_str}\n')
+            for i, seq in enumerate(seqs):
+                fout.write(f'>{read_ids[i]}\n{str(seq)}\n')
+
     # Do this for all wells
     seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
     rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name, insert_map)
@@ -339,13 +335,12 @@ def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
 
         # Dummy values that will be filled in later once we calculate the background error rate
         warning = ''
-        if total_reads < 15:
-            warning = (f'WARNING: you had: {total_reads}, we recommend looking at the BAM file or using a '
-                       f'second sequencing method on this well.')
+        if total_reads < 20:
+            warning = f'WARNING: you had: {total_reads}, we recommend looking at the BAM file or using a second sequencing method on this well.'
         # Check if there was an insert
         if insert_map.get(col) and len(insert_map[col]) > total_reads/2:  # i.e. at least half have the insert
             if warning:
-                warning += 'INSERT ALERT DUPLICATE entry'
+                warning += '\nINSERT'
             else:
                 warning = f'WARNING: INSERT.'
             rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
@@ -468,12 +463,19 @@ def get_variant_label_for_well(seq_df, threshold):
     # Filter based on significance to determine whether there is a
     non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
     mixed_well = False
-    if len(non_refs) > 0:
+
+    if seq_df['p(i) adj.'].min() < 0.05 or seq_df['I'].max() > 20:
+        label = '+'
+        probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
+        combined_p_value = float("nan")
+
+    elif len(non_refs) > 0:
         positions = non_refs['position'].values
         refs = non_refs['ref'].values
         label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
         # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
         padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.', 'p(i) adj.']].values
+        # Have section for inserts
         for p in padj_vals:
             c_sig = 0
             for padj in p:
