@@ -164,7 +164,7 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
                 rows.append(
                     [value_column, mutation, len(grp), mean_vals, std_vals, median_vals, mean_vals - parent_mean, sig,
                      U1, p])
-    stats_df = pd.DataFrame(rows, columns=['value_column', 'mutation', 'number of wells with mutation', 'mean', 'std',
+    stats_df = pd.DataFrame(rows, columns=['value_column', 'amino-acid_substitutions', 'number of wells with amino-acid substitutions', 'mean', 'std',
                                            'median', 'amount greater than parent mean',
                                            f'greater than > {sd_cutoff} parent', 'man whitney U stat', 'p-value'])
     return stats_df
@@ -333,8 +333,8 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
     # Load the provided CSV file
     results_df = pd.read_csv(input_csv)
 
-    # Extract the required columns: Plate, Well, Mutations, and nt_sequence, and remove rows with '#N.A.#' and NaN values
-    # barcode_plate	Plate	Well	Alignment Count	nucleotide_mutation	amino-acid_substitutions	Alignment Probability	Average mutation frequency	P value	P adj. value	nt_sequence	aa_sequence
+    # Extract the required columns: Plate, Well, amino-acid_substitutionss, and nt_sequence, and remove rows with '#N.A.#' and NaN values
+    # barcode_plate	Plate	Well	Alignment Count	nucleotide_amino-acid_substitutions	amino-acid_substitutions	Alignment Probability	Average amino-acid_substitutions frequency	P value	P adj. value	nt_sequence	aa_sequence
     filtered_df = results_df[["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]]
     filtered_df = filtered_df[(filtered_df["amino-acid_substitutions"] != "#N.A.#")].dropna()
 
@@ -361,7 +361,7 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
                 plate_df = plate_object.df
                 plate_df["Plate"] = plate  # Add the plate identifier for reference
 
-                # Merge filtered_df with plate_df to retain Mutations and nt_sequence columns
+                # Merge filtered_df with plate_df to retain amino-acid_substitutionss and nt_sequence columns
                 merged_df = pd.merge(
                     plate_df, filtered_df, on=["Plate", "Well"], how="left"
                 )
