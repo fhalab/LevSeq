@@ -6,6 +6,9 @@ sandbox_old/*
 
 tests/seqfit/*.csv
 
+*.xlsx
+*.csv
+
 MSA-240818-JR-F2/
 MSA-240818-JR-F2/*
 
