@@ -2,7 +2,7 @@
 
 In directed evolution, sequencing every variant enhances data insight and creates datasets suitable for AI/ML methods. This method is presented as an extension of the original Every Variant Sequencer using Illumina technology. With this approach, sequence variants can be generated within a day at an extremely low cost.
 
-![Figure 1: LevSeq Workflow](manuscript/Figures/LevSeq_Figure-1.png)
+![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.png)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
 
 
