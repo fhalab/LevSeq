@@ -12,17 +12,23 @@ channels:
   - salilab
   - defaults
 dependencies:
-  - python=3.12
+  - python=3.10
   - biopandas
   - biopython
   - bokeh
+  - cairosvg
+  - clustalo
+  - firefox
   - flake8
   - fsspec
+  - geckodriver
+  - h5py
   - holoviews
   - hvplot
   - ipykernel
   - ipympl
   - ipywidgets
+  - jupyter
   - jupyter_bokeh
   - jupyterlab
   - logomaker
@@ -34,7 +40,7 @@ dependencies:
   - notebook
   - numpy
   - pandas
-  - panel=1.4.4
+  - panel
   - pillow
   - pip
   - pybedtools
@@ -54,8 +60,11 @@ dependencies:
   - seqtk
   - statsmodels
   - tqdm
+  - xlsxwriter
 
   - pip:
     - blackcellmagic
+    - chai_lab==0.3.1
+    - fair-esm
     - ninetysix
     - sciutil
