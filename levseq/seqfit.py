@@ -124,7 +124,7 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
         for plate in set(processed_plate_df['Plate'].values):
             for value_column in value_columns:
                 sub_df = processed_plate_df[processed_plate_df['Plate'] == plate]
-                parent_values = sub_df[sub_df['Mutations'] == parent][value_column].values
+                parent_values = sub_df[sub_df['amino-acid_substitutions'] == parent][value_column].values
                 parent_mean = np.mean(parent_values)
                 parent_sd = np.std(parent_values)
 
@@ -140,14 +140,14 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
 
     sd_cutoff = 1.5  # The number of standard deviations we want above the parent values
     # Now for all the other mutations we want to look if they are significant, first we'll look at combinations and then individually
-    grouped_by_mutations = processed_plate_df.groupby('Mutations')
+    grouped_by_mutations = processed_plate_df.groupby('amino-acid_substitutions')
 
     rows = []
     for mutation, grp in tqdm(grouped_by_mutations):
         # Get the values and then do a ranksum test
         if mutation != parent:
             for value_column in normalised_value_columns:
-                parent_values = list(processed_plate_df[processed_plate_df['Mutations'] == parent][value_column].values)
+                parent_values = list(processed_plate_df[processed_plate_df['amino-acid_substitutions'] == parent][value_column].values)
                 parent_mean = np.mean(parent_values)
                 parent_sd = np.std(parent_values)
 
@@ -275,10 +275,13 @@ def work_up_lcms(
         return series
 
     df["Sample Vial Number"] = fill_vial_number(df["Sample Vial Number"].copy())
+    # Drop empty ones!
+    df = df[df["Sample Vial Number"] != 0]
     # Remove unwanted wells
     df = df[df["Sample Name"] != drop_string]
     # Get wells
-    df.insert(0, "Well", df["Sample Vial Number"].apply(lambda x: x.split("-")[-1]))
+
+    df.insert(0, "Well", df["Sample Vial Number"].apply(lambda x: str(x).split("-")[-1]))
     # Rename
     df = df.rename({"Sample Name": "Plate"}, axis="columns")
     # Create minimal DataFrame
@@ -290,7 +293,7 @@ def work_up_lcms(
         index=["Well", "Plate"], columns="Compound Name", values="Area", aggfunc="max"
     ).reset_index()
     # Get rows and columns
-    df.insert(1, "Column", df["Well"].apply(lambda x: int(x[1:])))
+    df.insert(1, "Column", df["Well"].apply(lambda x: int(x[1:]) if x[1:].isdigit() else None))
     df.insert(1, "Row", df["Well"].apply(lambda x: x[0]))
     # Set values as floats
     cols = products + substrates if substrates is not None else products
@@ -330,9 +333,10 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
     # Load the provided CSV file
     results_df = pd.read_csv(input_csv)
 
-    # Extract the required columns: Plate, Well, Mutations, and nc_variant, and remove rows with '#N.A.#' and NaN values
-    filtered_df = results_df[["Plate", "Well", "Mutations", "nc_variant", "aa_variant"]]
-    filtered_df = filtered_df[(filtered_df["Mutations"] != "#N.A.#")].dropna()
+    # Extract the required columns: Plate, Well, Mutations, and nt_sequence, and remove rows with '#N.A.#' and NaN values
+    # barcode_plate	Plate	Well	Alignment Count	nucleotide_mutation	amino-acid_substitutions	Alignment Probability	Average mutation frequency	P value	P adj. value	nt_sequence	aa_sequence
+    filtered_df = results_df[["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]]
+    filtered_df = filtered_df[(filtered_df["amino-acid_substitutions"] != "#N.A.#")].dropna()
 
     # Extract the unique entries of Plate
     unique_plates = filtered_df["Plate"].unique()
@@ -357,14 +361,14 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
                 plate_df = plate_object.df
                 plate_df["Plate"] = plate  # Add the plate identifier for reference
 
-                # Merge filtered_df with plate_df to retain Mutations and nc_variant columns
+                # Merge filtered_df with plate_df to retain Mutations and nt_sequence columns
                 merged_df = pd.merge(
                     plate_df, filtered_df, on=["Plate", "Well"], how="left"
                 )
                 columns_order = (
-                    ["Plate", "Well", "Row", "Column", "Mutations"]
+                    ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
                     + product
-                    + ["nc_variant", "aa_variant"]
+                    + ["nt_sequence", "aa_sequence"]
                 )
                 merged_df = merged_df[columns_order]
                 processed_data.append(merged_df)
@@ -374,13 +378,13 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
         processed_df = pd.concat(processed_data, ignore_index=True)
     else:
         processed_df = pd.DataFrame(
-            columns=["Plate", "Well", "Row", "Column", "Mutations"]
+            columns=["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
             + product
-            + ["nc_variant", "aa_variant"]
+            + ["nt_sequence", "aa_sequence"]
         )
 
     # Ensure all entries in 'Mutations' are treated as strings
-    processed_df["Mutations"] = processed_df["Mutations"].astype(str)
+    processed_df["amino-acid_substitutions"] = processed_df["amino-acid_substitutions"].astype(str)
 
     # Remove any rows with empty values
     processed_df = processed_df.dropna()
@@ -420,19 +424,19 @@ def match_plate2parent(df: pd.DataFrame, parent_dict: Optional[Dict] = None) -> 
 
     if parent_dict is None:
 
-        # add aa_variant column if not present by translating from the nc_variant column
-        if "aa_variant" not in df.columns:
-            df["aa_variant"] = df["nc_variant"].apply(
-                Bio.sequence.Sequence(df["nc_variant"]).translate
+        # add aa_sequence column if not present by translating from the nt_sequence column
+        if "aa_sequence" not in df.columns:
+            df["aa_sequence"] = df["nt_sequence"].apply(
+                Bio.sequence.Sequence(df["nt_sequence"]).translate
             )
 
         # get all the parents from the df
-        parents = df[df["Mutations"] == "#PARENT#"].reset_index(drop=True).copy()
+        parents = df[df["amino-acid_substitutions"] == "#PARENT#"].reset_index(drop=True).copy()
 
-        # get the parent nc_variant
+        # get the parent nt_sequence
         parent_aas = (
-            df[df["Mutations"] == "#PARENT#"][["Mutations", "aa_variant"]]
-            .drop_duplicates()["aa_variant"]
+            df[df["amino-acid_substitutions"] == "#PARENT#"][["amino-acid_substitutions", "aa_sequence"]]
+            .drop_duplicates()["aa_sequence"]
             .tolist()
         )
 
@@ -440,7 +444,7 @@ def match_plate2parent(df: pd.DataFrame, parent_dict: Optional[Dict] = None) -> 
 
     # get the plate names for each parent
     parent2plate = {
-        p_name: df[df["aa_variant"] == p_seq]["Plate"].unique().tolist()
+        p_name: df[df["aa_sequence"] == p_seq]["Plate"].unique().tolist()
         for p_name, p_seq in parent_dict.items()
     }
 
@@ -516,7 +520,7 @@ def norm2parent(plate_df: pd.DataFrame) -> pd.DataFrame:
 
     # get all the parents from the df
     parents = (
-        plate_df[plate_df["Mutations"] == "#PARENT#"].reset_index(drop=True).copy()
+        plate_df[plate_df["amino-acid_substitutions"] == "#PARENT#"].reset_index(drop=True).copy()
     )
     filtered_parents = (
         parents.drop(index=detect_outliers_iqr(parents["pdt"]))
@@ -610,7 +614,7 @@ def get_single_ssm_site_df(
     # get parents from those plates
     site_parent_df = (
         single_ssm_df[
-            (single_ssm_df["Mutations"] == "#PARENT#")
+            (single_ssm_df["amino-acid_substitutions"] == "#PARENT#")
             & (single_ssm_df["Plate"].isin(site_df["Plate"].unique()))
         ]
         .reset_index(drop=True)
@@ -1145,12 +1149,12 @@ def gen_seqfitvis(
 
     df = pd.read_csv(seqfit_path)
     # ignore deletion meaning "Mutations" == "-"
-    df = df[df["Mutations"] != "-"].copy()
+    df = df[df["amino-acid_substitutions"] != "-"].copy()
     # count number of sites mutated and append mutation details
     # df["num_sites"] = df['Mutations'].apply(lambda x: 0 if x == "#PARENT#" else len(x.split("_")))
 
     # Apply function to the column
-    df[["num_sites", "mut_dets"]] = df["Mutations"].apply(process_mutation)
+    df[["num_sites", "mut_dets"]] = df["amino-acid_substitutions"].apply(process_mutation)
 
     # apply the norm function to all plates
     df = df.groupby("Plate").apply(norm2parent).reset_index(drop=True).copy()
