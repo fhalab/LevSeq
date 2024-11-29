@@ -221,7 +221,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         executable_path = package_root / "levseq" / "barcoding" / executable_name
     if not executable_path.exists():
         raise FileNotFoundError(f"Executable not found: {executable_path}")
-    seq_min = 150 
+    seq_min = 200 
     seq_max = 10000
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)
@@ -258,7 +258,7 @@ def create_df_v(variants_df):
 
     # Translate nc_variant to aa_variant
     df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
-        lambda x: "Deletion" if x == "Deletion" else translate(x)
+    lambda x: x if x in ["Deletion", "#N.A.#"] else translate(x)
     )
     # Fill in 'Deletion' in 'aa_variant' column
     df_variants_.loc[
@@ -284,10 +284,13 @@ def create_df_v(variants_df):
     df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
     df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
 
-    # Fill in Deletion into Substitutions Column
+    # Fill in Deletion into Substitutions Column, keep #N.A.# unchanged
     for i in df_variants_.index:
         if df_variants_["nc_variant"].iloc[i] == "Deletion":
             df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "-")
+        elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
+            df_variants_.Substitutions.iat[i] = "#N.A.#"
+
     
     # Add row and columns
     Well = df_variants_["Well"].tolist()
@@ -346,7 +349,7 @@ def create_nc_variant(variant, refseq):
     if isinstance(variant, np.ndarray):
         variant = variant.tolist()
     if variant == "" or pd.isnull(variant):
-        return refseq
+        return "#N.A.#"  # Return #N.A.# if variant is empty or null
     elif variant == "#PARENT#":
         return refseq
     elif "DEL" in variant:
@@ -363,19 +366,25 @@ def create_nc_variant(variant, refseq):
                 nc_variant[position] = new
         return "".join(nc_variant)
 
+
 def is_valid_dna_sequence(sequence):
     return all(nucleotide in 'ATGC' for nucleotide in sequence) and len(sequence) % 3 == 0
 
 def get_mutations(row):
     try:
-        refseq = row["refseq"]
+        alignment_count = row["Alignment Count"]
         
+        # Check if alignment_count is zero and return "#N.A.#" if true
+        if alignment_count == 0:
+            return "#N.A.#"
+        
+        refseq = row["refseq"]
+
         if not is_valid_dna_sequence(refseq):
             return "Invalid refseq provided, check template sequence. Only A, T, G, C and sequence dividable by 3 are accepted."
 
         refseq_aa = translate(refseq)
         variant_aa = row["aa_variant"]
-        alignment_count = row["Alignment Count"]
 
         if variant_aa == "Deletion":
             return ""
@@ -400,6 +409,7 @@ def get_mutations(row):
             exc_info=True,
         )   
         raise
+
 
 # Save plate maps and CSV
 def save_platemap_to_file(heatmaps, outputdir, name, show_msa):
