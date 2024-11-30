@@ -248,6 +248,10 @@ def assign_alignment_probability(row):
     if row["Variant"] == "#PARENT#":
         if row["Alignment Count"] > 20:
             return 1
+        elif 10 <= row["Alignment Count"] <= 20:
+            return (row["Alignment Count"] - 10) / 10  # Ranges from 0 to 1 linearly
+        else:
+            return 0
     else:
         return row["Average mutation frequency"]
 
