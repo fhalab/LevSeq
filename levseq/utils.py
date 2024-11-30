@@ -318,7 +318,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
         seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
-        return calculate_mutation_significance_across_well(seq_df), len(seq_df)
+        return calculate_mutation_significance_across_well(seq_df), len(seq_df.values)
 
 def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
     """
