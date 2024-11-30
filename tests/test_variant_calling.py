@@ -335,9 +335,19 @@ class TestVariantCalling(TestClass):
     def test_variant_calling_main(self):
         cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
         cl_args["name"] = 'Laragen_Validation'
-        cl_args["output"] = '../manuscript/Data/'
-        cl_args['path'] = '../manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/no_sample_id/'
-        cl_args["summary"] = '../manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv'
+        cl_args["output"] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/'
+        cl_args['path'] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/no_sample_id/'
+        cl_args["summary"] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv'
+        variant_df = process_ref_csv(cl_args)
+        variant_df.to_csv('variant_NEW.csv', index=False)
+        print(variant_df.head())
+
+    def test_variant_calling_for_LevSeq(self):
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args["name"] = 'parLQ_20240502'
+        cl_args["output"] = '/Users/arianemora/Documents/code/LevSeq/data/epPCR/epPCR_main_manuscript/ParLQ-ep2/'
+        cl_args['path'] = '/Users/arianemora/Documents/code/LevSeq/data/epPCR/epPCR_main_manuscript/ParLQ-ep2/'
+        cl_args["summary"] = '/Users/arianemora/Documents/code/LevSeq/data/epPCR/epPCR_main_manuscript/ParLQ-ep2/20240502-YL-ParLQ-ep2.csv'
         variant_df = process_ref_csv(cl_args)
         variant_df.to_csv('variant_NEW.csv', index=False)
         print(variant_df.head())

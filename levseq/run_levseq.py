@@ -271,12 +271,15 @@ def create_df_v(variants_df):
 
     # Translate nc_variant to aa_variant
     df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
-        lambda x: x if x in ["Deletion", "#N.A.#"] else translate(x)
+        lambda x: x if x in ["Deletion", "#N.A.#", 'Insertion'] else translate(x)
     )
     # Fill in 'Deletion' in 'aa_variant' column
     df_variants_.loc[
         df_variants_["nc_variant"] == "Deletion", "aa_variant"
     ] = "Deletion"
+    df_variants_.loc[
+        df_variants_["nc_variant"] == "Insertion", "aa_variant"
+    ] = "Insertion"
 
     # Compare aa_variant with translated refseq and generate Substitutions column
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
@@ -293,7 +296,6 @@ def create_df_v(variants_df):
         elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
             df_variants_.Substitutions.iat[i] = "#N.A.#"
 
-    
     # Add row and columns
     Well = df_variants_["Well"].tolist()
     row = []
@@ -325,7 +327,6 @@ def create_df_v(variants_df):
         "aa_variant": "aa_sequence"
 	    },inplace=True)
 
-
 	# Select the desired columns in the desired order
     restructured_df = df_variants_[[
             "barcode_plate",
@@ -355,15 +356,21 @@ def create_nc_variant(variant, refseq):
         return refseq
     elif "DEL" in variant:
         return "Deletion"
+    elif variant == '+':
+        return "Insertion"
     else:
         mutations = variant.split("_")
         nc_variant = list(refseq)
         for mutation in mutations:
-            position = int(re.findall(r"\d+", mutation)[0]) - 1
-            original = mutation[0]
-            new = mutation[-1]
-            if position < len(nc_variant) and nc_variant[position] == original:
-                nc_variant[position] = new
+            try:
+                position = int(re.findall(r"\d+", mutation)[0]) - 1
+                original = mutation[0]
+                new = mutation[-1]
+                if position < len(nc_variant) and nc_variant[position] == original:
+                    nc_variant[position] = new
+            except:
+                print('WARNING! UNABLE TO PROCESS THIS')
+                print(mutation)
         return "".join(nc_variant)
 
 
@@ -395,10 +402,7 @@ def get_mutations(row):
                     if refseq_aa[i] != variant_aa[i]:
                         mutations.append(f"{refseq_aa[i]}{i+1}{variant_aa[i]}")
                 if not mutations:
-                    if alignment_count < 15:
-                        return "#N.A.#"
-                    else:
-                        return "#PARENT#"
+                    return "#PARENT#"
             else:
                 return "LEN"
         return "_".join(mutations) if mutations else ""
@@ -433,10 +437,7 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
     result_folder = create_result_folder(cl_args)
     variant_csv_path = os.path.join(result_folder, "variants.csv")
 
-    if os.path.exists(variant_csv_path):
-        variant_df = pd.read_csv(variant_csv_path)
-    else:
-        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
     
     for i, row in tqdm_fn(ref_df.iterrows(), total=len(ref_df), desc="Processing Samples"):
         barcode_plate = row["barcode_plate"]
@@ -456,9 +457,9 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
         barcode_path = filter_bc(cl_args, name_folder, i)
         output_dir = Path(result_folder) / "basecalled_reads"
         output_dir.mkdir(parents=True, exist_ok=True)
-        file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
 
         if not cl_args["skip_demultiplexing"]:
+            file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
             try:
                 demux_fastq(output_dir, name_folder, barcode_path)
             except Exception as e:

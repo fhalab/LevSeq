@@ -170,7 +170,6 @@ def make_well_df_from_reads(seqs, read_ids, read_quals):
     seq_df = pd.DataFrame([list(s) for s in seqs])  # Convert each string to a list so that we get positions nicely
     # Also add in the read_ids and sort by the quality to only take the highest quality one
     seq_df['read_id'] = read_ids
-    #seq_df['read_qual'] = read_quals
     seq_df['seqs'] = seqs
     #seq_df = seq_df.sort_values(by='read_qual', ascending=False)
     # Should now be sorted by the highest quality
@@ -463,8 +462,8 @@ def get_variant_label_for_well(seq_df, threshold):
     # Filter based on significance to determine whether there is a
     non_refs = seq_df[seq_df['freq_non_ref'] > threshold].sort_values(by='position')
     mixed_well = False
-
-    if seq_df['p(i) adj.'].min() < 0.05 or seq_df['I'].max() > 20:
+    # Have section for inserts to check if they are > 50% of the reads
+    if seq_df['p(i) adj.'].min() < 0.05 and seq_df['I'].max() > len(seq_df) / 2:
         label = '+'
         probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
         combined_p_value = float("nan")
@@ -475,7 +474,7 @@ def get_variant_label_for_well(seq_df, threshold):
         label = [f'{refs[i]}{positions[i] + 1}{actual}' for i, actual in enumerate(non_refs['most_frequent'].values)]
         # Check if it is a mixed well i.e. there were multiple with significant greater than 0.05
         padj_vals = non_refs[['p(a) adj.', 'p(t) adj.', 'p(g) adj.', 'p(c) adj.', 'p(n) adj.', 'p(i) adj.']].values
-        # Have section for inserts
+
         for p in padj_vals:
             c_sig = 0
             for padj in p:
