@@ -296,7 +296,7 @@ def create_df_v(variants_df):
             df_variants_.Substitutions.iat[i] = "#N.A.#"
 
     # Low read counts override low mutations
-    df_variants_["Substitutions"] = ["#LOW#" if a < 20 and a > 0 else s for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
+    df_variants_["Substitutions"] = ["#LOW#" if a < 10 and a > 0 else s for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
 
     # Add row and columns
     Well = df_variants_["Well"].tolist()
@@ -386,7 +386,7 @@ def get_mutations(row):
         # Check if alignment_count is zero and return "#N.A.#" if true
         if alignment_count == 0:
             return "#N.A.#"
-        if alignment_count <= 20:
+        if alignment_count <= 10:
             return "#LOW#"
 
         refseq = row["refseq"]
