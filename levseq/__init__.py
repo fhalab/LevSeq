@@ -18,7 +18,7 @@
 __title__ = 'levseq'
 __description__ = 'LevSeq nanopore sequencing'
 __url__ = 'https://github.com/fhalab/levseq/'
-__version__ = '1.2.2'
+__version__ = '1.2.3'
 __author__ = 'Yueming Long, Emreay Gursoy, Ariane Mora, Francesca-Zhoufan Li'
 __author_email__ = 'ylong@caltech.edu'
 __license__ = 'GPL3'

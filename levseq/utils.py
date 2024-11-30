@@ -171,7 +171,8 @@ def make_well_df_from_reads(seqs, read_ids, read_quals):
     # Also add in the read_ids and sort by the quality to only take the highest quality one
     seq_df['read_id'] = read_ids
     seq_df['seqs'] = seqs
-    #seq_df = seq_df.sort_values(by='read_qual', ascending=False)
+    seq_df['read_qual'] = read_quals
+    seq_df = seq_df.sort_values(by='read_qual', ascending=False)
     # Should now be sorted by the highest quality
     seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
     return seq_df.drop(columns=['read_id', 'seqs'])
