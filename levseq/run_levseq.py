@@ -283,7 +283,6 @@ def create_df_v(variants_df):
 
     # Compare aa_variant with translated refseq and generate Substitutions column
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
-    df_variants_["Substitutions"] = ["#LOW#" if a < 20 else s for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
     # Adding sequence quality to Alignment Probability before filling in empty values
     df_variants_["Alignment Probability"] = df_variants_.apply(assign_alignment_probability, axis=1)
     df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
@@ -296,6 +295,8 @@ def create_df_v(variants_df):
         elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
             df_variants_.Substitutions.iat[i] = "#N.A.#"
 
+    # Low read counts override low mutations
+    df_variants_["Substitutions"] = ["#LOW#" if a < 20 else s for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
 
     # Add row and columns
     Well = df_variants_["Well"].tolist()
