@@ -171,11 +171,11 @@ def make_well_df_from_reads(seqs, read_ids, read_quals):
     # Also add in the read_ids and sort by the quality to only take the highest quality one
     seq_df['read_id'] = read_ids
     seq_df['seqs'] = seqs
-    seq_df['read_qual'] = read_quals
+    seq_df['read_qual'] = [0 if isinstance(r, str) else r for r in read_quals]
     seq_df = seq_df.sort_values(by='read_qual', ascending=False)
     # Should now be sorted by the highest quality
     seq_df = seq_df.drop_duplicates(subset=['read_id'], keep='first')
-    return seq_df.drop(columns=['read_id', 'seqs'])
+    return seq_df.drop(columns=['read_id', 'seqs', 'read_qual'])
 
 
 def calculate_mutation_significance_across_well(seq_df):
@@ -298,7 +298,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
             for i, insert in ins.items():
                 insert_map[i].append(insert)
             read_ids.append(f'{read.query_name}')
-            read_quals.append(read.qual)
+            read_quals.append(qual)
 
     # Check if we want to write a MSA
     if msa_path is not None:
@@ -338,7 +338,7 @@ def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
         if total_reads < 20:
             warning = f'WARNING: you had: {total_reads}, we recommend looking at the BAM file or using a second sequencing method on this well.'
         # Check if there was an insert
-        if insert_map.get(col) and len(insert_map[col]) > total_reads/2:  # i.e. at least half have the insert
+        if insert_map.get(col) and len(insert_map[col][0]) > total_reads/2:  # i.e. at least half have the insert
             if warning:
                 warning += '\nINSERT'
             else:
