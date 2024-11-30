@@ -169,9 +169,9 @@ class VariantCaller:
                         self._align_sequences(row["Path"], row['Barcodes'])
 
                     # Placeholder function calls to demonstrate workflow
-                    well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file, self.ref_str)
-                    self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
-
+                    well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file,
+                                                                  self.ref_str, f'{row["Path"]}/msa.fa')
+                    self.variant_dict[barcode_id]['Alignment count'] = alignment_count
                     if well_df is not None:
                         well_df.to_csv(f"{row['Path']}/seq_{barcode_id}.csv", index=False)
                         label, freq, combined_p_value, mixed_well, avg_error_rate = get_variant_label_for_well(well_df, threshold)

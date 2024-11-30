@@ -273,7 +273,7 @@ def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: 
             ref_pos += op_len
     return new_seq, ref_seq, qual, inserts
 
-def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_coverage=5, msa_path=None):
+def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=None):
     """
     Rows are the reads, columns are the columns in the reference. Insertions are ignored.
     """
@@ -318,7 +318,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, min_covera
         seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                           'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
-        return calculate_mutation_significance_across_well(seq_df), len(seqs)
+        return calculate_mutation_significance_across_well(seq_df), len(seq_df)
 
 def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
     """
