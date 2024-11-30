@@ -385,7 +385,6 @@ def get_mutations(row):
         # Check if alignment_count is zero and return "#N.A.#" if true
         if alignment_count == 0:
             return "#N.A.#"
-
         if alignment_count <= 20:
             return "#LOW#"
 
