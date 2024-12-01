@@ -115,7 +115,7 @@ def calculate_mutation_combinations(stats_df):
 
 
 def normalise_calculate_stats(processed_plate_df, value_columns, normalise='standard', stats_method='mannwhitneyu',
-                              parent_label='#PARENT#'):
+                              parent_label='#PARENT#', normalise_method='median'):
     parent = parent_label
     # if nomrliase normalize with standard normalisation
     normalised_value_columns = []
@@ -125,7 +125,11 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
             for value_column in value_columns:
                 sub_df = processed_plate_df[processed_plate_df['Plate'] == plate]
                 parent_values = sub_df[sub_df['amino-acid_substitutions'] == parent][value_column].values
-                parent_mean = np.mean(parent_values)
+                # By default use the median
+                if normalise_method == 'median':
+                    parent_mean = np.median(parent_values)
+                else:
+                    parent_mean = np.mean(parent_values)
                 parent_sd = np.std(parent_values)
 
                 # For each plate we normalise to the parent of that plate
@@ -148,7 +152,10 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
         if mutation != parent:
             for value_column in normalised_value_columns:
                 parent_values = list(processed_plate_df[processed_plate_df['amino-acid_substitutions'] == parent][value_column].values)
-                parent_mean = np.mean(parent_values)
+                if normalise_method == 'median':
+                    parent_mean = np.median(parent_values)
+                else:
+                    parent_mean = np.mean(parent_values)
                 parent_sd = np.std(parent_values)
 
                 vals = list(grp[value_column].values)
@@ -254,8 +261,12 @@ def work_up_lcms(
     --------
     plate: ns.Plate object (DataFrame-like)
     """
-    # Read in the data
-    df = pd.read_csv(file, header=[1])
+    if isinstance(file, str):
+        # Read in the data
+        df = pd.read_csv(file, header=[1])
+    else:
+        # Change to handling both
+        df = file
     # Convert nans to 0
     df = df.fillna(0)
     # Only grab the Sample Acq Order No.s that have a numeric value
@@ -302,6 +313,72 @@ def work_up_lcms(
     plate = ns.Plate(df, value_name=products[-1]).set_as_location("Plate", idx=3)
     plate.values = products
     return plate
+
+
+def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFrame:
+    """
+    Process and combine a single plate file
+
+    Args:
+    - product : str
+        The name of the product to be analyzed. ie pdt
+    - plate : str, ie 'HMC0225_HMC0226.csv'
+        The name of the input CSV file containing the plate data.
+
+    Returns:
+    - pd.DataFrame
+        A pandas DataFrame containing the processed data.
+    - str
+        The path of the output CSV file containing the processed data.
+    """
+    filtered_df = results_df[["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]]
+    filtered_df = filtered_df[(filtered_df["amino-acid_substitutions"] != "#N.A.#")].dropna()
+
+    # Extract the unique entries of Plate
+    unique_plates = filtered_df["Plate"].unique()
+
+    # Create an empty list to store the processed plate data
+    processed_data = []
+
+    # Iterate over unique Plates and search for corresponding CSV files in the current directory
+    plate_object = work_up_lcms(plate_df, product)
+
+    # Extract attributes from plate_object as needed for downstream processes
+    if hasattr(plate_object, "df"):
+        # Assuming plate_object has a dataframe-like attribute 'df' that we can work with
+        plate_df = plate_object.df
+        plate_df["Plate"] = plate  # Add the plate identifier for reference
+
+        # Merge filtered_df with plate_df to retain amino-acid_substitutionss and nt_sequence columns
+        merged_df = pd.merge(
+            plate_df, filtered_df, on=["Plate", "Well"], how="left"
+        )
+        columns_order = (
+                ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
+                + product
+                + ["nt_sequence", "aa_sequence"]
+        )
+        merged_df = merged_df[columns_order]
+        processed_data.append(merged_df)
+
+    # Concatenate all dataframes if available
+    if processed_data:
+        processed_df = pd.concat(processed_data, ignore_index=True)
+    else:
+        processed_df = pd.DataFrame(
+            columns=["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
+                    + product
+                    + ["nt_sequence", "aa_sequence"]
+        )
+
+    # Ensure all entries in 'Mutations' are treated as strings
+    processed_df["amino-acid_substitutions"] = processed_df["amino-acid_substitutions"].astype(str)
+
+    # Remove any rows with empty values
+    processed_df = processed_df.dropna()
+
+    # Return the processed DataFrame for downstream processes
+    return processed_df
 
 
 # Function to process the plate files
@@ -1146,8 +1223,10 @@ def gen_seqfitvis(
 ):
 
     # normalized per plate to parent
-
-    df = pd.read_csv(seqfit_path)
+    if isinstance(seqfit_path, str):
+        df = pd.read_csv(seqfit_path)
+    else:
+        df = seqfit_path
     # ignore deletion meaning "Mutations" == "-"
     df = df[df["amino-acid_substitutions"] != "-"].copy()
     # count number of sites mutated and append mutation details

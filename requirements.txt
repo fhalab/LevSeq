@@ -26,3 +26,4 @@ scikit-learn
 statsmodels
 tqdm
 logomaker
+biopandas

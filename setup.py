@@ -112,7 +112,8 @@ setup(name='levseq',
                         'seaborn',
                         'scikit-learn',
                         'statsmodels',
-                        'tqdm'],
+                        'tqdm',
+                        'biopandas'],
       python_requires='>=3.8',
       data_files=[("", ["LICENSE"])]
       )
