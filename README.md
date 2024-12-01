@@ -7,7 +7,7 @@ Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore tech
 
 
 - Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
-- A dockerized website and database for labs to locally host and visualize their data: website is available at: https://levseq.caltech.edu/ and code to host locally at: https://github.com/fhalab/LevSeq_VDB/
+- A dockerized website and database for labs to locally host and visualize their data: website is available [here](https://github.com/ArianeMora/LevSeq_vis/) and code to host locally at: https://github.com/fhalab/LevSeq_VDB/
 
 ## Setup
 
