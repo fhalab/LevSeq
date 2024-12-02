@@ -87,54 +87,81 @@ AA_DICT = {
     "Ter": "*",
 }
 
+
 def calculate_mutation_combinations(stats_df):
     mutation_dict = defaultdict(list)
-    for mutation in stats_df['mutation'].values:
-        mutations = mutation.split('_')
+    for mutation in stats_df["amino-acid_substitutions"].values:
+        mutations = mutation.split("_")
         for m in mutations:
             mutation_dict[m].append(mutation)
 
     rows = []
-    with pd.ExcelWriter('mutations.xlsx', engine='xlsxwriter') as writer:
+    with pd.ExcelWriter("mutations.xlsx", engine="xlsxwriter") as writer:
         for mutation, mutations in mutation_dict.items():
             # Here we want to now get the values for each of these i.e. the stats values for each one and summarize it maybe for now we'll just make a excel file
-            df1 = stats_df[stats_df['mutation'].isin(mutations)]
-            mutation = mutation.replace('*', '.')
+            df1 = stats_df[stats_df["amino-acid_substitutions"].isin(mutations)]
+            mutation = mutation.replace("*", ".")
             df1.to_excel(writer, sheet_name=mutation)
             # Also just take the mean of the mean lol and the sum of the number of the wells
-            rows.append([mutation, np.sum(df1['number of wells with mutation'].values), '|'.join(set(list(mutations))),
-                         np.mean(df1['mean'].values),
-                         np.median(df1['median'].values), np.mean(df1['amount greater than parent mean'].values),
-                         np.max(df1['amount greater than parent mean'].values)])
+            rows.append(
+                [
+                    mutation,
+                    np.sum(df1["number of wells with amino-acid substitutions"].values),
+                    "|".join(set(list(mutations))),
+                    np.mean(df1["mean"].values),
+                    np.median(df1["median"].values),
+                    np.mean(df1["amount greater than parent mean"].values),
+                    np.max(df1["amount greater than parent mean"].values),
+                ]
+            )
 
-    df = pd.DataFrame(rows, columns=['mutation', 'number of wells with mutation',
-                                     'other-mutations', 'mean', 'median',
-                                     'mean amount greater than parent', 'max amount greater than parent'])
-    df.sort_values(by='mean amount greater than parent', ascending=False)
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "amino-acid_substitutions",
+            "number of wells with amino-acid substitutions",
+            "other-mutations",
+            "mean",
+            "median",
+            "mean amount greater than parent",
+            "max amount greater than parent",
+        ],
+    )
+    df.sort_values(by="mean amount greater than parent", ascending=False)
     return df
 
 
-def normalise_calculate_stats(processed_plate_df, value_columns, normalise='standard', stats_method='mannwhitneyu',
-                              parent_label='#PARENT#', normalise_method='median'):
+def normalise_calculate_stats(
+    processed_plate_df,
+    value_columns,
+    normalise="standard",
+    stats_method="mannwhitneyu",
+    parent_label="#PARENT#",
+    normalise_method="median",
+):
     parent = parent_label
     # if nomrliase normalize with standard normalisation
     normalised_value_columns = []
     normalised_df = pd.DataFrame()
     if normalise:
-        for plate in set(processed_plate_df['Plate'].values):
+        for plate in set(processed_plate_df["Plate"].values):
             for value_column in value_columns:
-                sub_df = processed_plate_df[processed_plate_df['Plate'] == plate]
-                parent_values = sub_df[sub_df['amino-acid_substitutions'] == parent][value_column].values
+                sub_df = processed_plate_df[processed_plate_df["Plate"] == plate]
+                parent_values = sub_df[sub_df["amino-acid_substitutions"] == parent][
+                    value_column
+                ].values
                 # By default use the median
-                if normalise_method == 'median':
+                if normalise_method == "median":
                     parent_mean = np.median(parent_values)
                 else:
                     parent_mean = np.mean(parent_values)
                 parent_sd = np.std(parent_values)
 
                 # For each plate we normalise to the parent of that plate
-                sub_df[f'{value_column} plate standard norm'] = (sub_df[value_column].values - parent_mean) / parent_sd
-                normalised_value_columns.append(f'{value_column} plate standard norm')
+                sub_df[f"{value_column} plate standard norm"] = (
+                    sub_df[value_column].values - parent_mean
+                ) / parent_sd
+                normalised_value_columns.append(f"{value_column} plate standard norm")
                 normalised_df = pd.concat([normalised_df, sub_df])
     else:
         normalised_df = processed_plate_df
@@ -144,15 +171,19 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
 
     sd_cutoff = 1.5  # The number of standard deviations we want above the parent values
     # Now for all the other mutations we want to look if they are significant, first we'll look at combinations and then individually
-    grouped_by_mutations = processed_plate_df.groupby('amino-acid_substitutions')
+    grouped_by_mutations = processed_plate_df.groupby("amino-acid_substitutions")
 
     rows = []
     for mutation, grp in tqdm(grouped_by_mutations):
         # Get the values and then do a ranksum test
         if mutation != parent:
             for value_column in normalised_value_columns:
-                parent_values = list(processed_plate_df[processed_plate_df['amino-acid_substitutions'] == parent][value_column].values)
-                if normalise_method == 'median':
+                parent_values = list(
+                    processed_plate_df[
+                        processed_plate_df["amino-acid_substitutions"] == parent
+                    ][value_column].values
+                )
+                if normalise_method == "median":
                     parent_mean = np.median(parent_values)
                 else:
                     parent_mean = np.mean(parent_values)
@@ -169,11 +200,34 @@ def normalise_calculate_stats(processed_plate_df, value_columns, normalise='stan
                 median_vals = np.median(vals)
                 sig = mean_vals > ((sd_cutoff * parent_sd) + parent_mean)
                 rows.append(
-                    [value_column, mutation, len(grp), mean_vals, std_vals, median_vals, mean_vals - parent_mean, sig,
-                     U1, p])
-    stats_df = pd.DataFrame(rows, columns=['value_column', 'amino-acid_substitutions', 'number of wells with amino-acid substitutions', 'mean', 'std',
-                                           'median', 'amount greater than parent mean',
-                                           f'greater than > {sd_cutoff} parent', 'man whitney U stat', 'p-value'])
+                    [
+                        value_column,
+                        mutation,
+                        len(grp),
+                        mean_vals,
+                        std_vals,
+                        median_vals,
+                        mean_vals - parent_mean,
+                        sig,
+                        U1,
+                        p,
+                    ]
+                )
+    stats_df = pd.DataFrame(
+        rows,
+        columns=[
+            "value_column",
+            "amino-acid_substitutions",
+            "number of wells with amino-acid substitutions",
+            "mean",
+            "std",
+            "median",
+            "amount greater than parent mean",
+            f"greater than > {sd_cutoff} parent",
+            "man whitney U stat",
+            "p-value",
+        ],
+    )
     return stats_df
 
 
@@ -292,7 +346,9 @@ def work_up_lcms(
     df = df[df["Sample Name"] != drop_string]
     # Get wells
 
-    df.insert(0, "Well", df["Sample Vial Number"].apply(lambda x: str(x).split("-")[-1]))
+    df.insert(
+        0, "Well", df["Sample Vial Number"].apply(lambda x: str(x).split("-")[-1])
+    )
     # Rename
     df = df.rename({"Sample Name": "Plate"}, axis="columns")
     # Create minimal DataFrame
@@ -304,7 +360,9 @@ def work_up_lcms(
         index=["Well", "Plate"], columns="Compound Name", values="Area", aggfunc="max"
     ).reset_index()
     # Get rows and columns
-    df.insert(1, "Column", df["Well"].apply(lambda x: int(x[1:]) if x[1:].isdigit() else None))
+    df.insert(
+        1, "Column", df["Well"].apply(lambda x: int(x[1:]) if x[1:].isdigit() else None)
+    )
     df.insert(1, "Row", df["Well"].apply(lambda x: x[0]))
     # Set values as floats
     cols = products + substrates if substrates is not None else products
@@ -315,13 +373,13 @@ def work_up_lcms(
     return plate
 
 
-def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFrame:
+def process_files(results_df, plate_df, plate: str, products: list) -> pd.DataFrame:
     """
     Process and combine a single plate file
 
     Args:
-    - product : str
-        The name of the product to be analyzed. ie pdt
+    - products : list
+        The name of the products to be analyzed. ie pdt
     - plate : str, ie 'HMC0225_HMC0226.csv'
         The name of the input CSV file containing the plate data.
 
@@ -331,8 +389,12 @@ def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFra
     - str
         The path of the output CSV file containing the processed data.
     """
-    filtered_df = results_df[["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]]
-    filtered_df = filtered_df[(filtered_df["amino-acid_substitutions"] != "#N.A.#")].dropna()
+    filtered_df = results_df[
+        ["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]
+    ]
+    filtered_df = filtered_df[
+        (filtered_df["amino-acid_substitutions"] != "#N.A.#")
+    ].dropna()
 
     # Extract the unique entries of Plate
     unique_plates = filtered_df["Plate"].unique()
@@ -341,7 +403,7 @@ def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFra
     processed_data = []
 
     # Iterate over unique Plates and search for corresponding CSV files in the current directory
-    plate_object = work_up_lcms(plate_df, product)
+    plate_object = work_up_lcms(plate_df, products)
 
     # Extract attributes from plate_object as needed for downstream processes
     if hasattr(plate_object, "df"):
@@ -350,13 +412,11 @@ def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFra
         plate_df["Plate"] = plate  # Add the plate identifier for reference
 
         # Merge filtered_df with plate_df to retain amino-acid_substitutionss and nt_sequence columns
-        merged_df = pd.merge(
-            plate_df, filtered_df, on=["Plate", "Well"], how="left"
-        )
+        merged_df = pd.merge(plate_df, filtered_df, on=["Plate", "Well"], how="left")
         columns_order = (
-                ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-                + product
-                + ["nt_sequence", "aa_sequence"]
+            ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
+            + products
+            + ["nt_sequence", "aa_sequence"]
         )
         merged_df = merged_df[columns_order]
         processed_data.append(merged_df)
@@ -367,12 +427,14 @@ def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFra
     else:
         processed_df = pd.DataFrame(
             columns=["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-                    + product
-                    + ["nt_sequence", "aa_sequence"]
+            + products
+            + ["nt_sequence", "aa_sequence"]
         )
 
     # Ensure all entries in 'Mutations' are treated as strings
-    processed_df["amino-acid_substitutions"] = processed_df["amino-acid_substitutions"].astype(str)
+    processed_df["amino-acid_substitutions"] = processed_df[
+        "amino-acid_substitutions"
+    ].astype(str)
 
     # Remove any rows with empty values
     processed_df = processed_df.dropna()
@@ -382,18 +444,18 @@ def process_files(results_df, plate_df, plate: str, product: list) -> pd.DataFra
 
 
 # Function to process the plate files
-def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
+def process_plate_files(products: list, input_csv: str) -> pd.DataFrame:
 
     """
     Process the plate files to extract relevant data for downstream analysis.
     Assume the same directory contains the plate files with the expected names.
     The expected filenames are constructed based on the Plate values in the input CSV file.
-    The output DataFrame contains the processed data for the specified product
+    The output DataFrame contains the processed data for the specified products
     and is saved to a CSV file named 'seqfit.csv' in the same dirctory.
 
     Args:
-    - product : str
-        The name of the product to be analyzed. ie pdt
+    - products : list
+        The name of the product to be analyzed. ie ['pdt']
     - input_csv : str, ie 'HMC0225_HMC0226.csv'
         The name of the input CSV file containing the plate data.
 
@@ -410,10 +472,15 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
     # Load the provided CSV file
     results_df = pd.read_csv(input_csv)
 
-    # Extract the required columns: Plate, Well, amino-acid_substitutionss, and nt_sequence, and remove rows with '#N.A.#' and NaN values
-    # barcode_plate	Plate	Well	Alignment Count	nucleotide_amino-acid_substitutions	amino-acid_substitutions	Alignment Probability	Average amino-acid_substitutions frequency	P value	P adj. value	nt_sequence	aa_sequence
-    filtered_df = results_df[["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]]
-    filtered_df = filtered_df[(filtered_df["amino-acid_substitutions"] != "#N.A.#")].dropna()
+    # Extract the required columns: Plate, Well, amino-acid_substitutionss, and nt_sequence,
+    # and remove rows with '#N.A.#' and NaN values
+
+    filtered_df = results_df[
+        ["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]
+    ]
+    filtered_df = filtered_df[
+        (filtered_df["amino-acid_substitutions"] != "#N.A.#")
+    ].dropna()
 
     # Extract the unique entries of Plate
     unique_plates = filtered_df["Plate"].unique()
@@ -430,7 +497,7 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
         if os.path.isfile(filename):
             print(f"Processing data for Plate: {plate}")
             # Work up data to plate object
-            plate_object = work_up_lcms(filename, product)
+            plate_object = work_up_lcms(filename, products)
 
             # Extract attributes from plate_object as needed for downstream processes
             if hasattr(plate_object, "df"):
@@ -444,7 +511,7 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
                 )
                 columns_order = (
                     ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-                    + product
+                    + products
                     + ["nt_sequence", "aa_sequence"]
                 )
                 merged_df = merged_df[columns_order]
@@ -456,12 +523,14 @@ def process_plate_files(product: str, input_csv: str) -> pd.DataFrame:
     else:
         processed_df = pd.DataFrame(
             columns=["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-            + product
+            + products
             + ["nt_sequence", "aa_sequence"]
         )
 
     # Ensure all entries in 'Mutations' are treated as strings
-    processed_df["amino-acid_substitutions"] = processed_df["amino-acid_substitutions"].astype(str)
+    processed_df["amino-acid_substitutions"] = processed_df[
+        "amino-acid_substitutions"
+    ].astype(str)
 
     # Remove any rows with empty values
     processed_df = processed_df.dropna()
@@ -508,11 +577,17 @@ def match_plate2parent(df: pd.DataFrame, parent_dict: Optional[Dict] = None) -> 
             )
 
         # get all the parents from the df
-        parents = df[df["amino-acid_substitutions"] == "#PARENT#"].reset_index(drop=True).copy()
+        parents = (
+            df[df["amino-acid_substitutions"] == "#PARENT#"]
+            .reset_index(drop=True)
+            .copy()
+        )
 
         # get the parent nt_sequence
         parent_aas = (
-            df[df["amino-acid_substitutions"] == "#PARENT#"][["amino-acid_substitutions", "aa_sequence"]]
+            df[df["amino-acid_substitutions"] == "#PARENT#"][
+                ["amino-acid_substitutions", "aa_sequence"]
+            ]
             .drop_duplicates()["aa_sequence"]
             .tolist()
         )
@@ -572,7 +647,7 @@ def detect_outliers_iqr(series: pd.Series) -> pd.Index:
     return series[(series < lower_bound) | (series > upper_bound)].index
 
 
-def norm2parent(plate_df: pd.DataFrame) -> pd.DataFrame:
+def norm2parent(plate_df: pd.DataFrame, products: list) -> pd.DataFrame:
 
     """
     For each given plate,
@@ -597,16 +672,22 @@ def norm2parent(plate_df: pd.DataFrame) -> pd.DataFrame:
 
     # get all the parents from the df
     parents = (
-        plate_df[plate_df["amino-acid_substitutions"] == "#PARENT#"].reset_index(drop=True).copy()
-    )
-    filtered_parents = (
-        parents.drop(index=detect_outliers_iqr(parents["pdt"]))
+        plate_df[plate_df["amino-acid_substitutions"] == "#PARENT#"]
         .reset_index(drop=True)
         .copy()
     )
 
-    # normalize the whole plate to the mean of the filtered parent
-    plate_df["pdt_norm"] = plate_df["pdt"] / filtered_parents["pdt"].mean()
+    for product in products:
+        filtered_parents = (
+            parents.drop(index=detect_outliers_iqr(parents[product]))
+            .reset_index(drop=True)
+            .copy()
+        )
+
+        # normalize the whole plate to the mean of the filtered parent
+        plate_df[product + "_norm"] = (
+            plate_df[product] / filtered_parents[product].mean()
+        )
 
     return plate_df
 
@@ -772,7 +853,7 @@ def get_parent2sitedict(df: pd.DataFrame) -> dict:
 
 
 def get_x_label(x: str):
-    
+
     """
     Function to return the x-axis label based on the input string.
     """
@@ -916,6 +997,28 @@ def agg_parent_plot(df: pd.DataFrame, ys: list = ["pdt_norm"]) -> pn.Row:
         return pn.Row(*avg_parnet_plots)
 
 
+def agg_mut_plot(site_df: pd.DataFrame, site_info, parent, ys: list):
+
+    mut_plots = [
+        plot_bar_point(
+            site_df,
+            x="mut_aa",
+            y=y,
+            title=f"{site_info} for {parent}",
+            if_max=False,
+        )
+        for y in ys
+        if y in site_df.columns
+    ]
+
+    if len(mut_plots) == 0:
+        return None
+    # elif len(avg_ssm_plots) == 1:
+    #     return avg_ssm_plots[0]
+    else:
+        return pn.Row(*mut_plots)
+
+
 def plot_single_ssm_avg(
     single_ssm_df: pd.DataFrame,
     parent_name: str,
@@ -944,7 +1047,7 @@ def plot_single_ssm_avg(
             ["parent_aa_loc", "mut_aa"],
             key=lambda col: col.str.extract(r"(\d+)$").fillna(0).astype(int).iloc[:, 0]
             if col.name == "parent_aa_loc"
-            else col
+            else col,
         )
         .reset_index(),
         kdims=["mut_aa", "parent_aa_loc"],
@@ -1207,6 +1310,7 @@ def export_structure_as_html(
 
 def gen_seqfitvis(
     seqfit_path: str,
+    products: list,
     output_dir: str = "",
     protein_chain: str = "A",
     chai_meta_data={
@@ -1233,10 +1337,18 @@ def gen_seqfitvis(
     # df["num_sites"] = df['Mutations'].apply(lambda x: 0 if x == "#PARENT#" else len(x.split("_")))
 
     # Apply function to the column
-    df[["num_sites", "mut_dets"]] = df["amino-acid_substitutions"].apply(process_mutation)
+    df[["num_sites", "mut_dets"]] = df["amino-acid_substitutions"].apply(
+        process_mutation
+    )
 
     # apply the norm function to all plates
-    df = df.groupby("Plate").apply(norm2parent).reset_index(drop=True).copy()
+    df = (
+        df.groupby("Plate")
+        .apply(norm2parent, products=products)
+        .reset_index(drop=True)
+        .copy()
+    )
+    norm_products = [f"{product}_norm" for product in products]
 
     # add a new column called parent name to the df
     # using the dict out put from match_plate2parent
@@ -1320,14 +1432,7 @@ def gen_seqfitvis(
                 site_df["parent_aa_loc"].unique()[0] if not site_df.empty else "Unknown"
             )
 
-            return plot_bar_point(
-                df=site_df,
-                x="mut_aa",
-                y="pdt_norm",
-                # y_label: str = None,
-                title=f"{site_info} for {parent}",
-                if_max=False,
-            )
+            return agg_mut_plot(site_df, site_info, parent=parent, ys=norm_products)
 
         site_plot = pn.Column(pn.bind(update_site_plot, site=site_dropdown))
 
@@ -1336,7 +1441,7 @@ def gen_seqfitvis(
             agg_single_ssm_exp_avg(
                 single_ssm_df=single_ssm_df,
                 parent_name=parent,
-                # ys: list,
+                ys=norm_products,
             ),
             site_dropdown,
             site_plot,
@@ -1350,7 +1455,7 @@ def gen_seqfitvis(
 
     # Panel layout
     dashboard = pn.Column(
-        agg_parent_plot(df),
+        agg_parent_plot(df, ys=norm_products),
         parent_dropdown,
         pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
     )
