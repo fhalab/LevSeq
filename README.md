@@ -91,6 +91,12 @@ yueminglong/levseq:levseq-1.2.5-\<architecture\>: Specifies the Docker image to 
 
 \<location of reference csv file\>: Path to the reference .csv file.
 
+Important Notes:
+
+If the current directory is mounted to the container (via -v "$(pwd):/levseq\_results"), the basecalled result in FASTQ format and the ref.csv file must be located in the current directory.
+
+If these files are not present in the current directory, they will not be processed by the tool.
+
 Output:
 
 The results of the analysis will be saved to your current working directory.
