@@ -67,7 +67,7 @@ levseq <name of the run you can make this whatever> <location to data folder> <l
 #### Run via docker
 If using linux system
 ```
-docker pull docker pull yueminglong/levseq:levseq-1.2.5-x86
+docker pull yueminglong/levseq:levseq-1.2.5-x86
 ```
 If using Mac M chips (image tested on M1, M3, and M4)
 ```
