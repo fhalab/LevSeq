@@ -77,7 +77,15 @@ docker pull yueminglong/levseq:levseq-1.2.5-arm64
 ```
 docker run --rm -v "$(pwd):/levseq_results" yueminglong/levseq:levseq-1.2.5-<architecture> <name> <location to data folder> <location of reference csv file>
 ```
-This command runs a Docker container using the yueminglong/levseq image, temporarily mounts the current directory to /levseq_results inside the container, executes the levseq program with <name>, <location to data folder>, and <location of reference csv file> as its input arguments, outputs the results to the current directory, and then removes the container after execution.
+Explanation:
+--rm: Automatically removes the container after the command finishes.
+-v "$(pwd):/levseq\_results": Mounts the current directory ($(pwd)) to /levseq\_results inside the container, ensuring the results are saved to your current directory.
+yueminglong/levseq:levseq-1.2.5-\<architecture\>: Specifies the Docker image to run. Replace \<architecture\> with the appropriate platform (e.g., x86).
+\<name\>: The name or identifier for the analysis.
+\<location to data folder\>: Path to the folder containing input data.
+\<location of reference csv file\>: Path to the reference .csv file.
+Output:
+The results of the analysis will be saved to your current working directory.
 
 See the [manuscrtipt notebook](https://github.com/fhalab/LevSeq/blob/main/manuscript/notebooks/epPCR_10plates.ipynb) for an example.
 *Note: if using docker, the html and csv final output will be saved in the directory that you are running from instead of in the Platemaps or Results subfolder.
