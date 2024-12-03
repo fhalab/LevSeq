@@ -33,7 +33,7 @@ and `minimap2` installed on your path. However, if you have issues we recommend 
 We recommend using terminal and a conda environment for installation:
 
 ```
-conda create --name levseq python=3.10 -y
+conda create --name levseq python=3.12 -y
 ```
 
 ```
@@ -68,6 +68,7 @@ levseq <name of the run you can make this whatever> <location to data folder> <l
 docker run --rm -v "$(pwd):/levseq_results" levseq <name> <location to data folder> <location of reference csv file>
 ```
 See the [manuscrtipt notebook](https://github.com/fhalab/LevSeq/blob/main/manuscript/notebooks/epPCR_10plates.ipynb) for an example.
+*Note: if using docker, the html and csv final output will be saved in the directory that you are running from instead of in the Platemaps or Results subfolder.
 
 #### Required Arguments
 1. Name of the experiment, this will be the name of the output folder
