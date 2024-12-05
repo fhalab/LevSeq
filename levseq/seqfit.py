@@ -16,6 +16,7 @@ import warnings
 from pathlib import Path
 from copy import deepcopy
 from glob import glob
+from tqdm import tqdm
 
 from ast import literal_eval
 import urllib.parse
@@ -23,6 +24,10 @@ import urllib.parse
 import numpy as np
 import pandas as pd
 import biopandas as Bio
+from sklearn.decomposition import PCA
+
+import esm
+import torch
 
 import panel as pn
 import holoviews as hv
@@ -86,6 +91,9 @@ AA_DICT = {
     "Tyr": "Y",
     "Ter": "*",
 }
+
+# Set up cuda variables
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def calculate_mutation_combinations(stats_df):
@@ -349,8 +357,7 @@ def work_up_lcms(
     df.insert(
         0, "Well", df["Sample Vial Number"].apply(lambda x: str(x).split("-")[-1])
     )
-    # Rename
-    df = df.rename({"Sample Name": "Plate"}, axis="columns")
+
     # Create minimal DataFrame
     df = df[["Well", "Plate", "Compound Name", "Area"]].reset_index(drop=True)
     # Pivot table; drop redundant values by only taking 'max' with aggfunc
@@ -444,7 +451,7 @@ def process_files(results_df, plate_df, plate: str, products: list) -> pd.DataFr
 
 
 # Function to process the plate files
-def process_plate_files(products: list, input_csv: str) -> pd.DataFrame:
+def process_plate_files(products: list, seq_csv: str) -> pd.DataFrame:
 
     """
     Process the plate files to extract relevant data for downstream analysis.
@@ -456,7 +463,7 @@ def process_plate_files(products: list, input_csv: str) -> pd.DataFrame:
     Args:
     - products : list
         The name of the product to be analyzed. ie ['pdt']
-    - input_csv : str, ie 'HMC0225_HMC0226.csv'
+    - seq_csv : str, ie 'HMC0225_HMC0226.csv'
         The name of the input CSV file containing the plate data.
 
     Returns:
@@ -466,74 +473,138 @@ def process_plate_files(products: list, input_csv: str) -> pd.DataFrame:
         The path of the output CSV file containing the processed data.
     """
 
-    dir_path = os.path.dirname(input_csv)
+    dir_path = os.path.dirname(seq_csv)
     print(f"Processing data from '{dir_path}'")
 
     # Load the provided CSV file
-    results_df = pd.read_csv(input_csv)
+    seq_df = pd.read_csv(seq_csv)
 
-    # Extract the required columns: Plate, Well, amino-acid_substitutionss, and nt_sequence,
-    # and remove rows with '#N.A.#' and NaN values
-
-    filtered_df = results_df[
-        ["Plate", "Well", "amino-acid_substitutions", "nt_sequence", "aa_sequence"]
+    seq_columns = [
+        "Plate",
+        "Well",
+        "amino-acid_substitutions",
+        "nt_sequence",
+        "aa_sequence",
+        "Alignment Count",
+        "Average mutation frequency",
     ]
-    filtered_df = filtered_df[
-        (filtered_df["amino-acid_substitutions"] != "#N.A.#")
-    ].dropna()
+
+    seq_df = seq_df[seq_columns].copy()
 
     # Extract the unique entries of Plate
-    unique_plates = filtered_df["Plate"].unique()
+    unique_plates = seq_df["Plate"].unique()
+
+    seq_fit_column_order = (
+        [
+            "Plate",
+            "Well",
+            "Parent_Name",
+            "amino-acid_substitutions",
+            "# Mutations",
+            "Type",
+        ]
+        + products
+        + [p + "_fold" for p in products]
+        + [
+            "nt_sequence",
+            "aa_sequence",
+            "Alignment Count",
+            "Average mutation frequency",
+        ]
+    )
 
     # Create an empty list to store the processed plate data
     processed_data = []
 
     # Iterate over unique Plates and search for corresponding CSV files in the current directory
     for plate in unique_plates:
+
+        # get seq data for the plate
+        plate_seq = seq_df[seq_df["Plate"] == plate].reset_index(drop=True).copy()
+
         # Construct the expected filename based on the Plate value
         filename = os.path.join(dir_path, f"{plate}.csv")
 
         # Check if the file exists in the current directory
         if os.path.isfile(filename):
             print(f"Processing data for Plate: {plate}")
+            fit_df = pd.read_csv(filename, header=[1])
+            fit_df["Plate"] = plate  # Add the plate identifier for reference
+
             # Work up data to plate object
-            plate_object = work_up_lcms(filename, products)
+            fit_plate_object = work_up_lcms(fit_df, products)
 
             # Extract attributes from plate_object as needed for downstream processes
-            if hasattr(plate_object, "df"):
+            if hasattr(fit_plate_object, "df"):
                 # Assuming plate_object has a dataframe-like attribute 'df' that we can work with
-                plate_df = plate_object.df
-                plate_df["Plate"] = plate  # Add the plate identifier for reference
+                plate_fit_df = fit_plate_object.df
 
                 # Merge filtered_df with plate_df to retain amino-acid_substitutionss and nt_sequence columns
                 merged_df = pd.merge(
-                    plate_df, filtered_df, on=["Plate", "Well"], how="left"
+                    plate_fit_df, plate_seq, on=["Plate", "Well"], how="outer"
                 )
-                columns_order = (
-                    ["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-                    + products
-                    + ["nt_sequence", "aa_sequence"]
-                )
-                merged_df = merged_df[columns_order]
+
                 processed_data.append(merged_df)
 
     # Concatenate all dataframes if available
     if processed_data:
         processed_df = pd.concat(processed_data, ignore_index=True)
     else:
-        processed_df = pd.DataFrame(
-            columns=["Plate", "Well", "Row", "Column", "amino-acid_substitutions"]
-            + products
-            + ["nt_sequence", "aa_sequence"]
-        )
+        return pd.DataFrame(seq_fit_column_order)
 
     # Ensure all entries in 'Mutations' are treated as strings
     processed_df["amino-acid_substitutions"] = processed_df[
         "amino-acid_substitutions"
     ].astype(str)
 
-    # Remove any rows with empty values
-    processed_df = processed_df.dropna()
+    # Match plate to parent
+    parent_dict, plate2parent = match_plate2parent(processed_df)
+    processed_df["Parent_Name"] = processed_df["Plate"].map(plate2parent)
+
+    # apply the norm function to all plates
+    processed_df = (
+        processed_df.groupby("Plate")
+        .apply(norm2parent, products=products)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    processed_df["# Mutations"] = [
+        len(str(m).split("_")) if m not in ["#N.A.#", "#PARENT#", "-", "#LOW#"] else 0
+        for m in processed_df["amino-acid_substitutions"].values
+    ]
+
+    processed_df["Type"] = [
+        m if "*" not in str(v) else "#TRUNCATED#"
+        for m, v in processed_df[["amino-acid_substitutions", "aa_sequence"]].values
+    ]
+
+    processed_df["Type"] = [
+        v if v != "-" else "#DELETION#" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if str(v)[0] == "#" else "#VARIANT#" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#DELETION#" else "Deletion" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#VARIANT#" else "Variant" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#PARENT#" else "Parent" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#TRUNCATED#" else "Truncated" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#LOW#" else "Low" for v in processed_df["Type"].values
+    ]
+    processed_df["Type"] = [
+        v if v != "#N.A.#" else "Empty" for v in processed_df["Type"].values
+    ]
+
+    processed_df = processed_df[seq_fit_column_order].reset_index(drop=True).copy()
 
     seqfit_path = os.path.join(dir_path, "seqfit.csv")
 
@@ -685,7 +756,7 @@ def norm2parent(plate_df: pd.DataFrame, products: list) -> pd.DataFrame:
         )
 
         # normalize the whole plate to the mean of the filtered parent
-        plate_df[product + "_norm"] = (
+        plate_df[product + "_fold"] = (
             plate_df[product] / filtered_parents[product].mean()
         )
 
@@ -712,6 +783,112 @@ def process_mutation(mutation: str) -> pd.Series:
             details.append((None, None, None))
 
     return pd.Series([num_sites, details])
+
+
+def up2stopcodon(sequence):
+
+    """
+    Preprocesses the amino acid sequence by removing everything after the first '*' (stop codon).
+    """
+    if "*" in sequence:
+        sequence = sequence.split("*")[0]  # Take everything before the first '*'
+    return sequence
+
+
+def append_xy(products, input_file, output_file=None, batch_size=32):
+    # Load the dataset
+    df = pd.read_csv(input_file)
+
+    # Remove the "Unnamed: 0" column if it exists
+    if "Unnamed: 0" in df.columns:
+        df = df.drop(columns=["Unnamed: 0"])
+
+    # Create the ID column as the combination of `Plate` and `Well`
+    df["ID"] = df["Plate"] + "-" + df["Well"]
+    df = df[
+        ["ID"] + [col for col in df.columns if col != "ID"]
+    ]  # Reorder to make ID the first column
+
+    # Filter valid sequences from the `aa_sequence` column
+    df = (
+        df[df["Type"].isin(["Parent", "Variant", "Truncated"])]
+        .dropna(subset=["aa_sequence"])
+        .copy()
+    )
+
+    # Preprocess sequences to handle stop codons
+    df["processed_aa_sequence"] = df["aa_sequence"].apply(up2stopcodon)
+
+    # Load the ESM-2 model
+    model, alphabet = esm.pretrained.esm2_t12_35M_UR50D()
+    batch_converter = alphabet.get_batch_converter()
+
+    model.eval()  # disable dropout for deterministic results
+    model.to(DEVICE)
+
+    # Prepare sequences for embedding
+    # Extract data into the desired format
+    formatted_data = [
+        (row["ID"], row["processed_aa_sequence"]) for _, row in df.iterrows()
+    ]
+
+    # Initialize results
+    all_sequence_representations = []
+    all_batch_labels = []
+
+    # Process in batches
+    for i in range(0, len(formatted_data), batch_size):
+        batch = formatted_data[i : i + batch_size]
+        batch_labels, batch_strs, batch_tokens = batch_converter(batch)
+        batch_tokens = batch_tokens.to(DEVICE)
+
+        with torch.no_grad():
+            token_representations = (
+                model(batch_tokens, repr_layers=[12], return_contacts=False)[
+                    "representations"
+                ][12]
+                .cpu()
+                .numpy()
+            )
+
+        for j, tokens_len in enumerate((batch_tokens != alphabet.padding_idx).sum(1)):
+            all_sequence_representations.append(
+                token_representations[j, 1 : tokens_len - 1].mean(0)
+            )
+            all_batch_labels.append(batch_labels[j])
+
+        # Clear memory after each batch
+        torch.cuda.empty_cache()
+
+    # Convert the embeddings to a numpy array
+    sequence_embeddings = np.array(all_sequence_representations)
+
+    print(f"Number of sequences: {len(all_batch_labels)}")
+    print(f"all_sequence_representations shape: {len(all_sequence_representations)}")
+    print(f"sequence_embeddings shape: {sequence_embeddings.shape}")
+
+    # Dimensionality Reduction using PCA
+    pca = PCA(n_components=2)
+    xy_coordinates = pca.fit_transform(sequence_embeddings)
+
+    # Add x, y coordinates back to the dataframe
+    xy_df = pd.DataFrame(
+        xy_coordinates, columns=["x_coordinate", "y_coordinate"], index=all_batch_labels
+    ).reset_index()
+    df = pd.merge(
+        df.set_index("ID"), xy_df, left_index=True, right_index=True, how="left"
+    ).reset_index(drop=True)
+
+    # Determine output file location
+    if output_file is None:
+        input_name, input_ext = os.path.splitext(input_file)
+        output_file = f"{input_name}_xy{input_ext}"
+
+    # Save the updated dataframe to a file
+    df.to_csv(output_file, index=False)
+    print(f"Processed data with x, y coordinates saved to: {output_file}")
+
+    return df
 
 
 def prep_single_ssm(df: pd.DataFrame) -> pd.DataFrame:
@@ -936,7 +1113,7 @@ def plot_bar_point(
         return bars * points
 
 
-def get_parent_plot(df: pd.DataFrame, y: str = "pdt_norm") -> hv.Bars:
+def get_parent_plot(df: pd.DataFrame, y: str = "pdt_fold") -> hv.Bars:
 
     """
     Function to plot the max value by parent.
@@ -959,7 +1136,7 @@ def get_parent_plot(df: pd.DataFrame, y: str = "pdt_norm") -> hv.Bars:
     )
 
 
-def agg_parent_plot(df: pd.DataFrame, ys: list = ["pdt_norm"]) -> pn.Row:
+def agg_parent_plot(df: pd.DataFrame, ys: list = ["pdt_fold"]) -> pn.Row:
 
     """
     Function to plot the max value by parent for different y metrics.
@@ -1022,7 +1199,7 @@ def agg_mut_plot(site_df: pd.DataFrame, site_info, parent, ys: list):
 def plot_single_ssm_avg(
     single_ssm_df: pd.DataFrame,
     parent_name: str,
-    y: str = "pdt_norm",
+    y: str = "pdt_fold",
     width: int = 600,
 ):
     """
@@ -1070,7 +1247,7 @@ def plot_single_ssm_avg(
 def agg_single_ssm_exp_avg(
     single_ssm_df: pd.DataFrame,
     parent_name: str,
-    ys: list = ["pdt_norm"],
+    ys: list = ["pdt_fold"],
 ):
 
     # find single site mutations
@@ -1348,7 +1525,7 @@ def gen_seqfitvis(
         .reset_index(drop=True)
         .copy()
     )
-    norm_products = [f"{product}_norm" for product in products]
+    norm_products = [f"{product}_fold" for product in products]
 
     # add a new column called parent name to the df
     # using the dict out put from match_plate2parent
