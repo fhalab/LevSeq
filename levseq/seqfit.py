@@ -31,9 +31,15 @@ import torch
 
 import panel as pn
 import holoviews as hv
+from holoviews import opts
+from bokeh.io import output_notebook
+from bokeh.models import LinearColorMapper
 
 from bokeh.io import output_notebook, show
 from bokeh.plotting import figure
+from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper, HoverTool
+from bokeh.transform import linear_cmap
+from bokeh.layouts import column
 
 import ninetysix as ns
 
@@ -91,6 +97,12 @@ AA_DICT = {
     "Tyr": "Y",
     "Ter": "*",
 }
+
+ALL_AAS = list(AA_DICT.values())
+AA_NUMB = len(ALL_AAS)
+
+# Create a dictionary that links each amino acid to an index
+AA_TO_IND = {aa: i for i, aa in enumerate(ALL_AAS)}
 
 # Set up cuda variables
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -795,7 +807,13 @@ def up2stopcodon(sequence):
     return sequence
 
 
-def append_xy(products, input_file, output_file=None, batch_size=32):
+def append_xy(
+    products,
+    input_file,
+    model_name="esm2_t12_35M_UR50D",
+    output_file=None,
+    batch_size=32,
+):
     # Load the dataset
     df = pd.read_csv(input_file)
 
@@ -819,52 +837,82 @@ def append_xy(products, input_file, output_file=None, batch_size=32):
     # Preprocess sequences to handle stop codons
     df["processed_aa_sequence"] = df["aa_sequence"].apply(up2stopcodon)
 
-    # Load the ESM-2 model
-    model, alphabet = esm.pretrained.esm2_t12_35M_UR50D()
-    batch_converter = alphabet.get_batch_converter()
+    print(f"Encoding sequences using the {model_name} model...")
 
-    model.eval()  # disable dropout for deterministic results
-    model.to(DEVICE)
+    if "esm" in model_name:
 
-    # Prepare sequences for embedding
-    # Extract data into the desired format
-    formatted_data = [
-        (row["ID"], row["processed_aa_sequence"]) for _, row in df.iterrows()
-    ]
+        # Load the ESM-2 model
+        model, alphabet = esm.pretrained.load_model_and_alphabet_hub(model_name)
+        batch_converter = alphabet.get_batch_converter()
 
-    # Initialize results
-    all_sequence_representations = []
-    all_batch_labels = []
+        model.eval()  # disable dropout for deterministic results
+        model.to(DEVICE)
 
-    # Process in batches
-    for i in range(0, len(formatted_data), batch_size):
-        batch = formatted_data[i : i + batch_size]
-        batch_labels, batch_strs, batch_tokens = batch_converter(batch)
-        batch_tokens = batch_tokens.to(DEVICE)
+        # Prepare sequences for embedding
+        # Extract data into the desired format
+        formatted_data = [
+            (row["ID"], row["processed_aa_sequence"]) for _, row in df.iterrows()
+        ]
 
-        with torch.no_grad():
-            token_representations = (
-                model(batch_tokens, repr_layers=[12], return_contacts=False)[
-                    "representations"
-                ][12]
-                .cpu()
-                .numpy()
-            )
+        # Initialize results
+        all_sequence_representations = []
+        all_batch_labels = []
 
-        for j, tokens_len in enumerate((batch_tokens != alphabet.padding_idx).sum(1)):
+        # Process in batches
+        for i in tqdm(range(0, len(formatted_data), batch_size)):
+            batch = formatted_data[i : i + batch_size]
+            batch_labels, batch_strs, batch_tokens = batch_converter(batch)
+            batch_tokens = batch_tokens.to(DEVICE)
+
+            with torch.no_grad():
+                token_representations = (
+                    model(batch_tokens, repr_layers=[12], return_contacts=False)[
+                        "representations"
+                    ][12]
+                    .cpu()
+                    .numpy()
+                )
+
+            for j, tokens_len in enumerate(
+                (batch_tokens != alphabet.padding_idx).sum(1)
+            ):
+                all_sequence_representations.append(
+                    token_representations[j, 1 : tokens_len - 1].mean(0)
+                )
+                all_batch_labels.append(batch_labels[j])
+
+            # Clear memory after each batch
+            torch.cuda.empty_cache()
+
+        # Convert the embeddings to a numpy array
+        sequence_embeddings = np.array(all_sequence_representations)
+
+        print(f"Number of sequences: {len(all_batch_labels)}")
+
+    # all else do onehot
+    else:
+        all_sequence_representations = []
+
+        for seq in tqdm(df["processed_aa_sequence"].tolist()):
+            # padding: (top, bottom), (left, right)
             all_sequence_representations.append(
-                token_representations[j, 1 : tokens_len - 1].mean(0)
+                np.pad(
+                    np.array(np.eye(AA_NUMB)[[AA_TO_IND[aa] for aa in seq]]),
+                    pad_width=(
+                        (0, df["processed_aa_sequence"].apply(len).max() - len(seq)),
+                        (0, 0),
+                    ),
+                )
             )
-            all_batch_labels.append(batch_labels[j])
 
-        # Clear memory after each batch
-        torch.cuda.empty_cache()
+        # flatten emb
+        all_sequence_representations = np.array(all_sequence_representations)
+        # encoded_mut_seqs.reshape(encoded_mut_seqs.shape[0], -1)
+        sequence_embeddings = all_sequence_representations.reshape(
+            np.array(all_sequence_representations).shape[0], -1
+        )
+        all_batch_labels = df["ID"].tolist()
 
-    # Convert the embeddings to a numpy array
-    sequence_embeddings = np.array(all_sequence_representations)
-
-    print(f"Number of sequences: {len(all_batch_labels)}")
-    print(f"all_sequence_representations shape: {len(all_sequence_representations)}")
     print(f"sequence_embeddings shape: {sequence_embeddings.shape}")
 
     # Dimensionality Reduction using PCA
@@ -874,10 +922,11 @@ def append_xy(products, input_file, output_file=None, batch_size=32):
     # Add x, y coordinates back to the dataframe
     xy_df = pd.DataFrame(
         xy_coordinates, columns=["x_coordinate", "y_coordinate"], index=all_batch_labels
-    ).reset_index()
+    ).rename_axis("ID")
+
     df = pd.merge(
         df.set_index("ID"), xy_df, left_index=True, right_index=True, how="left"
-    ).reset_index(drop=True)
+    ).reset_index()
 
     # Determine output file location
     if output_file is None:
@@ -1265,6 +1314,71 @@ def agg_single_ssm_exp_avg(
         return pn.Row(*avg_ssm_plots)
 
 
+def plot_xy(df: pd.DataFrame, product: str) -> hv.Scatter:
+    """
+    Function to plot the x, y embedding coordinates colored by a specified metric.
+
+    Args:
+    - df : pd.DataFrame
+        A pandas DataFrame containing the data for the x, y embedding coordinates.
+    - product : str
+
+    Returns:
+    - hv.Scatter
+        A holoviews Scatter object containing the plot.
+    """
+
+    # Create Holoviews Scatter plot
+    scatter = hv.Scatter(
+        df,
+        kdims=["x_coordinate", "y_coordinate"],
+        vdims=["ID", "amino-acid_substitutions", "Parent_Name", product],
+    )
+
+    # # Define color mapper
+    # color_mapper = LinearColorMapper(
+    #     palette="coolwarm256", low=df[product].min(), high=df[product].max()
+    # )
+
+    # Customize plot
+    return scatter.opts(
+        opts.Scatter(
+            width=800,
+            height=600,
+            color=hv.dim(product),
+            cmap="coolwarm",
+            size=10,
+            tools=["hover"],
+            title="Product in sequence embedding space",
+            xlabel="Embedding x",
+            ylabel="Embedding y",
+            colorbar=True,
+            colorbar_opts={"title": product},
+        )
+    )
+
+
+def agg_xy_plot(df: pd.DataFrame, products: list) -> pn.Row:
+    """
+    Function to aggregate the x, y embedding coordinates colored by different metrics.
+
+    Args:
+    - df : pd.DataFrame
+        A pandas DataFrame containing the data for the x, y embedding coordinates.
+    - products : list
+        A list of column names for which the x, y embedding coordinates are to be colored.
+
+    Returns:
+    - pn.Row
+        A panel Row object containing the plots.
+    """
+    # Create a list of plots for each product
+    xy_plots = [plot_xy(df, product) for product in products]
+
+    # Return the panel Row object
+    return pn.Row(*xy_plots)
+
+
 def canonicalize_smiles(smiles_string: str) -> str:
 
     """
@@ -1486,7 +1600,7 @@ def export_structure_as_html(
 
 
 def gen_seqfitvis(
-    seqfit_path: str,
+    seqfit: str | pd.DataFrame,
     products: list,
     output_dir: str = "",
     protein_chain: str = "A",
@@ -1504,10 +1618,10 @@ def gen_seqfitvis(
 ):
 
     # normalized per plate to parent
-    if isinstance(seqfit_path, str):
-        df = pd.read_csv(seqfit_path)
+    if isinstance(seqfit, str):
+        df = pd.read_csv(seqfit)
     else:
-        df = seqfit_path
+        df = seqfit
     # ignore deletion meaning "Mutations" == "-"
     df = df[df["amino-acid_substitutions"] != "-"].copy()
     # count number of sites mutated and append mutation details
@@ -1631,16 +1745,25 @@ def gen_seqfitvis(
     initial_subplots = get_subplots(parents[0])
 
     # Panel layout
-    dashboard = pn.Column(
-        agg_parent_plot(df, ys=norm_products),
-        parent_dropdown,
-        pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
-    )
+    # check fi x y coordinates are present in the df
+    if "x_coordinate" in df.columns and "y_coordinate" in df.columns:
+        dashboard = pn.Column(
+            agg_parent_plot(df, ys=norm_products),
+            parent_dropdown,
+            pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
+            agg_xy_plot(df, norm_products),
+        )
+    else:
+        dashboard = pn.Column(
+            agg_parent_plot(df, ys=norm_products),
+            parent_dropdown,
+            pn.Column(pn.bind(get_subplots, parent=parent_dropdown)),
+        )
 
     port = find_free_port()
 
-    if not output_dir:
-        output_dir = os.path.dirname(seqfit_path)
+    if not output_dir and isinstance(seqfit, str):
+        output_dir = os.path.dirname(seqfit)
     else:
         output_dir = checkNgen_folder(os.path.normpath(output_dir))
 
