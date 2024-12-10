@@ -108,6 +108,7 @@ AA_TO_IND = {aa: i for i, aa in enumerate(ALL_AAS)}
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+
 def calculate_mutation_combinations(stats_df):
     mutation_dict = defaultdict(list)
     for mutation in stats_df["amino-acid_substitutions"].values:
@@ -807,6 +808,17 @@ def up2stopcodon(sequence):
     return sequence
 
 
+def get_max_layer(model_name: str) -> int:
+    """
+    Get the maximum layer number for the specified model.
+
+    ie esm1_t6_43M_UR50S has 6 layers
+    esm2_t12_35M_UR50D has 12 layers
+    """
+    
+    return int(model_name.split("_")[1][1:])
+
+
 def append_xy(
     products,
     input_file,
@@ -841,6 +853,8 @@ def append_xy(
 
     if "esm" in model_name:
 
+        max_layer = get_max_layer(model_name)
+
         # Load the ESM-2 model
         model, alphabet = esm.pretrained.load_model_and_alphabet_hub(model_name)
         batch_converter = alphabet.get_batch_converter()
@@ -866,9 +880,9 @@ def append_xy(
 
             with torch.no_grad():
                 token_representations = (
-                    model(batch_tokens, repr_layers=[12], return_contacts=False)[
+                    model(batch_tokens, repr_layers=[max_layer], return_contacts=False)[
                         "representations"
-                    ][12]
+                    ][max_layer]
                     .cpu()
                     .numpy()
                 )
