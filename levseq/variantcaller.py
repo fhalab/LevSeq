@@ -37,11 +37,12 @@ The variant caller starts from demultiplexed fastq files.
 3) Call variant with soft alignment
 
 '''
-# Set up logging with a default level of WARNING
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger(__name__)
-# Suppress numpy warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
+logger.setLevel(logging.WARNING)  # Set default level for this module
+# Use the logger in this file
+logger.warning("This is a warning message.")
+logger.info("This won't show unless logging is configured to INFO elsewhere.")
 
 class VariantCaller:
     """

@@ -275,11 +275,11 @@ def create_df_v(variants_df):
     )
     # Fill in 'Deletion' in 'aa_variant' column
     df_variants_.loc[
-        df_variants_["nc_variant"] == "Deletion", "aa_variant"
-    ] = "Deletion"
+        df_variants_["nc_variant"] == "#DEL#", "aa_variant"
+    ] = "#DEL#"
     df_variants_.loc[
-        df_variants_["nc_variant"] == "Insertion", "aa_variant"
-    ] = "Insertion"
+        df_variants_["nc_variant"] == "#INS#", "aa_variant"
+    ] = "#INS#"
 
     # Compare aa_variant with translated refseq and generate Substitutions column
     df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
@@ -291,7 +291,7 @@ def create_df_v(variants_df):
     # Fill in Deletion into Substitutions Column, keep #N.A.# unchanged
     for i in df_variants_.index:
         if df_variants_["nc_variant"].iloc[i] == "Deletion":
-            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "-")
+            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "#DEL#")
         elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
             df_variants_.Substitutions.iat[i] = "#N.A.#"
 
@@ -363,9 +363,9 @@ def create_nc_variant(variant, refseq):
     elif variant == "#PARENT#":
         return refseq
     elif "DEL" in variant:
-        return "Deletion"
+        return "#DEL#"
     elif variant == '+':
-        return "Insertion"
+        return "#INS#"
     else:
         mutations = variant.split("_")
         nc_variant = list(refseq)
@@ -465,7 +465,7 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
             logging.info(f"Fasta file for {name} already exists. Skipping write.")
         
         barcode_path = filter_bc(cl_args, name_folder, i)
-        output_dir = Path(result_folder) / "basecalled_reads"
+        output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if not cl_args["skip_demultiplexing"]:
@@ -491,17 +491,25 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
                 continue
     
     variant_df.to_csv(variant_csv_path, index=False)
-    return variant_df
+    return variant_df, ref_df
 
 # Main function to run LevSeq and ensure saving of intermediate results if an error occurs
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     result_folder = create_result_folder(cl_args)
+    # Ref folder for saving ref csv file
+    ref_folder = os.path.join(result_folder, "ref")
+    os.makedirs(ref_folder, exist_ok=True)
+    
     configure_logging(result_folder)
+    logging.info("Logging configured. Starting program.")
 
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
     
     try:
-        variant_df = process_ref_csv(cl_args, tqdm_fn)
+        variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
+        ref_df_path = os.path.join(ref_folder, cl_args["name"]+".csv")
+        ref_df.to_csv(ref_df_path, index=False)
+
         if variant_df.empty:
             logging.warning("No data found during CSV processing. The CSV is empty.")
     except Exception as e:
