@@ -321,30 +321,36 @@ def create_df_v(variants_df):
     df_variants_["Plate"] = df_variants_["Plate"].apply(
         lambda x: f"0{x}" if len(x) == 1 else x
     )
-    # Rename columns as per the request
+
+    # First rename columns as before
     df_variants_.rename(columns={
         "Variant": "nucleotide_mutation",
-        "Substitutions": "amino-acid_substitutions",
+        "Substitutions": "amino_acid_substitutions",
         "nc_variant": "nt_sequence",
         "aa_variant": "aa_sequence"
-	    },inplace=True)
+        }, inplace=True)
 
-	# Select the desired columns in the desired order
-    restructured_df = df_variants_[[
-            "barcode_plate",
-            "Plate",
-            "Well",
-            "Alignment Count",
-            "nucleotide_mutation",
-            "amino-acid_substitutions",
-            "Alignment Probability",
-            "Average mutation frequency",
-            "P value",
-            "P adj. value",
-            "nt_sequence",
-            "aa_sequence",
-        ]
-    ]
+    # Create a copy for restructuring to avoid affecting the original
+    restructured_df = df_variants_.copy()
+    restructured_df.columns = restructured_df.columns.str.lower().str.replace('[\s-]', '_', regex=True)
+    # Fix the specific column name
+    restructured_df.columns = restructured_df.columns.str.replace('p_adj._value', 'p_adj_value')
+
+    # Select the desired columns in the desired order
+    restructured_df = restructured_df[[
+        "barcode_plate",
+        "plate",
+        "well",
+        "alignment_count",
+        "nucleotide_mutation",
+        "amino_acid_substitutions",
+        "alignment_probability",
+        "average_mutation_frequency",
+        "p_value",
+        "p_adj_value",
+        "nt_sequence",
+        "aa_sequence"
+    ]]
 
     return restructured_df, df_variants_
 

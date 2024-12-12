@@ -46,7 +46,7 @@ conda activate levseq
 ```
 conda install -c bioconda -c conda-forge samtools
 ```
-or for mac users you can use: `brew install samtools`
+
 
 2. Minimap2: https://github.com/lh3/minimap2
 
