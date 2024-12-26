@@ -2,7 +2,7 @@
 
 In directed evolution, sequencing every variant enhances data insight and creates datasets suitable for AI/ML methods. This method is presented as an extension of the original Every Variant Sequencer using Illumina technology. With this approach, sequence variants can be generated within a day at an extremely low cost.
 
-![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.png)
+![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.jpeg)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
 
 
@@ -13,7 +13,7 @@ Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore tech
 
 For setting up the experimental side of LevSeq we suggest the following preparations:
 
-- Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](http://biorxiv.org/cgi/content/short/2024.09.04.611255v1?rss=1).
+- Order forward and reverse primers compatible with the desired plasmid, see methods section of [our paper](https://pubs.acs.org/doi/10.1021/acssynbio.4c00625).
 - Successfully install Oxford Nanopore's software (this is only for if you are doing basecalling/minION processing). [Link to installation guide](https://nanoporetech.com/).
 
 ## How to Use LevSeq
@@ -124,7 +124,17 @@ For more details or trouble shooting please look at our [computational_protocols
 
 #### Citing
 
-If you have found LevSeq useful, please cite out [paper](https://doi.org/10.1101/2024.09.04.611255).
+If you have found LevSeq useful, please cite our [paper](https://pubs.acs.org/doi/10.1021/acssynbio.4c00625).
+
+```bibtex
+@article{long2024levseq,
+  title={LevSeq: Rapid Generation of Sequence-Function Data for Directed Evolution and Machine Learning},
+  author={Long, Yueming and Mora, Ariane and Li, Francesca-Zhoufan and Gürsoy, Emre and Johnston, Kadina E and Arnold, Frances H},
+  journal={ACS Synthetic Biology},
+  year={2024},
+  publisher={American Chemical Society}
+}
+```
 
 #### Contact
 
