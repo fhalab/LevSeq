@@ -26,9 +26,6 @@ import pandas as pd
 import biopandas as Bio
 from sklearn.decomposition import PCA
 
-import esm
-import torch
-
 import panel as pn
 import holoviews as hv
 from holoviews import opts
@@ -45,7 +42,8 @@ import ninetysix as ns
 
 try:
     from rdkit import Chem
-
+    import esm
+    import torch
     import torch
     import torch.nn as nn
 
