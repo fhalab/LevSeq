@@ -62,6 +62,7 @@ CCTATCCTTACACTCAGCCTGGCGACTTTCTCGAGCACCACCACCACCACCACTGA'
 class TestUser(TestClass):
 
     def test_get_seqs(self):
+        # ToDo: add in an example dataframe the output from the paper 
         ### tests making a MSA from the variant DF.
         variant_df = pd.read_csv('test_ZZ/variant_new_0.5.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
@@ -69,6 +70,7 @@ class TestUser(TestClass):
         assert 'MPQIPGYTYGDPALPPS' in seqs[0]
 
     def test_msa(self):
+        # ToDo: add in an example dataframe the output from the paper 
         variant_df = pd.read_csv('test_ZZ/variant_new_0.5.csv')
         seqs, seq_ids = convert_variant_df_to_seqs(variant_df, parent)
         # Using the sequences let's now get the MSA
