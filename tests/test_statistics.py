@@ -30,7 +30,9 @@ from levseq.variantcaller import *
 from levseq.simulation import *
 from levseq.utils import *
 from sklearn.preprocessing import OneHotEncoder
-
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class TestClass(unittest.TestCase):
 
@@ -56,15 +58,9 @@ class TestClass(unittest.TestCase):
 
 class TestStats(TestClass):
 
-    def test_stats(self):
-        # Read in once we have a bam file etc
-        ref_str = 'T'
-        well_df = get_reads_for_well('ref', 'test_data/brian/GCACTGGACAGACGTAGG.bam', ref_str,
-                                     msa_path=f'msa.fa')
-        well_df.to_csv('test_brian.csv')
-
     def test_stats_df(self):
         # Get them w.r.t to a mutation
+        # ToDo: add in an example dataframe the output from the paper 
         processed_plate_df = pd.DataFrame()
         parent = '#PARENT#'
         value_column = 'pdt'
@@ -80,7 +76,7 @@ class TestStats(TestClass):
                                                                        value_column].values - parent_mean) / parent_sd
             value_column = f'{value_column} standard norm'
 
-        parent_values = list(processed_plate_df[processed_plate_df['Mutations'] == parent][value_column].values)
+        parent_values = list(processed_plate_df[processed_plate_df['Substitutions'] == parent][value_column].values)
         parent_mean = np.mean(parent_values)
         parent_sd = np.std(parent_values)
         sd_cutoff = 1.5  # The number of standard deviations we want above the parent values
@@ -156,9 +152,6 @@ class TestStats(TestClass):
             one_hot_encoded_array = one_hot_encoded.toarray().flatten()
             one_hots_aa.append(one_hot_encoded_array)
 
-        from sklearn.decomposition import PCA
-        import matplotlib.pyplot as plt
-        import seaborn as sns
         pca = PCA(n_components=20)
         X = np.array(one_hots_nc)
         pca = pca.fit(X)
