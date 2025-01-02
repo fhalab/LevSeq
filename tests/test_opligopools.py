@@ -57,3 +57,37 @@ class TestClass(unittest.TestCase):
     @classmethod
     def teardown_class(self):
         shutil.rmtree(self.tmp_dir)
+
+    def test_making_pools(self):
+        u.dp(["Testing SSM"])
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args["name"] = 'oligopools'
+        cl_args['path'] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/'
+        cl_args["summary"] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/oligopool_seqs.csv'
+        variant_df = process_ref_csv(cl_args)
+
+        # Check if variants.csv already exist
+        variant_csv_path = os.path.join('oligopools', "variants.csv")
+        if os.path.exists(variant_csv_path):
+            variant_df = pd.read_csv(variant_csv_path)
+            df_variants, df_vis = create_df_v(variant_df)
+        # Clean up and prepare dataframe for visualization
+        else:
+            df_variants, df_vis = create_df_v(variant_df)
+
+    def test_pools(self):
+        u.dp(["Testing SSM"])
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args["name"] = 'oligopools'
+        cl_args['path'] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/'
+        cl_args["summary"] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/oligopool_seqs.csv'
+        variant_df = process_ref_csv(cl_args)
+
+        # Check if variants.csv already exist
+        variant_csv_path = os.path.join('oligopools', "variants.csv")
+        if os.path.exists(variant_csv_path):
+            variant_df = pd.read_csv(variant_csv_path)
+            df_variants, df_vis = create_df_v(variant_df)
+        # Clean up and prepare dataframe for visualization
+        else:
+            df_variants, df_vis = create_df_v(variant_df)
