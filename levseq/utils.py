@@ -247,7 +247,7 @@ def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: 
             ref_pos += op_len
         elif op == 1:  # insertion to the reference
             inserts[ref_pos - 1] = alignment[pos - 1:pos + op_len]
-            new_seq[-1] = 'I' # Set the previous position to be an insertion
+            new_seq = new_seq[:-1] + 'I'  # Set the previous position to be an insertion
             pos += op_len
         elif op == 2:  # deletion from the reference
             new_seq += '-' * op_len
