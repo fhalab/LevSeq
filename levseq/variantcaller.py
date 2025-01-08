@@ -27,6 +27,7 @@ from Bio import SeqIO
 import re
 from tqdm import tqdm
 import warnings
+import math
 '''
 Script for variant calling
 
@@ -213,7 +214,7 @@ class VariantCaller:
         self.variant_df['Variant'] = [self.variant_dict[b_id].get('Variant') for b_id in self.variant_df['ID'].values]
         self.variant_df['Mixed Well'] = [self.variant_dict[b_id].get('Mixed Well') for b_id in self.variant_df['ID'].values]
         self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for b_id in self.variant_df['ID'].values]
-        self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') if self.variant_dict[b_id].get('P value') else 1.0 for b_id in self.variant_df['ID'].values]
+        self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') for b_id in self.variant_df['ID'].values]
         self.variant_df['Alignment Count'] = [self.variant_dict[b_id].get('Alignment Count') for b_id in self.variant_df['ID'].values]
         self.variant_df['Average error rate'] = [self.variant_dict[b_id].get('Average error rate') for b_id in self.variant_df['ID'].values]
 

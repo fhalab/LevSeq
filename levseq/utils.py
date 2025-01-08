@@ -214,8 +214,10 @@ def calculate_mutation_significance_across_well(seq_df):
     # Do multiple test correction to correct each of the pvalues
     for p in ['p_value', 'p(a)', 'p(t)', 'p(g)', 'p(c)', 'p(n)', 'p(i)']:
         # Do B.H which is the simplest possibly change to have alpha be a variable! ToDo :D
-        padjs = multipletests(seq_df[p].values, alpha=0.05, method='fdr_bh')
-        seq_df[f'{p} adj.'] = padjs[1]
+        padjs = seq_df[p].values * len(seq_df)
+        # The multiple test correction was sometimes returning 0 so we're updating to just do bonferroni
+        #multipletests(seq_df[p].values, alpha=0.05, method='fdr_bh')
+        seq_df[f'{p} adj.'] = padjs #padjs[1]
     return seq_df
 
 def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: list):
@@ -246,8 +248,9 @@ def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: 
             pos += op_len
             ref_pos += op_len
         elif op == 1:  # insertion to the reference
-            inserts[pos] = alignment[pos - 1:pos + op_len]
-            # new_seq += alignment[pos:pos + op_len]
+    insertion_updates
+            inserts[ref_pos - 1] = alignment[pos - 1:pos + op_len]
+            new_seq = new_seq[:-1] + 'I'  # Set the previous position to be an insertion
             pos += op_len
         elif op == 2:  # deletion from the reference
             new_seq += '-' * op_len
@@ -487,8 +490,11 @@ def get_variant_label_for_well(seq_df, threshold):
         label = '_'.join(label)
         # Only keep the frequency of the most frequent mutation
         probability = np.mean([x for x in non_refs['percent_most_freq_mutation'].values])
-        # Combine the values
-        chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values], method='fisher')
+        # Combine the values -> looks like fishers works maybe only if there are > 1
+        if len(non_refs) > 1:
+            chi2_statistic, combined_p_value = combine_pvalues([x for x in non_refs['p_value adj.'].values], method='fisher')
+        else:
+            combined_p_value = non_refs['p_value adj.'].values[0]
     else:
         label = '#PARENT#'
         probability = np.mean([1 - x for x in non_refs['freq_non_ref'].values])
