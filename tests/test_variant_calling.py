@@ -20,7 +20,6 @@ import tempfile
 import unittest
 from sciutil import *
 from levseq.run_levseq import *
-
 u = SciUtil()
 
 from levseq.variantcaller import *
@@ -231,9 +230,9 @@ class TestVariantCalling(TestClass):
         well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                            'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
                            'p(g)',
-                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warning']
+                           'C', 'p(c)', 'N', 'p(n)']
         well_df = calculate_mutation_significance_across_well(well_df)
-        label, frequency, combined_p_value, mixed_well, mean_mutation_rate = get_variant_label_for_well(well_df, 0.5)
+        label, frequency, combined_p_value, mixed_well = get_variant_label_for_well(well_df, 0.5)
         # This should be mutated at 100% - the rate of our sequencing errror
         u.dp([f"Input parent: {parent_sequence}", f"Variant: {mutant}"])
         u.dp(["label", label, f"frequency", frequency, f"combined_p_value", combined_p_value, "mixed_well", mixed_well, ])
@@ -264,7 +263,7 @@ class TestVariantCalling(TestClass):
             quals.append(100)  # Dummy don't need
 
         well_df = make_well_df_from_reads(reads, read_ids, quals)
-        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name, defaultdict(list))
         well_df = pd.DataFrame(rows_all)
         well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                            'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
@@ -286,21 +285,20 @@ class TestVariantCalling(TestClass):
         u.dp(["Testing calling variants using SSM with error"])
 
         parent_sequence = "ATGAGT"
-        mutated_sequence = 'ATIAGT' # Not actually mutated
+        mutated_sequence = 'ATGAGT' # Not actually mutated
         parent_name = 'parent'
         reads = []
         read_ids = []
         quals = []
         insert_map = defaultdict(list)
-        base_position = 10
         for i in range(0, 30):
             read_ids.append(f'read_{i}')
-            # At a specific position add another base
             reads.append(mutated_sequence)
+            insert_map[1].append('C')  # Making them all have an insert at C
             quals.append(100)  # Dummy don't need
 
         well_df = make_well_df_from_reads(reads, read_ids, quals)
-        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name)
+        rows_all = make_row_from_read_pileup_across_well(well_df, parent_sequence, parent_name, insert_map)
         well_df = pd.DataFrame(rows_all)
         well_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
                            'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G',
@@ -330,16 +328,16 @@ class TestVariantCalling(TestClass):
         frequency_cutoff = 0.3
         df = make_experiment(run_label, read_depth, sequencing_error_rate, parent_sequence, library_number,
                              number_of_wells, epcr_mutation_rate, frequency_cutoff, number_wells_to_mix, mixture_rate,
-                             qc_files_path='/Users/arianemora/Documents/code/LevSeq/tmp/')
+                             qc_files_path='/Users/arianemora/Documents/code/MinION/tmp/')
         check_variants(df, parent_sequence)
         df.to_csv('TestMixedWells.csv')
 
     def test_variant_calling_main(self):
         cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
         cl_args["name"] = 'Laragen_Validation'
-        cl_args["output"] = '/Users/arianemora/Documents/code/LevSeq/manuscript/Data/'
-        cl_args['path'] = '/Users/arianemora/Documents/code/LevSeq/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/no_sample_id/'
-        cl_args["summary"] = '/Users/arianemora/Documents/code/LevSeq/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv'
+        cl_args["output"] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/'
+        cl_args['path'] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/no_sample_id/'
+        cl_args["summary"] = '/Users/arianemora/Documents/code/MinION/manuscript/Data/20241116-YL-LevSeq-parlqep400-1-2-P25-28/LevSeq-T1.csv'
         variant_df = process_ref_csv(cl_args)
         variant_df.to_csv('variant_NEW.csv', index=False)
         print(variant_df.head())

@@ -204,7 +204,7 @@ def calculate_mutation_significance_across_well(seq_df):
         seq_df.at[i, 'p(g)'] = p_g
         seq_df.at[i, 'p(c)'] = p_c
         seq_df.at[i, 'p(n)'] = p_n
-        seq_df.at[i, 'p(i)'] = p_i
+        seq_df.at[i, 'p(i)'] = p_n
         seq_df.at[i, 'p_value'] = p_value
         seq_df.at[i, 'percent_most_freq_mutation'] = val
         seq_df.at[i, 'most_frequent'] = actual_seq
@@ -248,6 +248,7 @@ def alignment_from_cigar(cigar: str, alignment: str, ref: str, query_qualities: 
             pos += op_len
             ref_pos += op_len
         elif op == 1:  # insertion to the reference
+    insertion_updates
             inserts[ref_pos - 1] = alignment[pos - 1:pos + op_len]
             new_seq = new_seq[:-1] + 'I'  # Set the previous position to be an insertion
             pos += op_len
@@ -313,7 +314,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
     # Do this for all wells
     seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
     alignment_count = len(seq_df.values)
-    rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name)
+    rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name, insert_map)
     bam.close()
 
     if len(rows_all) > 2:  # Check if we have anything to return
@@ -323,7 +324,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
                           'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
         return calculate_mutation_significance_across_well(seq_df), alignment_count
 
-def make_row_from_read_pileup_across_well(well_df, ref_str, label):
+def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
     """
     Given a pileup of reads, we want to get some summary information about that sequence
     """
@@ -340,13 +341,21 @@ def make_row_from_read_pileup_across_well(well_df, ref_str, label):
         warning = ''
         if total_reads < 20:
             warning = f'WARNING: you had: {total_reads}, we recommend looking at the BAM file or using a second sequencing method on this well.'
-            
         # Check if there was an insert
-        rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
-                        len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
-                        len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, len(vc[vc == 'I']),
-                        1.0, warning])
-
+        if insert_map.get(col) and len(insert_map[col][0]) > total_reads/2:  # i.e. at least half have the insert
+            if warning:
+                warning += '\nINSERT'
+            else:
+                warning = f'WARNING: INSERT.'
+            rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
+                         len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
+                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, len(insert_map.get(col)),
+                         1.0, warning])
+        if ref_seq != '-':
+            rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
+                         len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
+                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, 0,
+                         1.0, warning])
     return rows
 
 
