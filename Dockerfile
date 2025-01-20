@@ -170,7 +170,7 @@ RUN source activate levseq
 RUN python setup.py sdist bdist_wheel
 
 # Install --> should update this to the latest pip version
-RUN source activate levseq && pip install dist/levseq-1.2.9.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.3.1.tar.gz
 
 
 # Add entry point script
