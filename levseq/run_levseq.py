@@ -221,7 +221,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         executable_path = package_root / "levseq" / "barcoding" / executable_name
     if not executable_path.exists():
         raise FileNotFoundError(f"Executable not found: {executable_path}")
-    seq_min = 200 
+    seq_min = 300
     seq_max = 10000
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)

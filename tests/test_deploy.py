@@ -53,11 +53,11 @@ class TestDeploy(TestClass):
             'run',
             '--rm',
             '-v',
-            f'{os.getcwd()}:/levseq_results',
+            f'{os.getcwd()}/test_data/laragen_run:/levseq_results',
             'levseq',
             'test_deploy',
-            'test_data/laragen_run/levseq-1.2.7/',
-            'test_data/laragen_run/20241116-LevSeq-Review-Validation-levseq_ref.csv'
+            'levseq_results/levseq-1.2.7/',
+            'levseq_results/20241116-LevSeq-Review-Validation-levseq_ref.csv'
         ]
         # ToDo: add in scoring function for ad4
         cmd_return = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
