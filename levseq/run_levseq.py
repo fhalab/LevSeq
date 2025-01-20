@@ -364,7 +364,7 @@ def create_nc_variant(variant, refseq):
         return refseq
     elif "DEL" in variant:
         return "#DEL#"
-    elif variant == '+':
+    elif "INS" in variant:
         return "#INS#"
     else:
         mutations = variant.split("_")
