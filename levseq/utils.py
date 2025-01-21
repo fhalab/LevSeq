@@ -59,12 +59,13 @@ def translate(seq):
         'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
         'TAC': 'Y', 'TAT': 'Y', 'TAA': '*', 'TAG': '*',
         'TGC': 'C', 'TGT': 'C', 'TGA': '*', 'TGG': 'W',
+        'GTS': "X"
     }
     protein = ""
     if len(seq) % 3 == 0:
         for i in range(0, len(seq), 3):
             codon = seq[i:i + 3]
-            protein += table[codon]
+            protein += table.get(codon, 'X')
     return protein
 
 

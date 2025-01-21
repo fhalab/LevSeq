@@ -562,7 +562,7 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     logging.info("Logging configured. Starting program.")
 
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
-    
+
     try:
         variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
         ref_df_path = os.path.join(ref_folder, cl_args["name"]+".csv")

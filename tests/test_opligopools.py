@@ -94,10 +94,25 @@ class TestClass(unittest.TestCase):
 
     def test_variant_calling(self):
         # Take as input the demultiplexed fastq files and the reference csv file
-        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': True}
         cl_args["name"] = 'oligopool'
+        cl_args["show_msa"] = False
         cl_args['path'] = '/Users/arianemora/Documents/code/LevSeq/data/degradeo/20241220-ANM-IM-d-04-oligopool/COCE/'
         cl_args["summary"] = '/Users/arianemora/Documents/code/LevSeq/data/degradeo/20241220-ANM-IM-d-04-oligopool/ref_seq_oligopools.csv'
-        variant_df, ref_df = process_ref_csv_oligopool(cl_args)
-        variant_df.to_csv("test_oligo.csv")
-        ref_df.to_csv("ref_df.csv")
+        #variant_df, ref_df = process_ref_csv_oligopool(cl_args)
+        variant_df = pd.read_csv("test_oligo.csv")
+        #ref_df.to_csv("ref_df.csv")
+        df_variants, df_vis = create_df_v(variant_df)
+        processed_csv = os.path.join('/Users/arianemora/Documents/code/LevSeq/', "visualization_partial.csv")
+        df_vis.to_csv(processed_csv, index=False)
+        layout = generate_platemaps(
+            max_combo_data=df_vis,
+            result_folder='/Users/arianemora/Documents/code/LevSeq/',
+            show_msa=cl_args["show_msa"],
+        )
+        save_platemap_to_file(
+            heatmaps=layout,
+            outputdir='/Users/arianemora/Documents/code/LevSeq/',
+            name=cl_args["name"],
+            show_msa=cl_args["show_msa"],
+        )
