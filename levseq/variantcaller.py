@@ -51,11 +51,13 @@ class VariantCaller:
 
     """
 
-    def __init__(self, experiment_name, experiment_folder: Path, template_fasta: Path, barcode_path: Path, padding_start: int = 0, padding_end: int = 0) -> None:
+    def __init__(self, experiment_name, experiment_folder: Path, template_fasta: Path, barcode_path: Path,
+                 padding_start: int = 0, padding_end: int = 0, oligopool=True) -> None:
         self.barcode_path = barcode_path
         self.experiment_name = experiment_name
         self.experiment_folder = experiment_folder
         self.padding_start = padding_start
+        self.oligopool = oligopool
         self.padding_end = padding_end
         self.template_fasta = template_fasta
         self.alignment_name = 'alignment_minimap'
@@ -101,14 +103,6 @@ class VariantCaller:
         return df
 
     @staticmethod
-    def load_reference(reference_path):
-        # The reference enables multiple parents to be used for different
-        # WARNING: this assumes all the parents are the same
-        ref_seq = str(SeqIO.read(template_fasta,'fasta').seq)
-        barcode_to_plate_name = experiment_name
-        return 'Parent', ref_seq, barcode_to_plate_name
-
-    @staticmethod
     def _barcode_to_well(barcode):
         match = re.search(r'\d+', barcode)
         if match:
@@ -130,11 +124,12 @@ class VariantCaller:
                 logger.error("No FASTQ files found in the specified output directory.")
                 return
 
-            # Combining fastq files into one
-            with open(fastq_files, 'w') as outfile:
-                for fastq in fastq_list:
-                    with open(fastq, 'r') as infile:
-                        outfile.write(infile.read())
+            # Combining fastq files into one if there are more than 1
+            if len(fastq_list) > 1:
+                with open(fastq_files, 'w') as outfile:
+                    for fastq in fastq_list:
+                        with open(fastq, 'r') as infile:
+                            outfile.write(infile.read())
 
             # Alignment using minimap2
             minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files}' > '{output_dir}/{alignment_name}.sam'"
@@ -163,16 +158,17 @@ class VariantCaller:
             for barcode_id in pbar:
                 try:
                     row = self.variant_dict.get(barcode_id)
-                    bam_file = os.path.join(row["Path"], f'{self.alignment_name}.bam')
+                    bam_file = os.path.join(row["Path"], f'{self.alignment_name}_{barcode_id}.bam')
 
                     # Check if alignment file exists, if not, align sequences
                     if not os.path.exists(bam_file):
                         logger.info(f"Aligning sequences for {row['Path']}")
-                        self._align_sequences(row["Path"], row['Barcodes'])
+                        self._align_sequences(row["Path"], row['Barcodes'],
+                                              alignment_name=f'{self.alignment_name}_{barcode_id}')
 
                     # Placeholder function calls to demonstrate workflow
                     well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file,
-                                                                  self.ref_str, f'{row["Path"]}/msa.fa')
+                                                                  self.ref_str, f'{row["Path"]}/{self.alignment_name}_{barcode_id}.fa')
                     self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
                     if well_df is not None:
                         well_df.to_csv(f"{row['Path']}/seq_{barcode_id}.csv", index=False)
@@ -187,7 +183,7 @@ class VariantCaller:
                 finally:
                     pbar.update(1)
 
-    def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=10):
+    def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=2):
         """
         Get Variant Data Frame for all samples in the experiment
 
@@ -202,26 +198,34 @@ class VariantCaller:
         data = []
         num = int(len(self.variant_df) / num_threads)
         self.variant_df.reset_index(inplace=True)
-        for i in range(0, len(self.variant_df), num):
-            end_i = i + num if i + num < len(self.variant_df) else len(self.variant_df)
-            sub_df = self.variant_df.iloc[i: end_i]['ID'].values
-            sub_data = [sub_df, threshold, min_depth, output_dir]
-            data.append(sub_data)
+        if num_threads > 1:
+            for i in range(0, len(self.variant_df), num):
+                end_i = i + num if i + num < len(self.variant_df) else len(self.variant_df)
+                sub_df = self.variant_df.iloc[i: end_i]['ID'].values
+                sub_data = [sub_df, threshold, min_depth, output_dir]
+                data.append(sub_data)
 
-        # Thread it
-        pool.map(self._run_variant_thread, data)
+            # Thread it
+            pool.map(self._run_variant_thread, data)
+        else:
+            self._run_variant_thread([self.variant_df, threshold, min_depth, output_dir])
 
         self.variant_df['Variant'] = [self.variant_dict[b_id].get('Variant') for b_id in self.variant_df['ID'].values]
-        self.variant_df['Mixed Well'] = [self.variant_dict[b_id].get('Mixed Well') for b_id in self.variant_df['ID'].values]
-        self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for b_id in self.variant_df['ID'].values]
+        self.variant_df['Mixed Well'] = [self.variant_dict[b_id].get('Mixed Well') for b_id in
+                                         self.variant_df['ID'].values]
+        self.variant_df['Average mutation frequency'] = [self.variant_dict[b_id].get('Average mutation frequency') for
+                                                         b_id in self.variant_df['ID'].values]
         self.variant_df['P value'] = [self.variant_dict[b_id].get('P value') for b_id in self.variant_df['ID'].values]
-        self.variant_df['Alignment Count'] = [self.variant_dict[b_id].get('Alignment Count') for b_id in self.variant_df['ID'].values]
-        self.variant_df['Average error rate'] = [self.variant_dict[b_id].get('Average error rate') for b_id in self.variant_df['ID'].values]
-
+        self.variant_df['Alignment Count'] = [self.variant_dict[b_id].get('Alignment Count') for b_id in
+                                              self.variant_df['ID'].values]
+        self.variant_df['Average error rate'] = [self.variant_dict[b_id].get('Average error rate') for b_id in
+                                                 self.variant_df['ID'].values]
         # Adjust p-values using bonferroni make it simple
-        self.variant_df['P adj. value'] = len(self.variant_df) * self.variant_df["P value"].values
-        self.variant_df['P adj. value'] = [1 if x > 1 else x for x in self.variant_df["P adj. value"].values]
-
+        self.variant_df['P adj. value'] = [len(self.variant_df) * p if p else None for p in self.variant_df["P value"].values]
+        self.variant_df['P adj. value'] = [1 if x and x > 1 else x for x in self.variant_df["P adj. value"].values]
+        if self.oligopool:
+            # Filter this so we don't get all the junk
+            self.variant_df = self.variant_df[self.variant_df['Alignment Count'] > 2]
         return self.variant_df
 
     def _get_alignment_count(self, sample_folder_path: Path):
