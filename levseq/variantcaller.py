@@ -116,9 +116,9 @@ class VariantCaller:
 
     def _align_sequences(self, output_dir, filename, scores=[4, 2, 10], alignment_name="alignment_minimap"):
         try:
-            all_fastq = os.path.join(output_dir, '*.fastq')
+            all_fastq = os.path.join(output_dir, '*.fastq.gz')
             fastq_list = glob.glob(all_fastq)
-            fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
+            fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq.gz")
 
             if not fastq_list:
                 logger.error("No FASTQ files found in the specified output directory.")
@@ -183,7 +183,7 @@ class VariantCaller:
                 finally:
                     pbar.update(1)
 
-    def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=2):
+    def get_variant_df(self, threshold: float = 0.5, min_depth: int = 5, output_dir='', num_threads=20):
         """
         Get Variant Data Frame for all samples in the experiment
 

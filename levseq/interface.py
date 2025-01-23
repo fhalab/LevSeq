@@ -63,6 +63,9 @@ def build_cli_parser():
     optional_args_group.add_argument("--skip_variantcalling",
                                      action="store_true",
                                      help="Skip the variant calling step, default is false")
+    optional_args_group.add_argument("--oligopool",
+                                     action="store_true",
+                                     help="Whether this experiment came from an oligopool, default is false.")
     optional_args_group.add_argument("--show_msa",
                                      default=False,
                                      help="Skip showing msa")                                 

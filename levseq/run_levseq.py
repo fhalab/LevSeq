@@ -564,7 +564,11 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
 
     try:
-        variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
+        if cl_args["oligopool"]:
+            print("YAY WE GOT HERE!")
+            variant_df, ref_df = process_ref_csv_oligopool(cl_args, tqdm_fn)
+        else:
+            variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
         ref_df_path = os.path.join(ref_folder, cl_args["name"]+".csv")
         ref_df.to_csv(ref_df_path, index=False)
 
