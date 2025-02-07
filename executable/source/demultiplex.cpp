@@ -327,87 +327,114 @@ int main(int argc, char* argv[]) {
                     continue;
                 }
 
-
+                localAlignmentResult best_rbc_alignment;
+		best_rbc_percent_score = 0;
 
                 // Reverse Barcode Demultiplexing
                 for(const auto& [ref_name, ref_seq] : all_rbc) {
                     
                     double rbc_sum_score = rbc_precalculated_scores[ref_name];
-
-                    std::string sequence_to_align;
-                    if(ref_name.find("-Rev") != std::string::npos) {
-                        sequence_to_align = rear_subseq;
-                    } else {
-                        sequence_to_align = forward_subseq;
-                    }
-
-                    //int score = perform_alignment(sequence_to_align, ref_seq); // Get 
-                    score = perform_alignment_trim(sequence_to_align, ref_seq, scoring_matrix2); 
-
-
-                    double percent_score = (double)score.score / rbc_sum_score * 100;
+		    std::string sequence_to_align = (ref_name.find("-Rev") != std::string::npos) ? rear_subseq : forward_subseq;
+		    // Perform alignment and store result in a temporary variable
+		    localAlignmentResult current_alignment = perform_alignment_trim(sequence_to_align, ref_seq, scoring_matrix2);
+		    double percent_score = (double)current_alignment.score / rbc_sum_score * 100;
 
                     // If best score is already 100, skip the loop
                     if (percent_score == 100) {
                         best_rbc_name = ref_name;
                         best_rbc_percent_score = percent_score;
-                        break;
+                        best_rbc_alignment = current_alignment;
+			break;
                         }
 
                     // Update best score and associated name if current score is better
                     if (percent_score > best_rbc_percent_score) {
                         best_rbc_name = ref_name;
                         best_rbc_percent_score = percent_score;
-                        }
+                        best_rbc_alignment = current_alignment;
+		    	}
                     }
 
                 int trim_front = 0;
                 int trim_rear = 0;
 
-
-                if(best_rbc_name.find("-Rev") == std::string::npos) {
-                    entry.sequence = entry.sequence.substr(score.end_pos + trim_rear);
-                    entry.quality_scores = entry.quality_scores.substr(score.end_pos + trim_rear); // Trimming new sequence size is sequence.size() - end_pos
-                    entry.sequence = get_reverse_complement(entry.sequence);
-                    entry.quality_scores = get_reverse_qualities(entry.quality_scores);
-                    // Update Forward and Rear subsequences
-                    forward_subseq = entry.sequence.substr(0, frontWindowSize);
-                    }
-
-                else {
-                    best_rbc_name = best_rbc_name.substr(0, best_rbc_name.size() - 4); // Remove -Rev from the end
-                    score.start_pos = entry.sequence.size() - rearWindowSize + score.start_pos;
-                    score.end_pos = entry.sequence.size() - rearWindowSize + score.end_pos;
-                    entry.sequence = entry.sequence.substr(0, score.start_pos - trim_rear);
-                    entry.quality_scores = entry.quality_scores.substr(0, score.start_pos - trim_rear); // Trimming new sequence size is start_pos
-                    }
+		// Reverse barcode trimming
+		if (best_rbc_name.find("-Rev") == std::string::npos) {
+		    // For non-reverse (forward) barcodes, we use best_rbc_alignment.end_pos for trimming.
+		    size_t trim_index = static_cast<size_t>(best_rbc_alignment.end_pos + trim_rear);
+		    if (trim_index > entry.sequence.size()) {
+			std::cerr << "Warning: Computed trim_index (" << trim_index 
+				  << ") exceeds sequence length (" << entry.sequence.size() 
+				  << "). Skipping read." << std::endl;
+			continue; // Skip this entry
+		    }
+		    // Trim the sequence and quality string starting at trim_index.
+		    entry.sequence = entry.sequence.substr(trim_index);
+		    entry.quality_scores = entry.quality_scores.substr(trim_index);
+		    
+		    // Reverse complement the sequence and adjust qualities.
+		    entry.sequence = get_reverse_complement(entry.sequence);
+		    entry.quality_scores = get_reverse_qualities(entry.quality_scores);
+		    
+		    // Reset forward_subseq based on the new sequence
+		    if (entry.sequence.size() < static_cast<size_t>(frontWindowSize)) {
+			std::cerr << "Warning: Sequence too short after trimming for forward subsequence extraction." << std::endl;
+			continue;
+		    }
+		    forward_subseq = entry.sequence.substr(0, frontWindowSize);
+		}
+		else {
+		    // For reverse barcodes ("-Rev"), first remove the "-Rev" suffix from the barcode name.
+		    best_rbc_name = best_rbc_name.substr(0, best_rbc_name.size() - 4);
+		    
+		    // Adjust the alignment positions relative to the entire sequence.
+		    int adjusted_start = static_cast<int>(entry.sequence.size()) - rearWindowSize + best_rbc_alignment.start_pos;
+		    if (adjusted_start < 0 || static_cast<size_t>(adjusted_start) > entry.sequence.size()) {
+			std::cerr << "Warning: Adjusted start (" << adjusted_start 
+				  << ") is invalid for sequence length (" << entry.sequence.size() 
+				  << "). Skipping read." << std::endl;
+			continue;
+		    }
+		    size_t trim_index = static_cast<size_t>(adjusted_start - trim_rear);
+		    if (trim_index > entry.sequence.size()) {
+			std::cerr << "Warning: Computed trim_index (" << trim_index 
+				  << ") exceeds sequence length (" << entry.sequence.size() 
+				  << "). Skipping read." << std::endl;
+			continue;
+		    }
+		    // Trim the sequence and quality string up to trim_index.
+		    entry.sequence = entry.sequence.substr(0, trim_index);
+		    entry.quality_scores = entry.quality_scores.substr(0, trim_index);
+		}
 
                 // Check if best score is above thershold%, otherwise assign as unclassified
-                if (best_rbc_percent_score < 70) {
+                if (best_rbc_percent_score < 95) {
                     best_rbc_name = "unclassified";
                     }
-
+                
                 if (best_rbc_name != "unclassified") {
+		localAlignmentResult best_fbc_alignment;
+		best_fbc_percent_score = 0;
+
                     // Forward Barcode Demultiplexing
                     for (const auto& [fbc_ref_name, fbc_ref_seq] : fbc_map) {
                         double fbc_sum_score = fbc_precalculated_scores[fbc_ref_name];
-                        
-                        //int fbc_score = perform_alignment(forward_subseq, fbc_ref_seq);
-                        fbc_score = perform_alignment_trim(forward_subseq, fbc_ref_seq, scoring_matrix2);
 
+                        localAlignmentResult current_fbc_alignment = perform_alignment_trim(forward_subseq, fbc_ref_seq, scoring_matrix2);
+                        double fbc_percent_score = (double)current_fbc_alignment.score / fbc_sum_score * 100;
 
-                        double fbc_percent_score = (double)fbc_score.score / fbc_sum_score * 100;
-                        
                         if (fbc_percent_score == 100) {
                             best_fbc_name = fbc_ref_name;
                             best_fbc_percent_score = fbc_percent_score;
-                            break;
+                            best_fbc_alignment = current_fbc_alignment;
+			    break;
                             }
                         
                         // Update best score and associated name if the current score is better
                         if (fbc_percent_score > best_fbc_percent_score) {
                             best_fbc_name = fbc_ref_name;
                             best_fbc_percent_score = fbc_percent_score;
+			    best_fbc_alignment = current_fbc_alignment;
                             }
                         }
 
@@ -416,8 +443,8 @@ int main(int argc, char* argv[]) {
                             }
                         
                         if (best_fbc_name != "unclassified") {
-                            entry.sequence = entry.sequence.substr(fbc_score.end_pos + trim_front);
-                            entry.quality_scores = entry.quality_scores.substr(fbc_score.end_pos + trim_front);
+		            entry.sequence = entry.sequence.substr(best_fbc_alignment.end_pos + trim_front);
+			    entry.quality_scores = entry.quality_scores.substr(best_fbc_alignment.end_pos + trim_front);
                             }
 
 

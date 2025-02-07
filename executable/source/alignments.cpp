@@ -67,21 +67,20 @@ int perform_alignment(std::string const & seq1_str, std::string const & seq2_str
 
 
     // Score
-    int score = 0;
+    int best_score = std::numeric_limits<int>::min();
+    const double tolerance = 1.0;
     const double BARCODE_LENGTH = 24.0;
     try
     {
         for (auto res : seqan3::align_pairwise(std::tie(seq1, seq2), min_cfg))
         {
-            
-            // seqan3::debug_stream << "Score: " << res.score() << '\n' << "Alignment: \n" << res.alignment() << '\n';
-            // seqan3::debug_stream << "Begin: (" << res.sequence1_begin_position() << "," << res.sequence1_end_position()<< ")\n";
             // Get edit distance
-            double edit_distance = 0;
-            edit_distance = std::abs(static_cast<double>(res.sequence1_end_position() - res.sequence1_begin_position()) - BARCODE_LENGTH);
-            //seqan3::debug_stream << "Edit Distance: " << edit_distance << '\n';
-            if (edit_distance < 5){
-                score = res.score();
+	    // Calculate the aligned length and its deviation from the expected barcode length.
+	    double aligned_length = static_cast<double>(res.sequence1_end_position() - res.sequence1_begin_position());
+	    double edit_distance = std::abs(aligned_length - BARCODE_LENGTH);
+            // Only update if within tolerance and this alignment has a higher score.
+	    if (edit_distance <= tolerance && res.score() > best_score){
+                best_score = res.score();
             }
         }
     }
@@ -90,7 +89,7 @@ int perform_alignment(std::string const & seq1_str, std::string const & seq2_str
         std::cerr << "An error occurred: " << e.what() << std::endl;
     }
 
-    return score;
+    return best_score;
 }
 
 
@@ -117,21 +116,24 @@ localAlignmentResult perform_alignment_trim(std::string const & seq1_str, std::s
 
 
     // Variables to store the result
-    int score = 0;
-    int start_pos = 0;
-    int end_pos = 0;
+    int best_score = std::numeric_limits<int>::min();
+    int best_start = 0;
+    int best_end = 0;
     const double BARCODE_LENGTH = 24.0;
+    const double tolerance = 1.0;
 
     try
     {
         for (auto res : seqan3::align_pairwise(std::tie(seq1, seq2), min_cfg))
         {
             // Get edit distance
-            double edit_distance = std::abs(static_cast<double>(res.sequence1_end_position() - res.sequence1_begin_position()) - BARCODE_LENGTH);
-            if (edit_distance < 5){
-                score = res.score();
-                start_pos = res.sequence1_begin_position();
-                end_pos = res.sequence1_end_position();
+	    double aligned_length = static_cast<double>(res.sequence1_end_position() - res.sequence1_begin_position());
+	    double edit_distance = std::abs(aligned_length - BARCODE_LENGTH);
+
+            if (edit_distance <= tolerance && res.score() > best_score){
+                best_score = res.score();
+                best_start = res.sequence1_begin_position();
+                best_end = res.sequence1_end_position();
             }
         }
     }
@@ -139,8 +141,7 @@ localAlignmentResult perform_alignment_trim(std::string const & seq1_str, std::s
     {
         std::cerr << "An error occurred: " << e.what() << std::endl;
     }
-
-    return localAlignmentResult{score, start_pos, end_pos};
+    return localAlignmentResult{best_score, best_start, best_end};
 }
 
 
