@@ -40,6 +40,10 @@ conda create --name levseq python=3.12 -y
 conda activate levseq
 ```
 
+```
+pip install levseq
+```
+
 #### Dependencies 
 
 1. Samtools: https://www.htslib.org/download/ 
