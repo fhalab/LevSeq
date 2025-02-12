@@ -15,9 +15,9 @@
 #                                                                             #
 ###############################################################################
 
-# Import MinION objects
+# Import LevSeq objects
 from levseq import *
-
+from levseq.oligo import OligoVariantCaller
 # Import external packages
 import logging
 from pathlib import Path
@@ -164,18 +164,25 @@ def barcode_user(cl_args, i):
         raise
 
 def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
+    """
+    Filter barcodes - no changes needed for oligo mode as it uses the same barcode filtering
+    """
     front_min, front_max, rbc = barcode_user(cl_args, i)
+    
     try:
         with resources.path('levseq.barcoding', 'minion_barcodes.fasta') as barcode_path:
             barcode_path = Path(barcode_path)
     except ImportError:
         package_root = Path(__file__).resolve().parent.parent
         barcode_path = package_root / "levseq" / "barcoding" / "minion_barcodes.fasta"
+    
     if not barcode_path.exists():
         raise FileNotFoundError(f"Barcode file not found: {barcode_path}")
+    
     front_prefix = "NB"
     back_prefix = "RB"
     barcode_path_filter = os.path.join(name_folder, "levseq_barcodes_filtered.fasta")
+    
     filter_barcodes(
         str(barcode_path),
         str(barcode_path_filter),
@@ -184,7 +191,8 @@ def filter_bc(cl_args: dict, name_folder: Path, i: int) -> Path:
         front_prefix,
         back_prefix,
     )
-    return barcode_path_filter
+    
+    return Path(barcode_path_filter)
 
 # Filter barcodes from input fasta
 def filter_barcodes(input_fasta, output_fasta, barcode_range, rbc, front_prefix, back_prefix):
@@ -227,21 +235,48 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     subprocess.run(prompt, shell=True, check=True)
 
 # Variant calling using VariantCaller class
-def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
+def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes, ref_sequences_df=None, oligo_mode=False):
+    """
+    Call variants or find best matching sequences depending on mode
+    
+    Args:
+        experiment_name (str): Name of the experiment
+        experiment_folder (str): Path to experiment folder
+        template_fasta (str): Path to template fasta file (not used in oligo mode)
+        filtered_barcodes (str): Path to filtered barcodes file
+        ref_sequences_df (pd.DataFrame, optional): DataFrame containing reference sequences for oligo mode
+        oligo_mode (bool): Whether to run in oligo pool mode
+    
+    Returns:
+        pd.DataFrame: DataFrame containing variant or match results
+    """
     try:
-        vc = VariantCaller(
-            experiment_name,
-            experiment_folder,
-            template_fasta,
-            filtered_barcodes,
-            padding_start=0,
-            padding_end=0,
-        )
-        variant_df = vc.get_variant_df(threshold=0.5, min_depth=5)
-        logging.info("Variant calling to create consensus reads successful")
+        if oligo_mode and ref_sequences_df is not None:
+            # Initialize OligoVariantCaller directly
+            oligo_caller = OligoVariantCaller(
+                experiment_name,
+                experiment_folder,
+                ref_sequences_df,
+                filtered_barcodes
+            )
+            # Use the class method to get variants
+            variant_df = oligo_caller.get_variant_df(min_depth=5)
+            logging.info(f"Oligo sequence matching completed for {experiment_name}")
+        else:
+            vc = VariantCaller(
+                experiment_name,
+                experiment_folder,
+                template_fasta,
+                filtered_barcodes,
+                padding_start=0,
+                padding_end=0,
+            )
+            variant_df = vc.get_variant_df(threshold=0.5, min_depth=5)
+            logging.info(f"Variant calling completed for {experiment_name}")
+        
         return variant_df
     except Exception as e:
-        logging.error("Variant calling failed", exc_info=True)
+        logging.error(f"Error in variant calling for {experiment_name}: {str(e)}", exc_info=True)
         raise
 
 def assign_alignment_probability(row):
@@ -255,104 +290,156 @@ def assign_alignment_probability(row):
     else:
         return row["Average mutation frequency"]
 
-
-# Full version of create_df_v function
-def create_df_v(variants_df):
-    # Make copy of dataframe
-    df_variants_ = variants_df.copy()
-
-    # Fill in empty cells
-    df_variants_["Variant"] = df_variants_["Variant"].replace(np.nan, "", regex=True)
-
-    # Create nc_variant column
-    df_variants_["nc_variant"] = df_variants_.apply(
-        lambda row: create_nc_variant(row["Variant"], row["refseq"]), axis=1
-    )
-
-    # Translate nc_variant to aa_variant
-    df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
-        lambda x: x if x in ["Deletion", "#N.A.#", 'Insertion'] else translate(x)
-    )
-    # Fill in 'Deletion' in 'aa_variant' column
-    df_variants_.loc[
-        df_variants_["nc_variant"] == "#DEL#", "aa_variant"
-    ] = "#DEL#"
-    df_variants_.loc[
-        df_variants_["nc_variant"] == "#INS#", "aa_variant"
-    ] = "#INS#"
-
-    # Compare aa_variant with translated refseq and generate Substitutions column
-    df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
-    # Adding sequence quality to Alignment Probability before filling in empty values
-    df_variants_["Alignment Probability"] = df_variants_.apply(assign_alignment_probability, axis=1)
-    df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
-    df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
-
-    # Fill in Deletion into Substitutions Column, keep #N.A.# unchanged
-    for i in df_variants_.index:
-        if df_variants_["nc_variant"].iloc[i] == "Deletion":
-            df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "#DEL#")
-        elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
-            df_variants_.Substitutions.iat[i] = "#N.A.#"
-
-    # Low read counts override low mutations
-    df_variants_["Substitutions"] = ["#LOW#" if a < 10 and a > 0 else s for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
-
-    # Add row and columns
-    Well = df_variants_["Well"].tolist()
-    row = []
-    column = []
-    for well in Well:
-        if len(well) >= 2:
-            row.append(well[0])
-            if well[1:].isdigit():
-                column.append(well[1:])
+def create_df_v(variants_df, oligo_mode=False):
+    """
+    Create visualization and results DataFrames
+    
+    Args:
+        variants_df (pd.DataFrame): Input variants DataFrame
+        oligo_mode (bool): Whether to process in oligo pool mode
+    
+    Returns:
+        tuple: (results DataFrame, visualization DataFrame)
+    """
+    if oligo_mode:
+        # For oligo mode, create a simplified DataFrame
+        df_variants = variants_df.copy()
+        
+        # Create visualization DataFrame
+        df_vis = pd.DataFrame({
+            'Well': df_variants['Well'],
+            'Plate': df_variants['barcode_plate'].astype(str),
+            'Reference': df_variants['Reference'],
+            'Reference_ID': df_variants['Reference_ID'],
+            'Alignment Count': df_variants['Alignment Count'],
+            'Match_Frequency': df_variants['Match_Frequency'],
+            'Total_Reads': df_variants['Total_Reads']
+        })
+        
+        # Extract row and column information from well IDs
+        Well = df_vis['Well'].tolist()
+        row = []
+        column = []
+        for well in Well:
+            if len(well) >= 2:
+                row.append(well[0])
+                if well[1:].isdigit():
+                    column.append(well[1:])
+                else:
+                    column.append("")
             else:
+                row.append("")
                 column.append("")
-        else:
-            row.append("")
-            column.append("")
+        
+        df_vis['Row'] = row
+        df_vis['Column'] = column
+        
+        # Ensure plate numbers are properly formatted
+        df_vis['Plate'] = df_vis['Plate'].apply(
+            lambda x: f"0{x}" if len(str(x)) == 1 else str(x)
+        )
+        
+        return df_vis, df_vis
+     
+    else:
+        # Original variant processing logic
+        # Make copy of dataframe
+        df_variants_ = variants_df.copy()
 
-    df_variants_["Row"] = row
-    df_variants_["Column"] = column
-    df_variants_["Plate"] = df_variants_["name"].astype(str)
+        # Fill in empty cells
+        df_variants_["Variant"] = df_variants_["Variant"].replace(np.nan, "", regex=True)
 
-    # Update 'Plate' column from '1'-'9' to '01'-'09'
-    df_variants_["Plate"] = df_variants_["Plate"].apply(
-        lambda x: f"0{x}" if len(x) == 1 else x
-    )
+        # Create nc_variant column
+        df_variants_["nc_variant"] = df_variants_.apply(
+            lambda row: create_nc_variant(row["Variant"], row["refseq"]), axis=1
+        )
 
-    # First rename columns as before
-    df_variants_.rename(columns={
-        "Variant": "nucleotide_mutation",
-        "Substitutions": "amino_acid_substitutions",
-        "nc_variant": "nt_sequence",
-        "aa_variant": "aa_sequence"
+        # Translate nc_variant to aa_variant
+        df_variants_["aa_variant"] = df_variants_["nc_variant"].apply(
+            lambda x: x if x in ["Deletion", "#N.A.#", 'Insertion'] else translate(x)
+        )
+        
+        # Fill in 'Deletion' in 'aa_variant' column
+        df_variants_.loc[
+            df_variants_["nc_variant"] == "#DEL#", "aa_variant"
+        ] = "#DEL#"
+        df_variants_.loc[
+            df_variants_["nc_variant"] == "#INS#", "aa_variant"
+        ] = "#INS#"
+
+        # Compare aa_variant with translated refseq and generate Substitutions column
+        df_variants_["Substitutions"] = df_variants_.apply(get_mutations, axis=1)
+        
+        # Adding sequence quality to Alignment Probability
+        df_variants_["Alignment Probability"] = df_variants_.apply(assign_alignment_probability, axis=1)
+        df_variants_["Alignment Probability"] = df_variants_["Alignment Probability"].fillna(0.0)
+        df_variants_["Alignment Count"] = df_variants_["Alignment Count"].fillna(0.0)
+
+        # Process special cases in Substitutions Column
+        for i in df_variants_.index:
+            if df_variants_["nc_variant"].iloc[i] == "Deletion":
+                df_variants_.Substitutions.iat[i] = df_variants_.Substitutions.iat[i].replace("", "#DEL#")
+            elif df_variants_["nc_variant"].iloc[i] == "#N.A.#":
+                df_variants_.Substitutions.iat[i] = "#N.A.#"
+
+        # Handle low read counts
+        df_variants_["Substitutions"] = ["#LOW#" if a < 10 and a > 0 else s 
+                                       for a, s in df_variants_[["Alignment Count", "Substitutions"]].values]
+
+        # Extract well information
+        Well = df_variants_["Well"].tolist()
+        row = []
+        column = []
+        for well in Well:
+            if len(well) >= 2:
+                row.append(well[0])
+                if well[1:].isdigit():
+                    column.append(well[1:])
+                else:
+                    column.append("")
+            else:
+                row.append("")
+                column.append("")
+
+        df_variants_["Row"] = row
+        df_variants_["Column"] = column
+        df_variants_["Plate"] = df_variants_["name"].astype(str)
+
+        # Format plate numbers
+        df_variants_["Plate"] = df_variants_["Plate"].apply(
+            lambda x: f"0{x}" if len(x) == 1 else x
+        )
+
+        # Rename columns
+        df_variants_.rename(columns={
+            "Variant": "nucleotide_mutation",
+            "Substitutions": "amino_acid_substitutions",
+            "nc_variant": "nt_sequence",
+            "aa_variant": "aa_sequence"
         }, inplace=True)
 
-    # Create a copy for restructuring to avoid affecting the original
-    restructured_df = df_variants_.copy()
-    restructured_df.columns = restructured_df.columns.str.lower().str.replace('[\s-]', '_', regex=True)
-    # Fix the specific column name
-    restructured_df.columns = restructured_df.columns.str.replace('p_adj._value', 'p_adj_value')
+        # Create restructured DataFrame
+        restructured_df = df_variants_.copy()
+        restructured_df.columns = restructured_df.columns.str.lower().str.replace(r'[\s-]', '_', regex=True)
+        restructured_df.columns = restructured_df.columns.str.replace('p_adj._value', 'p_adj_value')
 
-    # Select the desired columns in the desired order
-    restructured_df = restructured_df[[
-        "barcode_plate",
-        "plate",
-        "well",
-        "alignment_count",
-        "nucleotide_mutation",
-        "amino_acid_substitutions",
-        "alignment_probability",
-        "average_mutation_frequency",
-        "p_value",
-        "p_adj_value",
-        "nt_sequence",
-        "aa_sequence"
-    ]]
+        # Select and order columns
+        restructured_df = restructured_df[[
+            "barcode_plate",
+            "plate",
+            "well",
+            "alignment_count",
+            "nucleotide_mutation",
+            "amino_acid_substitutions",
+            "alignment_probability",
+            "average_mutation_frequency",
+            "p_value",
+            "p_adj_value",
+            "nt_sequence",
+            "aa_sequence"
+        ]]
 
-    return restructured_df, df_variants_
+        return restructured_df, df_variants_
 
 # Helper functions for create_df_v
 def create_nc_variant(variant, refseq):
@@ -363,8 +450,6 @@ def create_nc_variant(variant, refseq):
     elif variant == "#PARENT#":
         return refseq
     elif "DEL" in variant:
-        return "#DEL#"
-    elif "INS" in variant:
         return "#INS#"
     else:
         mutations = variant.split("_")
@@ -425,31 +510,60 @@ def get_mutations(row):
         raise
 
 
-# Save plate maps and CSV
-def save_platemap_to_file(heatmaps, outputdir, name, show_msa):
+def save_platemap_to_file(heatmaps, outputdir, name, show_msa, oligo_mode=False):
+    """Save plate maps to file with support for oligo mode"""
     if not os.path.exists(os.path.join(outputdir, "Platemaps")):
         os.makedirs(os.path.join(outputdir, "Platemaps"))
+    
     file_path = os.path.join(outputdir, "Platemaps", name)
-    if show_msa:
-        heatmaps.save(file_path + "_msa.html", embed=True)
+    
+    if oligo_mode:
+        # Save oligo visualization
+        hv.save(heatmaps, file_path + "_oligo.html")
     else:
-        hv.renderer("bokeh").save(heatmaps, file_path)
+        # Save standard visualization
+        if show_msa:
+            heatmaps.save(file_path + "_msa.html", embed=True)
+        else:
+            hv.renderer("bokeh").save(heatmaps, file_path)
 
-def save_csv(df, outputdir, name):
+def save_csv(df, outputdir, name, oligo_mode=False):
+    """Save results to CSV with support for oligo mode"""
     if not os.path.exists(os.path.join(outputdir, "Results")):
         os.makedirs(os.path.join(outputdir, "Results"))
-    file_path = os.path.join(outputdir, "Results", name + ".csv")
-    df.to_csv(file_path)
+    
+    if oligo_mode:
+        file_path = os.path.join(outputdir, "Results", f"{name}_oligo_results.csv")
+    else:
+        file_path = os.path.join(outputdir, "Results", f"{name}.csv")
+    
+    df.to_csv(file_path, index=False)
+    logging.info(f"Saved results to {file_path}")
 
 # Function to process the reference CSV and generate variants
-def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
+"""
+def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):    
+    Process the reference CSV and generate variants or matches
+
+    Args:
+        cl_args (dict): Command line arguments
+        tqdm_fn: Progress bar function
+    
+    Returns:
+        tuple: (variant DataFrame, reference DataFrame)
+    
     ref_df = pd.read_csv(cl_args["summary"])
     result_folder = create_result_folder(cl_args)
     variant_csv_path = os.path.join(result_folder, "variants.csv")
 
-    variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    # Initialize columns based on mode
+    if cl_args.get("oligo"):
+        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "Reference_ID"])
+    else:
+        variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
     
-    for i, row in tqdm_fn(ref_df.iterrows(), total=len(ref_df), desc="Processing Samples"):
+    unique_barcodes = ref_df['barcode_plate'].unique()
+    for barcode in tqdm_fn(unique_barcodes, total=len(unique_barcodes), desc="Processing Samples"):
         barcode_plate = row["barcode_plate"]
         name = row["name"]
         refseq = row["refseq"].upper()
@@ -457,105 +571,362 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
         name_folder = os.path.join(result_folder, name)
         os.makedirs(name_folder, exist_ok=True)
         
+        # Create template fasta file
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         if not os.path.exists(temp_fasta_path):
             with open(temp_fasta_path, "w") as f:
                 f.write(f">{name}\n{refseq}\n")
-        else:
-            logging.info(f"Fasta file for {name} already exists. Skipping write.")
+            logging.info(f"Created template fasta for {name}")
         
+        # Filter barcodes
         barcode_path = filter_bc(cl_args, name_folder, i)
         output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Perform demultiplexing if not skipped - same for both modes
         if not cl_args["skip_demultiplexing"]:
-            file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
             try:
-                demux_fastq(output_dir, name_folder, barcode_path)
+
+                file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
+                demux_fastq(file_to_fastq, name_folder, barcode_path)
+                logging.info(f"Demultiplexing completed for {name}")
             except Exception as e:
-                logging.error("An error occurred during demultiplexing for sample {}. Skipping this sample.".format(name), exc_info=True)
+                logging.error(f"Demultiplexing failed for sample {name}: {str(e)}", exc_info=True)
                 continue
         
+        # Perform variant calling if not skipped
         if not cl_args["skip_variantcalling"]:
             try:
+                # Call variants with appropriate mode
                 variant_result = call_variant(
-                    f"{name}", name_folder, temp_fasta_path, barcode_path
+                    name,
+                    name_folder,
+                    temp_fasta_path,
+                    barcode_path,
+                    ref_sequences_df=ref_df if cl_args.get("oligo") else None,
+                    oligo_mode=cl_args.get("oligo", False)
                 )
-                variant_result["barcode_plate"] = barcode_plate
-                variant_result["name"] = name
-                variant_result["refseq"] = refseq
-
-                variant_df = pd.concat([variant_df, variant_result])
+                
+                if variant_result is not None and not variant_result.empty:
+                    variant_result["barcode_plate"] = barcode_plate
+                    variant_result["name"] = name
+                    if not cl_args.get("oligo"):
+                        variant_result["refseq"] = refseq
+                    variant_df = pd.concat([variant_df, variant_result])
+                    logging.info(f"Variant calling completed for {name}")
+                
             except Exception as e:
-                logging.error("An error occurred during variant calling for sample {}. Skipping this sample.".format(name), exc_info=True)
+                logging.error(f"Variant calling failed for sample {name}: {str(e)}", exc_info=True)
                 continue
     
-    variant_df.to_csv(variant_csv_path, index=False)
-    return variant_df, ref_df
-
-# Main function to run LevSeq and ensure saving of intermediate results if an error occurs
-def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
-    result_folder = create_result_folder(cl_args)
-    # Ref folder for saving ref csv file
-    ref_folder = os.path.join(result_folder, "ref")
-    os.makedirs(ref_folder, exist_ok=True)
-    
-    configure_logging(result_folder)
-    logging.info("Logging configured. Starting program.")
-
-    variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
-    
-    try:
-        variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
-        ref_df_path = os.path.join(ref_folder, cl_args["name"]+".csv")
-        ref_df.to_csv(ref_df_path, index=False)
-
-        if variant_df.empty:
-            logging.warning("No data found during CSV processing. The CSV is empty.")
-    except Exception as e:
-        variant_csv_path = os.path.join(result_folder, "variants_partial.csv")
+    # Save complete variant results
+    if not variant_df.empty:
         variant_df.to_csv(variant_csv_path, index=False)
-        logging.error("An error occurred during processing summary file. Partial results saved at {}".format(variant_csv_path), exc_info=True)
-        raise
+        logging.info(f"Saved variant results to {variant_csv_path}")
+    else:
+        logging.warning("No variant results were generated")
     
-    try:
-        variant_csv_path = os.path.join(result_folder, "variants.csv")
-        if os.path.exists(variant_csv_path):
-            variant_df = pd.read_csv(variant_csv_path)
+    return variant_df, ref_df
+"""
+
+def create_oligo_heatmap(data, plate_number):
+    """
+    Create heatmap visualization for oligo mode data with 96-well plate format
+    """
+    import holoviews as hv
+    from holoviews import opts
+    import pandas as pd
+    import numpy as np
+    
+    # Filter data for the specific plate
+    plate_data = data[data['barcode_plate'] == plate_number].copy()
+    
+    # Create complete 96-well plate data frame
+    rows = list('ABCDEFGH')
+    cols = list(range(1, 13))
+    complete_wells = []
+    
+    for row in rows:
+        for col in cols:
+            well = f"{row}{col}"
+            # Find matching data for this well
+            well_data = plate_data[plate_data['Well'] == well]
+            
+            if not well_data.empty:
+                row_data = well_data.iloc[0]
+                complete_wells.append({
+                    'Row': row,
+                    'Column': col,
+                    'Alignment_Count': float(row_data['Alignment Count']),
+                    'Match_Frequency': float(row_data['Match_Frequency']),
+                    'Reference_ID': str(row_data['Reference_ID']),
+                    'Total_Reads': int(row_data['Total_Reads']),
+                    'Label': f"{row_data['Reference_ID']}\n({int(row_data['Alignment Count'])}/{row_data['Total_Reads']})",
+                    'Well': well
+                })
+            else:
+                # Add empty well
+                complete_wells.append({
+                    'Row': row,
+                    'Column': col,
+                    'Alignment_Count': 0.0,
+                    'Match_Frequency': 0.0,
+                    'Reference_ID': '',
+                    'Total_Reads': 0,
+                    'Label': '',
+                    'Well': well
+                })
+    
+    # Convert to DataFrame for HoloViews
+    df = pd.DataFrame(complete_wells)
+    
+    # Create heatmap
+    heatmap = hv.HeatMap(
+        df,
+        kdims=['Column', 'Row'],
+        vdims=['Alignment_Count', 'Match_Frequency', 'Reference_ID', 'Total_Reads', 'Label', 'Well']
+    )
+    
+    # Create labels
+    labels = hv.Labels(
+        {
+            'Column': df['Column'],
+            'Row': df['Row'],
+            'text': df['Label']
+        },
+        ['Column', 'Row'], 
+        'text'
+    )
+    
+    # Style the heatmap
+    heatmap = heatmap.opts(
+        opts.HeatMap(
+            width=800,
+            height=600,
+            tools=['hover'],
+            colorbar=True,
+            toolbar='above',
+            title=f'Plate {int(plate_number)} - Oligo Matches',
+            cmap='Blues',
+            xlabel='Column',
+            ylabel='Row',
+            frame_width=800,
+            frame_height=400,
+            line_color='black',
+            line_width=2,
+            invert_yaxis=True,  # Invert y-axis to show A at top
+            hover_tooltips=[
+                ('Well', '@Well'),
+                ('Reference ID', '@Reference_ID'),
+                ('Alignment Count', '@Alignment_Count{0}'),
+                ('Match Frequency', '@Match_Frequency{0.00}'),
+                ('Total Reads', '@Total_Reads')
+            ]
+        )
+    )
+    
+    # Style the labels
+    labels = labels.opts(
+        opts.Labels(
+            text_font_size='8pt',
+            text_color='black',
+            text_align='center',
+            text_baseline='middle'
+        )
+    )
+    
+    # Combine heatmap and labels
+    plate_map = heatmap * labels
+    
+    return plate_map
+
+def visualize_results(variant_df, result_folder, cl_args):
+    """
+    Create and save visualizations based on mode
+    """
+    if cl_args.get("oligo"):
+        # Create visualization directory
+        vis_dir = os.path.join(result_folder, "Platemaps")
+        os.makedirs(vis_dir, exist_ok=True)
         
-        if variant_df.empty:
-            raise ValueError("The variant DataFrame is empty after processing. Unable to continue.")
+        # Get unique plates
+        plates = sorted(variant_df['barcode_plate'].unique())
         
+        # Initialize holoviews
+        hv.extension('bokeh')
+        
+        # Create visualization for each plate
+        all_plates = []
+        for plate in plates:
+            try:
+                plate_vis = create_oligo_heatmap(variant_df, plate)
+                all_plates.append(plate_vis)
+                logging.info(f"Created visualization for plate {plate}")
+            except Exception as e:
+                logging.error(f"Error creating visualization for plate {plate}: {str(e)}", exc_info=True)
+                continue
+        
+        if not all_plates:
+            logging.error("No plate visualizations could be created")
+            return
+        
+        try:
+            # Arrange plates in a grid
+            if len(all_plates) > 1:
+                layout = hv.Layout(all_plates).cols(2)
+            else:
+                layout = all_plates[0]
+            
+            # Save visualization
+            output_path = os.path.join(vis_dir, f"{cl_args['name']}_oligo")
+            hv.save(layout, output_path + '.html')
+            logging.info(f"Saved visualization to {output_path}.html")
+            
+            # Save results CSV
+            results_dir = os.path.join(result_folder, "Results")
+            os.makedirs(results_dir, exist_ok=True)
+            csv_path = os.path.join(results_dir, f"{cl_args['name']}_oligo_results.csv")
+            variant_df.to_csv(csv_path, index=False)
+            logging.info(f"Saved results to {csv_path}")
+            
+        except Exception as e:
+            logging.error(f"Error saving visualizations: {str(e)}", exc_info=True)
+            
+    else:
+        # Use existing non-oligo visualization logic
         df_variants, df_vis = create_df_v(variant_df)
-        processed_csv = os.path.join(result_folder, "visualization_partial.csv")
-        df_vis.to_csv(processed_csv, index=False)
-    except Exception as e:
-        processed_csv = os.path.join(result_folder, "visualization_partial.csv")
-        if 'df_vis' in locals():
-            df_vis.to_csv(processed_csv, index=False)
-        logging.error("An error occurred while preparing data for visualization. Partial visualization saved at {}".format(processed_csv), exc_info=True)
-        raise
-    
-    try:
+        
         layout = generate_platemaps(
             max_combo_data=df_vis,
             result_folder=result_folder,
             show_msa=cl_args["show_msa"],
         )
+        
         save_platemap_to_file(
             heatmaps=layout,
             outputdir=result_folder,
             name=cl_args["name"],
-            show_msa=cl_args["show_msa"],
+            show_msa=cl_args["show_msa"]
         )
         save_csv(df_variants, result_folder, cl_args["name"])
-        logging.info("Run successful, see visualization and results")
+
+def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
+    """
+    Main function to run LevSeq pipeline with support for oligo pool sequencing
+    """
+    # Create result folder and configure logging
+    result_folder = create_result_folder(cl_args)
+    configure_logging(result_folder)
+    logging.info("Starting LevSeq pipeline")
+    
+    try:
+        # Process reference CSV
+        ref_df = pd.read_csv(cl_args["summary"])
+        
+        # Get unique barcode plates
+        unique_barcodes = sorted(ref_df['barcode_plate'].dropna().unique())
+        print(f"Number of unique barcodes: {len(unique_barcodes)}")
+
+        # Initialize empty variant DataFrame
+        variant_df = pd.DataFrame()
+        
+        # Process each unique barcode plate
+        for barcode_plate in tqdm_fn(unique_barcodes,total=len(unique_barcodes), desc="Processing plates"):
+            # Get entries for this barcode plate
+            plate_data = ref_df[ref_df['barcode_plate'] == barcode_plate]
+            # Get the name (should be same for all entries with this barcode_plate)
+            name = plate_data.iloc[0]['name']
+            
+            logging.info(f"Processing plate {barcode_plate} with name {name}")
+            
+            name_folder = os.path.join(result_folder, name)
+            os.makedirs(name_folder, exist_ok=True)
+            
+            # Get the first reference sequence for this plate
+            refseq = plate_data.iloc[0]['refseq'].upper()
+            
+            # Create template fasta file
+            temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
+            if not os.path.exists(temp_fasta_path):
+                with open(temp_fasta_path, "w") as f:
+                    f.write(f">{name}\n{refseq}\n")
+                logging.info(f"Created template fasta for {name}")
+            
+            # Filter barcodes
+            idx = ref_df[ref_df['barcode_plate'] == barcode_plate].index[0]
+            barcode_path = filter_bc(cl_args, name_folder, idx)
+            
+            # Set up output directory for fastq files
+            output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Perform demultiplexing if not skipped
+            if not cl_args["skip_demultiplexing"]:
+                try:
+                    file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
+                    demux_fastq(file_to_fastq, name_folder, barcode_path)
+                    logging.info(f"Demultiplexing completed for {name}")
+                except Exception as e:
+                    logging.error(f"Demultiplexing failed for {name}: {str(e)}")
+                    continue
+
+            # Perform variant calling if not skipped
+            if not cl_args["skip_variantcalling"]:
+                try:
+                    if cl_args.get("oligo"):
+                        variant_result = call_variant(
+                            str(name),
+                            name_folder,
+                            temp_fasta_path,
+                            barcode_path,
+                            ref_sequences_df=ref_df,  # Pass only relevant entries
+                            oligo_mode=True
+                        )
+                    else:
+                        variant_result = call_variant(
+                            str(name),
+                            name_folder,
+                            temp_fasta_path,
+                            barcode_path
+                        )
+
+                    if variant_result is not None and not variant_result.empty:
+                        variant_result["barcode_plate"] = barcode_plate
+                        variant_result["name"] = name
+                        variant_df = pd.concat([variant_df, variant_result])
+                        logging.info(f"Variant calling completed for {name}")
+
+                except Exception as e:
+                    logging.error(f"Variant calling failed for {name}: {str(e)}")
+                    continue
+
+        # Save complete variant results
+        if not variant_df.empty:
+            variant_csv_path = os.path.join(result_folder, "variants.csv")
+            variant_df.to_csv(variant_csv_path, index=False)
+            logging.info(f"Saved variant results to {variant_csv_path}")
+            
+            # Create visualizations
+            try:
+                visualize_results(variant_df, result_folder, cl_args)
+                logging.info("Visualization completed successfully")
+
+            except Exception as e:
+                logging.error(f"Error in visualization: {str(e)}", exc_info=True)
+                # Continue execution even if visualization fails
+        else:
+            logging.warning("No variants were generated")
+            
     except Exception as e:
-        partial_csv_path = os.path.join(result_folder, "variants_partial.csv")
-        df_variants.to_csv(partial_csv_path, index=False)
-        logging.error("An error occurred during visualization. Partial CSV saved at {}".format(partial_csv_path), exc_info=True)
+        logging.error(f"Error in LevSeq pipeline: {str(e)}", exc_info=True)
+        if not variant_df.empty:
+            error_csv_path = os.path.join(result_folder, "variants_error.csv")
+            variant_df.to_csv(error_csv_path, index=False)
+            logging.info(f"Saved partial results to {error_csv_path}")
         raise
-
-# This modification saves the results at each critical stage, ensuring that even in the case of failure,
-# the user has access to intermediate results and does not lose all the progress.
-
+    
+    logging.info("LevSeq pipeline completed successfully")
+    return {
+        'result_folder': result_folder,
+        'variant_df': variant_df
+    }

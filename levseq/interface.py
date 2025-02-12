@@ -66,6 +66,9 @@ def build_cli_parser():
     optional_args_group.add_argument("--show_msa",
                                      default=False,
                                      help="Skip showing msa")                                 
+    optional_args_group.add_argument("--oligo",
+                                     action="store_true",
+                                     help="Enable oligo pool mode for multiple sequence alignment")
     return parser
 
 
