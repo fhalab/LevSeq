@@ -57,6 +57,11 @@ conda install -c bioconda -c conda-forge samtools
 ```
 conda install -c bioconda -c conda-forge minimap2
 ```
+3. gcc 13 and 14 on Mac M1 through M4 chips
+```
+brew install gcc@13
+brew install gcc@14
+```
 ### Docker Installation (Recommended for full pipeline)  
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
 operating system (https://docs.docker.com/engine/install/).
