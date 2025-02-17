@@ -17,7 +17,7 @@
 
 # Import MinION objects
 from levseq import *
-
+from levseq.filter_orientation import filter_demultiplexed_folder
 # Import external packages
 import logging
 from pathlib import Path
@@ -210,7 +210,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     elif system_architecture == 'aarch64':
         executable_name = "demultiplex"
     elif system_architecture == 'x86_64':
-        executable_name = "demultiplex-x86"
+        executable_name = "demultiplex-orientation"
     else:
         raise ValueError(f"Unsupported architecture: {system_architecture}")
     try:
@@ -472,8 +472,23 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
             file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
             try:
                 demux_fastq(output_dir, name_folder, barcode_path)
+
+                # Add filtering step here with multithreading
+                filtered_counts = filter_demultiplexed_folder(
+                        name_folder, 
+                        refseq,
+                        num_threads=10
+                )
+                logging.info(f"Orientation filtering completed for {name}")
+                total_reads = sum(counts['total'] for counts in filtered_counts.values())
+                kept_reads = sum(counts['kept'] for counts in filtered_counts.values())
+                logging.info(f"Total filtering results: {kept_reads}/{total_reads} reads kept ({kept_reads/total_reads*100:.2f}%)")
+                for file, counts in filtered_counts.items():
+                    logging.info(f"{file}: {counts['kept']}/{counts['total']} reads kept")
+
+
             except Exception as e:
-                logging.error("An error occurred during demultiplexing for sample {}. Skipping this sample.".format(name), exc_info=True)
+                logging.error("An error occurred during demultiplexing/filtering for sample {}. Skipping this sample.".format(name), exc_info=True)
                 continue
         
         if not cl_args["skip_variantcalling"]:

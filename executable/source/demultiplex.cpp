@@ -206,8 +206,7 @@ int main(int argc, char* argv[]) {
     // Create summary file
     fs::path summary_file_path = demultiplex_folder / "barcoding_summary.txt"; // TDDO: For multithread, create a file for each thread and merge them at the end
     std::ofstream summary_file(summary_file_path.string());
-    summary_file << "RBC\tRBC_Score\tFBC\tFBC_Score\n"; // TODO: Automatically detect if the file exists and append to it instead of overwriting it
-
+    summary_file << "RBC\tRBC_Score\tFBC\tFBC_Score\tOrientation\n";
 
     // Barcodes
     auto [fbc_map, rbc_map] = get_barcodes(barcodeFasta);
@@ -372,6 +371,7 @@ int main(int argc, char* argv[]) {
                     entry.quality_scores = get_reverse_qualities(entry.quality_scores);
                     // Update Forward and Rear subsequences
                     forward_subseq = entry.sequence.substr(0, frontWindowSize);
+		    entry.identifier += " orientation=reverse"; //Add orientation flag
                     }
 
                 else {
@@ -379,7 +379,8 @@ int main(int argc, char* argv[]) {
                     score.start_pos = entry.sequence.size() - rearWindowSize + score.start_pos;
                     score.end_pos = entry.sequence.size() - rearWindowSize + score.end_pos;
                     entry.sequence = entry.sequence.substr(0, score.start_pos - trim_rear);
-                    entry.quality_scores = entry.quality_scores.substr(0, score.start_pos - trim_rear); // Trimming new sequence size is start_pos
+                    entry.quality_scores = entry.quality_scores.substr(0, score.start_pos - trim_rear);
+		    entry.identifier += " orientation=forward"; //Add orientation flag
                     }
 
                 // Check if best score is above thershold%, otherwise assign as unclassified
@@ -442,6 +443,7 @@ int main(int argc, char* argv[]) {
                     if (!barcode_to_ofstream[best_rbc_name][best_fbc_name].file_stream.is_open()) {
                         std::stringstream filename;
                         filename << "demultiplexed_" << best_rbc_name << "_" << best_fbc_name << "_"
+				<< (best_rbc_name.find("-Rev") != std::string::npos ? "forward" : "reverse") << "_"
                                 << std::setw(3) << std::setfill('0') << barcode_file_counters[best_fbc_name] << ".fastq";
                         std::filesystem::path barcode_file_path = barcode_folder / filename.str();
 
@@ -458,8 +460,7 @@ int main(int argc, char* argv[]) {
                                                                                 << entry.quality_scores << "\n";
 
                     // Output to file
-                    summary_file << best_rbc_name << "\t" << best_rbc_percent_score << "\t" << best_fbc_name << "\t" << best_fbc_percent_score << "\n";
-
+                    summary_file << best_rbc_name << "\t" << best_rbc_percent_score << "\t" << best_fbc_name << "\t" << best_fbc_percent_score << "\n"<< (best_rbc_name.find("-Rev") != std::string::npos ? "forward" : "reverse") << "\n";
             }
 
         ++processed_files;

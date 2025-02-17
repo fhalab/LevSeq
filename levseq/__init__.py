@@ -31,4 +31,4 @@ from levseq.cmd import *
 from levseq.utils import *
 from levseq.simulation import *
 from levseq.user import *
-
+from levseq.filter_orientation import *
