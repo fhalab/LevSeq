@@ -68,7 +68,7 @@ class TestDeploy(TestClass):
 
     def test_variant_calling(self):
         # Take as input the demultiplexed fastq files and the reference csv file
-        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
+        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False, 'threshold': 0.5}
         cl_args["name"] = 'test_deploy'
         cl_args['path'] = 'test_data/laragen_run/levseq-1.2.7/'
         cl_args["summary"] = 'test_data/laragen_run/20241116-LevSeq-Review-Validation-levseq_ref.csv'
