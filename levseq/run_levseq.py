@@ -227,7 +227,7 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
     subprocess.run(prompt, shell=True, check=True)
 
 # Variant calling using VariantCaller class
-def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes):
+def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes, threshold=0.5):
     try:
         vc = VariantCaller(
             experiment_name,
@@ -237,7 +237,7 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
             padding_start=0,
             padding_end=0,
         )
-        variant_df = vc.get_variant_df(threshold=0.5, min_depth=5)
+        variant_df = vc.get_variant_df(threshold=threshold, min_depth=5)
         logging.info("Variant calling to create consensus reads successful")
         return variant_df
     except Exception as e:
@@ -493,8 +493,9 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
         
         if not cl_args["skip_variantcalling"]:
             try:
+                threshold = cl_args.get("threshold") if cl_args.get("threshold") is not None else 0.5
                 variant_result = call_variant(
-                    f"{name}", name_folder, temp_fasta_path, barcode_path
+                    f"{name}", name_folder, temp_fasta_path, barcode_path, threshold=threshold
                 )
                 variant_result["barcode_plate"] = barcode_plate
                 variant_result["name"] = name
