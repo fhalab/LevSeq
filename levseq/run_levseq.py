@@ -453,10 +453,10 @@ def process_ref_csv_oligopool(cl_args, tqdm_fn=tqdm.tqdm):
     barcode_plates = ref_df["barcode_plate"].unique()
     ref_df["barcode_index"] = [i for i in range(len(ref_df))]
     barcode_to_index = dict(zip(ref_df.barcode_plate, ref_df.barcode_index))
-    for barcode_plate in enumerate(barcode_plates):
+    for barcode_plate in barcode_plates:
         if not cl_args["skip_demultiplexing"]:
             i = barcode_to_index[barcode_plate]
-            name_folder = os.path.join(result_folder, barcode_plate)
+            name_folder = os.path.join(result_folder, f'RB{barcode_plate}')
             os.makedirs(name_folder, exist_ok=True)
             barcode_path = filter_bc(cl_args, name_folder, i)
             output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
@@ -495,6 +495,7 @@ def process_ref_csv_oligopool(cl_args, tqdm_fn=tqdm.tqdm):
                 continue
         
         variant_df.to_csv(variant_csv_path, index=False)
+    # visualize it as well
     return variant_df, ref_df
 
 
@@ -565,7 +566,6 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
 
     try:
         if cl_args["oligopool"]:
-            print("YAY WE GOT HERE!")
             variant_df, ref_df = process_ref_csv_oligopool(cl_args, tqdm_fn)
         else:
             variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
@@ -591,6 +591,8 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         df_variants, df_vis = create_df_v(variant_df)
         processed_csv = os.path.join(result_folder, "visualization_partial.csv")
         df_vis.to_csv(processed_csv, index=False)
+        if cl_args["oligopool"]:
+            make_oligopool_plates(df_vis, result_folder=result_folder, save_files=True)
     except Exception as e:
         processed_csv = os.path.join(result_folder, "visualization_partial.csv")
         if 'df_vis' in locals():

@@ -92,9 +92,15 @@ class VariantCaller:
                 renamed_ids.append(f'{plate}_{well}')
                 plates.append(experiment_name)
                 wells.append(well)
-                self.variant_dict[f'{plate}_{well}'] = {'Plate': experiment_name, 'Well': well,
-                                                        'Barcodes': f'{reverse_barcode}_{forward_barcode}',
-                                                        'Path': os.path.join(self.experiment_folder, f'{reverse_barcode}/{forward_barcode}')}
+                if self.oligopool:
+                    self.variant_dict[f'{plate}_{well}'] = {'Plate': experiment_name, 'Well': well,
+                                                            'Barcodes': f'{reverse_barcode}_{forward_barcode}',
+                                                            'Path': os.path.join(self.experiment_folder,
+                                                                                 f'{reverse_barcode}/{reverse_barcode}/{forward_barcode}')}
+                else:
+                    self.variant_dict[f'{plate}_{well}'] = {'Plate': experiment_name, 'Well': well,
+                                                            'Barcodes': f'{reverse_barcode}_{forward_barcode}',
+                                                            'Path': os.path.join(self.experiment_folder, f'{reverse_barcode}/{forward_barcode}')}
         df = pd.DataFrame()
         df['Plate'] = plates
         df['Well'] = wells
@@ -116,11 +122,11 @@ class VariantCaller:
 
     def _align_sequences(self, output_dir, filename, scores=[4, 2, 10], alignment_name="alignment_minimap"):
         try:
-            all_fastq = os.path.join(output_dir, '*.fastq.gz')
+            all_fastq = os.path.join(output_dir, '*.fastq')
             fastq_list = glob.glob(all_fastq)
-            fastq_files = os.path.join(output_dir, f"demultiplexed_{filename}.fastq.gz")
+            fastq_files = all_fastq # os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
 
-            if not fastq_list:
+            if not all_fastq:
                 logger.error("No FASTQ files found in the specified output directory.")
                 return
 
@@ -130,17 +136,20 @@ class VariantCaller:
                     for fastq in fastq_list:
                         with open(fastq, 'r') as infile:
                             outfile.write(infile.read())
-
+            else:
+                fastq_files = fastq_list[0]
             # Alignment using minimap2
             minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files}' > '{output_dir}/{alignment_name}.sam'"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
+            print(minimap_cmd)
             # Convert SAM to BAM and sort
             view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
             subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(view_cmd)
 
             sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
             subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(sort_cmd)
 
             # Index the BAM file
             index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"
@@ -162,15 +171,18 @@ class VariantCaller:
 
                     # Check if alignment file exists, if not, align sequences
                     if not os.path.exists(bam_file):
-                        logger.info(f"Aligning sequences for {row['Path']}")
-                        self._align_sequences(row["Path"], row['Barcodes'],
+                       logger.info(f"Aligning sequences for {row['Path']}")
+                    self._align_sequences(row["Path"], row['Barcodes'],
                                               alignment_name=f'{self.alignment_name}_{barcode_id}')
 
                     # Placeholder function calls to demonstrate workflow
                     well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file,
                                                                   self.ref_str, f'{row["Path"]}/{self.alignment_name}_{barcode_id}.fa')
-                    self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
                     if well_df is not None:
+                        if self.oligopool:
+                            if len(well_df.values) < 10:
+                                continue
+                        self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
                         well_df.to_csv(f"{row['Path']}/seq_{barcode_id}.csv", index=False)
                         label, freq, combined_p_value, mixed_well, avg_error_rate = get_variant_label_for_well(well_df, threshold)
                         self.variant_dict[barcode_id]['Variant'] = label

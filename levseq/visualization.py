@@ -63,6 +63,7 @@ from bokeh.events import Tap
 from bokeh.io import save, show, output_file, output_notebook
 
 import panel as pn
+import seaborn as sns
 
 from levseq.utils import *
 
@@ -1147,3 +1148,54 @@ def plot_sequence_alignment(
         toolbar_location=None,
         sizing_mode=sizing_mode,
     )
+
+
+def make_oligopool_plates(vis_df, result_folder, save_files=False):
+    """ Simple heatmaps saved as SVGs for oligopool plates."""
+    parents = vis_df[vis_df['amino_acid_substitutions'] == '#PARENT#']
+    top_well_df = parents.sort_values(by='Alignment Count', ascending=False)
+    top_well_df = top_well_df.drop_duplicates('name', keep='first')
+    # This is one of the things that they will want returned
+    if save_files:
+        top_well_df.to_csv(os.path.join(result_folder, 'best_aligned_parents.csv'), index=False)
+    # Now for each plate we make a heatmap
+    vis_df['amino_acid_substitutions'] = [n if x == '#PARENT#' else x for n, x in
+                                      vis_df[['name', 'amino_acid_substitutions']].values]
+
+    plates = set(vis_df['barcode_plate'].values)
+    # Drop mixed well plates
+    for plate in plates:
+        df = vis_df[vis_df['barcode_plate'] == plate]
+        df = df.sort_values(by='Alignment Count', ascending=False)
+        # Keep only one of the variants per well (i.e. the dominant one)
+        df = df.drop_duplicates('Well')
+        # Reshape into a well format
+        df['Column'] = [int(i[1:]) for i in df['Well'].values]
+        df['Row'] = [i[0] for i in df['Well'].values]
+        df.sort_values(by=['Column', 'Row'], inplace=True, ascending=[False, True])
+        # Load the example flights dataset and convert to long-form
+        platemap = (
+            df
+            .pivot(index="Row", columns="Column", values="Alignment Count")
+        )
+        platemap_labels = (
+            df
+            .pivot(index="Row", columns="Column", values="amino_acid_substitutions")
+        )
+        plot_seaborn_heatmap(platemap, platemap_labels,f'{plate}', result_folder)
+
+def plot_seaborn_heatmap(platemap, platemap_labels, label: str, result_folder):
+    """ Plot the seaborn platemap using the data"""
+    platemap = platemap.fillna(0)
+    sns.set_theme()
+    f, ax = plt.subplots(figsize=(16, 8))
+    plt.rcParams['svg.fonttype'] = 'none'  # Ensure text is saved as text
+    row_labels = [str(s) for s in list(platemap.index)]
+    col_labels = [str(s) for s in list(platemap.columns)]
+    data = platemap.values
+    pc = sns.heatmap(data, cmap='Reds', annot=platemap_labels.values, xticklabels=col_labels, yticklabels=row_labels,
+                     fmt='', linewidths=.1)
+    ax = pc.axes
+    plt.yticks(rotation=0)
+    plt.setp(ax.get_yticklabels(), ha="center")
+    plt.savefig(os.path.join(result_folder, f'platemap_{label}.svg'))
