@@ -5,9 +5,13 @@ In directed evolution, sequencing every variant enhances data insight and create
 ![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.jpeg)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
 
+## Website
+A beta website is available [here](https://levseqdb.streamlit.app/) you just load directly your output from LevSeq and your LCMS results and get visualisations and per plate normalizations.
+
+## Data
 
 - Data to reproduce the results and to test are available on zenodo [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13694463.svg)](https://doi.org/10.5281/zenodo.13694463)
-- A dockerized website and database for labs to locally host and visualize their data: website is available [here](https://levseqdb.streamlit.app/) and code to host locally [here](https://github.com/fhalab/LevSeq_db)
+- A dockerized website and database for labs to locally host and visualize their data:  website is available [here](https://levseqdb.streamlit.app/) and code to host locally [here](https://github.com/fhalab/LevSeq_db)
 
 ## Setup
 
@@ -40,6 +44,10 @@ conda create --name levseq python=3.12 -y
 conda activate levseq
 ```
 
+```
+pip install levseq
+```
+
 #### Dependencies 
 
 1. Samtools: https://www.htslib.org/download/ 
@@ -52,6 +60,11 @@ conda install -c bioconda -c conda-forge samtools
 
 ```
 conda install -c bioconda -c conda-forge minimap2
+```
+3. gcc 13 and 14 on Mac M1 through M4 chips
+```
+brew install gcc@13
+brew install gcc@14
 ```
 ### Docker Installation (Recommended for full pipeline)  
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
