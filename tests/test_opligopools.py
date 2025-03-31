@@ -58,36 +58,10 @@ class TestClass(unittest.TestCase):
     def teardown_class(self):
         shutil.rmtree(self.tmp_dir)
 
-    def test_making_pools(self):
-        u.dp(["Testing SSM"])
-        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
-        cl_args["name"] = 'oligopools'
-        cl_args['path'] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/'
-        cl_args["summary"] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/oligopool_seqs.csv'
-        variant_df = process_ref_csv(cl_args)
-
-        # Check if variants.csv already exist
-        variant_csv_path = os.path.join('oligopools', "variants.csv")
-        if os.path.exists(variant_csv_path):
-            variant_df = pd.read_csv(variant_csv_path)
-            df_variants, df_vis = create_df_v(variant_df)
-        # Clean up and prepare dataframe for visualization
-        else:
-            df_variants, df_vis = create_df_v(variant_df)
-
-    def test_pools(self):
-        u.dp(["Testing SSM"])
-        cl_args = {'skip_demultiplexing': True, 'skip_variantcalling': False}
-        cl_args["name"] = 'oligopools'
-        cl_args['path'] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/'
-        cl_args["summary"] = '/Users/arianemora/Documents/projects/LevSeq/oligopools/oligopool_seqs.csv'
-        variant_df = process_ref_csv(cl_args)
-
-        # Check if variants.csv already exist
-        variant_csv_path = os.path.join('oligopools', "variants.csv")
-        if os.path.exists(variant_csv_path):
-            variant_df = pd.read_csv(variant_csv_path)
-            df_variants, df_vis = create_df_v(variant_df)
-        # Clean up and prepare dataframe for visualization
-        else:
-            df_variants, df_vis = create_df_v(variant_df)
+    def test_demultipluxing_pools(self):
+        # Take as input the demultiplexed fastq files and the reference csv file
+        cl_args = {'skip_demultiplexing': False, 'skip_variantcalling': False, 'threshold': 0.5, 'oligopool': True, 'show_msa': False}
+        cl_args["name"] = 'oligotest_21032025'
+        cl_args['path'] = 'test_oligopool_2103/'
+        cl_args["summary"] = 'test_oligopool_2103/test_oligopool_2103.csv'
+        run_LevSeq(cl_args)

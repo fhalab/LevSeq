@@ -56,15 +56,17 @@ class TestDeploy(TestClass):
             'run',
             '--rm',
             '-v',
-            f'{os.getcwd()}:/levseq_results',
+            f'{os.getcwd()}/test_data/laragen_run:/levseq_results',
             'levseq',
             'test_deploy',
-            'test_data/laragen_run/levseq-1.2.7/',
-            'test_data/laragen_run/20241116-LevSeq-Review-Validation-levseq_ref.csv'
+            'levseq_results/levseq-1.2.7/',
+            'levseq_results/20241116-LevSeq-Review-Validation-levseq_ref.csv'
         ]
+        print(' '.join(cmd_list))
         # ToDo: add in scoring function for ad4
-        cmd_return = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        print(cmd_return.stdout, cmd_return)
+
+        # cmd_return = subprocess.run(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        # print(cmd_return.stdout, cmd_return)
 
     def test_variant_calling(self):
         # Take as input the demultiplexed fastq files and the reference csv file
@@ -92,3 +94,7 @@ class TestDeploy(TestClass):
                         print(freq, checked_sig[i])
             i += 1
 
+
+# docker run --rm -v /Users/arianemora/Documents/code/LevSeq/data/degradeo/20250121-JR-IM-HS:/levseq_results levseq 20250121-JR-IM-HS_oligopool levseq_results/ levseq_results/ref_seq_oligopools_single.csv --skip_variantcalling
+# levseq oligpool_20250121-JR-IM-HS /Users/arianemora/Documents/code/LevSeq/data/degradeo/20250121-JR-IM-HS/  /Users/arianemora/Documents/code/LevSeq/data/degradeo/20250121-JR-IM-HS/ref_seq_oligopools_all.csv --skip_variantcalling
+# levseq results results/  /Users/arianemora/Documents/code/LevSeq/data/degradeo/20250121-JR-IM-HS/ref_seq_oligopools_all.csv --skip_demultiplexing --oligopool

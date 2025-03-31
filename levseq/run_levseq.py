@@ -221,13 +221,14 @@ def demux_fastq(file_to_fastq, result_folder, barcode_path):
         executable_path = package_root / "levseq" / "barcoding" / executable_name
     if not executable_path.exists():
         raise FileNotFoundError(f"Executable not found: {executable_path}")
-    seq_min = 200 
+    seq_min = 200
     seq_max = 10000
     prompt = f"{executable_path} -f {file_to_fastq} -d {result_folder} -b {barcode_path} -w 100 -r 100 -m {seq_min} -x {seq_max}"
     subprocess.run(prompt, shell=True, check=True)
 
 # Variant calling using VariantCaller class
-def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes, threshold=0.5):
+
+def call_variant(experiment_name, experiment_folder, template_fasta, filtered_barcodes, threshold=0.5, oligopool=False):
     try:
         vc = VariantCaller(
             experiment_name,
@@ -236,6 +237,7 @@ def call_variant(experiment_name, experiment_folder, template_fasta, filtered_ba
             filtered_barcodes,
             padding_start=0,
             padding_end=0,
+            oligopool=oligopool
         )
         variant_df = vc.get_variant_df(threshold=threshold, min_depth=5)
         logging.info("Variant calling to create consensus reads successful")
@@ -442,6 +444,63 @@ def save_csv(df, outputdir, name):
     df.to_csv(file_path)
 
 # Function to process the reference CSV and generate variants
+def process_ref_csv_oligopool(cl_args, tqdm_fn=tqdm.tqdm):
+    ref_df = pd.read_csv(cl_args["summary"])
+    result_folder = create_result_folder(cl_args)
+    variant_csv_path = os.path.join(result_folder, "variants.csv")
+    variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+    
+    # First get the different barcode plates (these will be unique)
+    barcode_plates = ref_df["barcode_plate"].unique()
+    ref_df["barcode_index"] = [i for i in range(len(ref_df))]
+    barcode_to_index = dict(zip(ref_df.barcode_plate, ref_df.barcode_index))
+    for barcode_plate in barcode_plates:
+        if not cl_args["skip_demultiplexing"]:
+            i = barcode_to_index[barcode_plate]
+            name_folder = os.path.join(result_folder, f'RB{barcode_plate}')
+            os.makedirs(name_folder, exist_ok=True)
+            barcode_path = filter_bc(cl_args, name_folder, i)
+            output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
+            try:
+                demux_fastq(output_dir, name_folder, barcode_path)
+            except Exception as e:
+                logging.error("An error occurred during demultiplexing for sample {}. Skipping this sample.".format(barcode_plate), exc_info=True)
+                continue
+            # Check this - need to see if the code works... ToDo: Ariane
+    # Now they are all demultiplexed, we can call variants
+    if not cl_args["skip_variantcalling"]:
+        for i, row in tqdm_fn(ref_df.iterrows(), total=len(ref_df), desc="Processing Samples"):
+            barcode_plate = row["barcode_plate"]
+            name = row["name"]
+            refseq = row["refseq"].upper()
+            # Get the name folder and barcode path
+            temp_fasta_path = os.path.join(result_folder, f"temp_{name}.fasta")
+            if not os.path.exists(temp_fasta_path):
+                with open(temp_fasta_path, "w") as f:
+                    f.write(f">{name}\n{refseq}\n")
+            else:
+                logging.info(f"Fasta file for {name} already exists. Skipping write.")
+            try:
+                filtered_barcodes = filter_bc(cl_args, result_folder, i)
+                variant_result = call_variant(f"{name}", result_folder, temp_fasta_path, filtered_barcodes,
+                                              oligopool=True)
+                variant_result["barcode_plate"] = barcode_plate
+                variant_result["name"] = name
+                variant_result["refseq"] = refseq
+                variant_df = pd.concat([variant_df, variant_result])
+            except Exception as e:
+                logging.error("An error occurred during variant calling for sample {}. Skipping this sample.".format(name), exc_info=True)
+                continue
+        
+        variant_df.to_csv(variant_csv_path, index=False)
+    # visualize it as well
+    return variant_df, ref_df
+
+
+# Function to process the reference CSV and generate variants
 def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
     ref_df = pd.read_csv(cl_args["summary"])
     result_folder = create_result_folder(cl_args)
@@ -509,6 +568,7 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
     variant_df.to_csv(variant_csv_path, index=False)
     return variant_df, ref_df
 
+
 # Main function to run LevSeq and ensure saving of intermediate results if an error occurs
 def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     result_folder = create_result_folder(cl_args)
@@ -520,9 +580,12 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     logging.info("Logging configured. Starting program.")
 
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
-    
+
     try:
-        variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
+        if cl_args["oligopool"]:
+            variant_df, ref_df = process_ref_csv_oligopool(cl_args, tqdm_fn)
+        else:
+            variant_df, ref_df = process_ref_csv(cl_args, tqdm_fn)
         ref_df_path = os.path.join(ref_folder, cl_args["name"]+".csv")
         ref_df.to_csv(ref_df_path, index=False)
 
@@ -545,6 +608,8 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
         df_variants, df_vis = create_df_v(variant_df)
         processed_csv = os.path.join(result_folder, "visualization_partial.csv")
         df_vis.to_csv(processed_csv, index=False)
+        if cl_args["oligopool"]:
+            make_oligopool_plates(df_vis, result_folder=result_folder, save_files=True)
     except Exception as e:
         processed_csv = os.path.join(result_folder, "visualization_partial.csv")
         if 'df_vis' in locals():

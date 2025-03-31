@@ -59,12 +59,13 @@ def translate(seq):
         'TTC': 'F', 'TTT': 'F', 'TTA': 'L', 'TTG': 'L',
         'TAC': 'Y', 'TAT': 'Y', 'TAA': '*', 'TAG': '*',
         'TGC': 'C', 'TGT': 'C', 'TGA': '*', 'TGG': 'W',
+        'GTS': "X"
     }
     protein = ""
     if len(seq) % 3 == 0:
         for i in range(0, len(seq), 3):
             codon = seq[i:i + 3]
-            protein += table[codon]
+            protein += table.get(codon, 'X')
     return protein
 
 
@@ -290,8 +291,7 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
     insert_map = defaultdict(list)
     for read in bam.fetch(until_eof=True):
         # Ensure we have at least 75% coverage
-        if read.query_sequence is not None and len(read.query_sequence) > 0.75 * len(
-                ref_str) and read.cigartuples is not None:
+        if read.query_sequence is not None and read.cigartuples is not None: # and len(read.query_sequence) > 0.75 * len(ref_str) and read.cigartuples is not None:
             seq, ref, qual, ins = alignment_from_cigar(read.cigartuples, read.query_sequence, ref_str,
                                                        read.query_qualities)
             # Make it totally align
@@ -313,16 +313,17 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
     # Do this for all wells
     seq_df = make_well_df_from_reads(seqs, read_ids, read_quals)
     alignment_count = len(seq_df.values)
-    rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name, insert_map)
-    bam.close()
+    if alignment_count > 0:
+        rows_all = make_row_from_read_pileup_across_well(seq_df, ref_str, parent_name, insert_map)
+        bam.close()
 
-    if len(rows_all) > 2:  # Check if we have anything to return
-        seq_df = pd.DataFrame(rows_all)
-        seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
-                          'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
-                          'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
-        return calculate_mutation_significance_across_well(seq_df), alignment_count
-
+        if len(rows_all) > 2:  # Check if we have anything to return
+            seq_df = pd.DataFrame(rows_all)
+            seq_df.columns = ['gene_name', 'position', 'ref', 'most_frequent', 'freq_non_ref', 'total_other',
+                              'total_reads', 'p_value', 'percent_most_freq_mutation', 'A', 'p(a)', 'T', 'p(t)', 'G', 'p(g)',
+                              'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
+            return calculate_mutation_significance_across_well(seq_df), alignment_count
+    return None, 0
 def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
     """
     Given a pileup of reads, we want to get some summary information about that sequence
