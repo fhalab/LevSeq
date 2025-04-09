@@ -135,6 +135,19 @@ Great you should be all done!
 
 For more details or trouble shooting please look at our [computational_protocols](https://github.com/fhalab/LevSeq/wiki/Computational-protocols).
 
+### Running as an oligopool 
+For those of you who are interested in using this for multiple proteins (i.e. many different proteins on a plate) you may want to use our oligopool demultiplexing. 
+
+The experimental side is the same as the original LevSeq, however, we have updated the code to handle multiple proteins. For this you add the flag: `--oligopool` and the `ref.csv` 
+is formatted slightly differently, for example, say you have two barcodes, each with two potential enzymes you would have in your `ref.csv`.
+
+| barcode_plate | name   | refseq    |
+|---------------|--------|-----------|
+| 33            | Q97A76 | ATGCGCAAG |
+| 33            | P96084 | ATGGATCA  |
+| 34            | P46209 | ATGGGGCAA |
+| 34            | Q60336 | ATGGGGCC  |
+
 #### Citing
 
 If you have found LevSeq useful, please cite our [paper](https://pubs.acs.org/doi/10.1021/acssynbio.4c00625).
