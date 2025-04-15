@@ -56,7 +56,7 @@ Example command:
 ```
 docker run --rm -v "/home/user/Documents/nanopore_data/:/levseq_results" yueminglong/levseq:levseq-1.2.5-arm64 my_first_run levseq_results/ levseq_results/ref.csv
 ```
-Within the folder `/home/user/Documents/nanopore_data/` located on your computer you should have the `fastq_pass` files (these can be in a subfolder) and also a file called `ref.csv` which has your parent sequence in it (it needs the columns below).
+Within the folder `/home/user/Documents/nanopore_data/` (note this has to be the FULL path) located on your computer you should have the `fastq_pass` files (these can be in a subfolder) and also a file called `ref.csv` which has your parent sequence in it (it needs the columns below).
 
 ### Example ref.csv
 
