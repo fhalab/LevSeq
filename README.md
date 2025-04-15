@@ -30,87 +30,48 @@ After sequencing, you can identify variants, demultiplex, and combine with your 
 
 ### Installation
 
-We aimed to make LevSeq as simple to use as possible, this means you should be able to run it all using pip (note you need `samtools` 
-and `minimap2` installed on your path. However, if you have issues we recommend using the Docker instance! 
-(the pip version doesn't work well with mac M3 but docker does.)
-
-We recommend using terminal and a conda environment for installation:
-
-```
-conda create --name levseq python=3.12 -y
-```
-
-```
-conda activate levseq
-```
-
-```
-pip install levseq
-```
-
-#### Dependencies 
-
-1. Samtools: https://www.htslib.org/download/ 
-```
-conda install -c bioconda -c conda-forge samtools
-```
-
-
-2. Minimap2: https://github.com/lh3/minimap2
-
-```
-conda install -c bioconda -c conda-forge minimap2
-```
-3. gcc 13 and 14 on Mac M1 through M4 chips
-```
-brew install gcc@13
-brew install gcc@14
-```
 ### Docker Installation (Recommended for full pipeline)  
 For installing the whole pipeline, you'll need to use the docker image. For this, install docker as required for your 
 operating system (https://docs.docker.com/engine/install/).
 
-### Usage
+Once you have docker installed and running you can run the following command:
 
-#### Run via pip
-```
-levseq <name of the run you can make this whatever> <location to data folder> <location of reference csv file>
-```
-
-#### Run via docker
-If using linux system
+If using a linux system pull the linux image:
 ```
 docker pull yueminglong/levseq:levseq-1.2.5-x86
 ```
-If using Mac M chips (image tested on M1, M3, and M4)
+If using Mac M chips (image tested on M1, M3, and M4) pull the 
 ```
 docker pull yueminglong/levseq:levseq-1.2.5-arm64
 ```
 
+#### Run via docker
+
 ```
 docker run --rm -v "$(pwd):/levseq_results" yueminglong/levseq:levseq-1.2.5-<architecture> <name> <location to data folder> <location of reference csv file>
 ```
-Explanation:
 
---rm: Automatically removes the container after the command finishes.
+##### Explanation:
 
--v "$(pwd):/levseq\_results": Mounts the current directory ($(pwd)) to /levseq\_results inside the container, ensuring the results are saved to your current directory.
+`--rm`: Automatically removes the container after the command finishes.
 
-yueminglong/levseq:levseq-1.2.5-\<architecture\>: Specifies the Docker image to run. Replace \<architecture\> with the appropriate platform (e.g., x86).
+`-v "$(pwd):/levseq\_results"`: Mounts the current directory ($(pwd)) (alternatively pass a full path here) to /levseq\_results inside the container, ensuring the results are saved to your current directory.
 
-\<name\>: The name or identifier for the analysis.
+`yueminglong/levseq:levseq-1.2.5-\<architecture\>`: Specifies the Docker image to run. Replace \<architecture\> with the appropriate platform (e.g., x86).
 
-\<location to data folder\>: Path to the folder containing input data.
+`\<name\>`: The name or identifier for the analysis.
 
-\<location of reference csv file\>: Path to the reference .csv file.
+`\<location to data folder\>`: Path to the folder containing input data.
 
-Important Notes:
+`\<location of reference csv file\>`: Path to the reference .csv file.
+
+##### Important Notes:
 
 If the current directory is mounted to the container (via -v "$(pwd):/levseq\_results"), the basecalled result in FASTQ format and the ref.csv file must be located in the current directory.
 
 If these files are not present in the current directory, they will not be processed by the tool.
 
-Output:
+#### Output:
 
 The results of the analysis will be saved to your current working directory.
 
@@ -134,6 +95,50 @@ See the [manuscrtipt notebook](https://github.com/fhalab/LevSeq/blob/main/manusc
 Great you should be all done!
 
 For more details or trouble shooting please look at our [computational_protocols](https://github.com/fhalab/LevSeq/wiki/Computational-protocols).
+
+### Running via pip (mac and linux only)
+We also typically run LevSeq directly using the pip install (note you need `samtools` 
+and `minimap2` installed on your path. However, if you have issues we recommend using the Docker instance! 
+(the pip version doesn't work well with mac M3 but docker does.)
+
+We recommend using terminal and a conda environment for installation:
+
+```
+conda create --name levseq python=3.12 -y
+```
+
+```
+conda activate levseq
+```
+
+```
+pip install levseq
+```
+
+#### Dependencies for pip version 
+
+1. Samtools: https://www.htslib.org/download/ 
+```
+conda install -c bioconda -c conda-forge samtools
+```
+
+2. Minimap2: https://github.com/lh3/minimap2
+
+```
+conda install -c bioconda -c conda-forge minimap2
+```
+3. gcc 13 and 14 on Mac M1 through M4 chips
+```
+brew install gcc@13
+brew install gcc@14
+```
+
+### Usage
+
+#### Run via pip
+```
+levseq <name of the run you can make this whatever> <location to data folder> <location of reference csv file>
+```
 
 ### Running as an oligopool 
 For those of you who are interested in using this for multiple proteins (i.e. many different proteins on a plate) you may want to use our oligopool demultiplexing. 
