@@ -38,14 +38,16 @@ Once you have docker installed and running you can run the following command:
 
 If using a linux system pull the linux image:
 ```
-docker pull yueminglong/levseq:levseq-1.2.5-x86
+docker pull yueminglong/levseq:levseq-1.4-x86
 ```
 If using Mac M chips (image tested on M1, M3, and M4) pull the 
 ```
-docker pull yueminglong/levseq:levseq-1.2.5-arm64
+docker pull yueminglong/levseq:levseq-1.4-arm64
 ```
 
 #### Run via docker
+
+When using docker make sure you check for the latest version here: https://hub.docker.com/r/yueminglong/levseq/tags
 
 ```
 docker run --rm -v "$(pwd):/levseq_results" yueminglong/levseq:levseq-1.2.5-<architecture> <name> <location to data folder> <location of reference csv file>
