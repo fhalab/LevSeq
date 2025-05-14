@@ -2,6 +2,7 @@ from setuptools import setup, find_packages, Command
 import os
 import re
 
+
 class CreateInitFile(Command):
     description = 'create __init__.py file in barcoding directory'
     user_options = []
