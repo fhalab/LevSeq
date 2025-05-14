@@ -66,8 +66,14 @@ from importlib import resources
 from holoviews.streams import Tap
 
 # Utility function to configure logging
-def configure_logging(result_folder):
-    log_format = "%(asctime)s:%(levelname)s:%(message)s"
+def configure_logging(result_folder, cl_args):
+    import sys
+    from levseq import __version__
+    
+    # Define a more detailed log format with clean separation
+    log_format = "%(asctime)s : %(levelname)s : %(message)s"
+    
+    # Create log handlers
     info_handler = logging.FileHandler(os.path.join(result_folder, "LevSeq_run.log"))
     info_handler.setLevel(logging.INFO)
     info_handler.setFormatter(logging.Formatter(log_format))
@@ -76,7 +82,30 @@ def configure_logging(result_folder):
     error_handler.setLevel(logging.ERROR)
     error_handler.setFormatter(logging.Formatter(log_format))
 
+    # Set up basic configuration with both handlers
     logging.basicConfig(level=logging.INFO, handlers=[info_handler, error_handler])
+    
+    # Log version information and command used to run
+    command_used = " ".join(sys.argv)
+    logging.info(f"LevSeq Version: {__version__}")
+    logging.info(f"Command: {command_used}")
+    
+    # Log essential run parameters
+    logging.info(f"Run name: {cl_args.get('name', 'Not specified')}")
+    logging.info(f"Input path: {cl_args.get('path', 'Not specified')}")
+    logging.info(f"Summary file: {cl_args.get('summary', 'Not specified')}")
+    
+    # Log optional parameters if specified
+    if cl_args.get('output') and cl_args.get('output') != os.getcwd():
+        logging.info(f"Output directory: {cl_args.get('output')}")
+    if cl_args.get('oligopool'):
+        logging.info("Running in oligopool mode")
+    if cl_args.get('skip_demultiplexing'):
+        logging.info("Skipping demultiplexing step")
+    if cl_args.get('skip_variantcalling'):
+        logging.info("Skipping variant calling step")
+    if cl_args.get('threshold'):
+        logging.info(f"Using variant threshold: {cl_args.get('threshold')}")
 
 # Create result folder
 def create_result_folder(cl_args):
@@ -139,8 +168,15 @@ def cat_fastq_files(folder_path: str, output_path: str, reads_per_file: int = 40
         else:
             for fastq_file in fastq_files:
                 destination = output_path / fastq_file.name
-                shutil.copy(fastq_file, destination)
-                logging.info("Copied %s to %s", fastq_file, destination)
+                # Skip copying if source and destination are identical
+                if str(fastq_file) == str(destination):
+                    logging.info("Skipping copy of %s (source and destination are identical)", fastq_file)
+                    continue
+                try:
+                    shutil.copy(fastq_file, destination)
+                    logging.info("Copied %s to %s", fastq_file, destination)
+                except shutil.SameFileError:
+                    logging.info("Skipping copy of %s (source and destination are identical files)", fastq_file)
         logging.info("All FASTQ files processed successfully to %s", output_path)
         return str(output_path)
     except Exception as e:
@@ -334,7 +370,7 @@ def create_df_v(variants_df):
 
     # Create a copy for restructuring to avoid affecting the original
     restructured_df = df_variants_.copy()
-    restructured_df.columns = restructured_df.columns.str.lower().str.replace('[\s-]', '_', regex=True)
+    restructured_df.columns = restructured_df.columns.str.lower().str.replace(r'[\s-]', '_', regex=True)
     # Fix the specific column name
     restructured_df.columns = restructured_df.columns.str.replace('p_adj._value', 'p_adj_value')
 
@@ -576,8 +612,8 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
     ref_folder = os.path.join(result_folder, "ref")
     os.makedirs(ref_folder, exist_ok=True)
     
-    configure_logging(result_folder)
-    logging.info("Logging configured. Starting program.")
+    configure_logging(result_folder, cl_args)
+    logging.info("Logging configured. Starting analysis...")
 
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
 

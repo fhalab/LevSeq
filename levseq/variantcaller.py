@@ -141,15 +141,15 @@ class VariantCaller:
             # Alignment using minimap2
             minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files}' > '{output_dir}/{alignment_name}.sam'"
             subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(minimap_cmd)
+            # print(minimap_cmd)
             # Convert SAM to BAM and sort
             view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
             subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(view_cmd)
+            # print(view_cmd)
 
             sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
             subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            print(sort_cmd)
+            # print(sort_cmd)
 
             # Index the BAM file
             index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"

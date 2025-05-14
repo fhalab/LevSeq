@@ -82,7 +82,10 @@ def execute_LevSeq():
     tqdm_fn = tqdm.tqdm
     # Run LevSeq
     try:
+        from levseq import __version__
+        print(f"Starting LevSeq v{__version__}...")
         run_LevSeq(CL_ARGS, tqdm_fn)
+        print(f"Run completed successfully. Results and logs stored in {os.path.join(CL_ARGS.get('output', CWD), CL_ARGS.get('name', ''))}")
     except Exception as e:
-        print(e)
-    print("Run Complete, add log info")
+        print(f"Error: {e}")
+        print(f"Check error logs for details in {os.path.join(CL_ARGS.get('output', CWD), CL_ARGS.get('name', ''))}")
