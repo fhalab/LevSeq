@@ -602,6 +602,7 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
                 continue
     
     variant_df.to_csv(variant_csv_path, index=False)
+
     return variant_df, ref_df
 
 

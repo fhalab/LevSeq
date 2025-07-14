@@ -22,7 +22,10 @@ Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore tech
    ```bash
    docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.4-arm64 my_experiment levseq_results/ levseq_results/ref.csv
    ```
-
+4. Connect function data to your sequence data
+   ```bash
+   docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.4-arm64 my_experiment levseq_results/ levseq_results/ref.csv --fitness_files "levseq_results/20250712_epPCR_Q06714_37.csv,levseq_results/20250712_epPCR_Q06714_39.csv,levseq_results/20250712_epPCR_Q06714_40.csv" --smiles 'O=P(OC1=CC=CC=C1)(OC2=CC=CC=C2)OC3=CC=CC=C3>>O=P(O)(OC4=CC=CC=C4)OC5=CC=CC=C5' --compound dPPi --variant_df "levseq_results/visualization_partial.csv"
+   ```
 ### Pip Installation (Mac/Linux only)
 
 **IMPORTANT**: On Mac M-series chips (M1-M4), gcc 13 and 14 are **REQUIRED**:
@@ -50,6 +53,18 @@ brew install gcc@13 gcc@14
    ```bash
    levseq my_experiment /path/to/data/ /path/to/ref.csv
    ```
+
+5. Combine function data:
+   ```bash
+   levseq my_experiment /path/to/data/ /path/to/ref.csv  "LCMS_file_{barcode1}.csv,LCMS_file_{barcode2}.csv," --smiles 'reaction_smiles_string' --compound "name_of_compound_in_LCMS_file" --variant_df "visualization_partial.csv"
+   ```
+
+Note for function data we currently expect a LCMS file e.g. with the columns: 
+- `Sample Vial Number` (corresponding to the well that the sample was from). 
+- `Area` (which becomes fitness value). 
+- `Compound Name` which is the name of the compound we filter for that is passed as a parameter.
+- The last `_X.csv` needs to be the barcode number to match that sample to your plate e.g. if you ran LevSeq with barcode 33 for plate 2 you need to have `_33.csv` for the fitness file for plate 2. e.g. `some_fitnes_for_plate_2_33.csv`.
+
 
 ## Data and Visualization
 
