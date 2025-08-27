@@ -205,7 +205,7 @@ def calculate_mutation_significance_across_well(seq_df):
         seq_df.at[i, 'p(g)'] = p_g
         seq_df.at[i, 'p(c)'] = p_c
         seq_df.at[i, 'p(n)'] = p_n
-        seq_df.at[i, 'p(i)'] = p_n
+        seq_df.at[i, 'p(i)'] = p_i
         seq_df.at[i, 'p_value'] = p_value
         seq_df.at[i, 'percent_most_freq_mutation'] = val
         seq_df.at[i, 'most_frequent'] = actual_seq
@@ -324,6 +324,8 @@ def get_reads_for_well(parent_name, bam_file_path: str, ref_str: str, msa_path=N
                               'C', 'p(c)', 'N', 'p(n)', 'I', 'p(i)', 'Warnings']
             return calculate_mutation_significance_across_well(seq_df), alignment_count
     return None, 0
+
+
 def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
     """
     Given a pileup of reads, we want to get some summary information about that sequence
@@ -349,12 +351,12 @@ def make_row_from_read_pileup_across_well(well_df, ref_str, label, insert_map):
                 warning = f'WARNING: INSERT.'
             rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
                          len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
-                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, len(insert_map.get(col)),
+                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, len(vc[vc == 'I']),
                          1.0, warning])
-        if ref_seq != '-':
+        elif ref_seq != '-':
             rows.append([label, col, ref_seq, actual_seq, freq_non_ref, total_other, total_reads, 1.0, 0.0,
                          len(vc[vc == 'A']), 1.0, len(vc[vc == 'T']), 1.0, len(vc[vc == 'G']), 1.0,
-                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, 0,
+                         len(vc[vc == 'C']), 1.0, len(vc[vc == '-']), 1.0, len(vc[vc == 'I']),
                          1.0, warning])
     return rows
 

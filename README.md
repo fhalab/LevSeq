@@ -4,8 +4,20 @@ LevSeq provides a streamlined pipeline for sequencing and analyzing genetic vari
 
 ![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.jpeg)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
+## Notes
+
+LevSeq was designed for epPCR and SSM experiments, however, we are currently extending it to work for other enzyme engineering designs as well, the current features are under development:
+
+1. Insertion handling (see version 4.1.3) - thanks to  Brian Zhong for his contributions to this section!
+2. Gene calling (handling different genes, use the `--oligopool` flag)
+
+If you notice any issues with new features or have adapted the LevSeq code for your own use cases, we would love community contributions! Please submit either an issue, or a pull request and we will aim to incorperate the changes.
 
 ## Quick Start
+
+Note the current stable version is: `1.4.2`, the latest version is `1.4.3`. 
+
+For stable releases these are made available via docker and pip. For latest versions, please clone the repo and install locally (see *Local development or install of latest version* below).
 
 ### Docker Installation (Recommended)
 
@@ -135,6 +147,16 @@ For the wet lab protocol:
 - **Example Notebook**: See `example/Example.ipynb` for a walkthrough
 - **Advanced Usage**: See the [manuscript notebook](https://github.com/fhalab/LevSeq/blob/main/manuscript/notebooks/epPCR_10plates.ipynb)
 - **Troubleshooting**: See our [computational protocols wiki](https://github.com/fhalab/LevSeq/wiki/Computational-protocols)
+
+### Local development or install of latest version
+
+```
+conda create --name levseq python=3.10
+git clone git@github.com:fhalab/LevSeq.git
+cd LevSeq
+python setup.py sdist bdist_wheel
+pip install dist/levseq-1.4.3.tar.gz
+```
 
 ## Citing LevSeq
 
