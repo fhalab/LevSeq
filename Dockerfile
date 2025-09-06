@@ -77,6 +77,8 @@ RUN conda init bash
 RUN exec bash
 RUN conda init bash
 RUN source ~/.bashrc
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 RUN conda create --name levseq python=3.12
 # Add levseq to the path
 ENV PATH="/opt/conda/envs/levseq/bin:$PATH"
@@ -170,7 +172,7 @@ RUN source activate levseq
 RUN python setup.py sdist bdist_wheel
 
 # Install --> should update this to the latest pip version
-RUN source activate levseq && pip install dist/levseq-1.4.1.tar.gz
+RUN source activate levseq && pip install dist/levseq-1.4.3.tar.gz
 
 
 # Add entry point script
