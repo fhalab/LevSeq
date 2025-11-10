@@ -4,6 +4,19 @@ LevSeq provides a streamlined pipeline for sequencing and analyzing genetic vari
 
 ![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.jpeg)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
+
+## **Important: Barcode Improvements and LevSeq 2.0 Development**
+
+**We have identified and resolved demultiplexing challenges in the original barcode set.** Version 1.4 introduced alignment-aware variant calling to address these issues and significantly improve accuracy.
+
+**We are actively developing LevSeq 2.0** in collaboration with DTU and AITHYRA to fundamentally redesign the barcode system. The updated approach includes:
+
+- **Enhanced barcode design**: New barcodes will be strain-aware and sequence-aware, generated using an advanced barcode design tool
+- **Reversed workflow architecture**: LevSeq 2.0 will perform alignment first, then demultiplexing (rather than the current demultiplexing-first approach), resolving issues with forward and reverse read handling
+- **Improved accuracy**: These changes will provide more robust demultiplexing and variant calling across diverse experimental conditions
+
+**Please reach out to us at ylong@caltech.edu if you are planning to order barcoded primers now**
+
 ## Notes
 
 LevSeq was designed for epPCR and SSM experiments, however, we are currently extending it to work for other enzyme engineering designs as well, the current features are under development:
