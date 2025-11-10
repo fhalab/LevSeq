@@ -5,7 +5,7 @@ LevSeq provides a streamlined pipeline for sequencing and analyzing genetic vari
 ![Figure 1: LevSeq Workflow](manuscript/figures/LevSeq_Figure-1.jpeg)
 Figure 1: Overview of the LevSeq variant sequencing workflow using Nanopore technology. This diagram illustrates the key steps in the process, from sample preparation to data analysis and visualization.
 
-## **Important: Barcode Improvements and LevSeq 2.0 Development**
+## <span style="color: orange;">**Important: Barcode Improvements and LevSeq 2.0 Development**</span>
 
 **We have identified and resolved demultiplexing challenges in the original barcode set.** Version 1.4 introduced alignment-aware variant calling to address these issues and significantly improve accuracy.
 
