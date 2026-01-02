@@ -18,6 +18,7 @@ import pandas as pd
 import logging
 from levseq.utils import *
 import subprocess
+import shutil
 import os
 from collections import defaultdict
 import glob
@@ -41,9 +42,7 @@ The variant caller starts from demultiplexed fastq files.
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)  # Set default level for this module
-# Use the logger in this file
-logger.warning("This is a warning message.")
-logger.info("This won't show unless logging is configured to INFO elsewhere.")
+# Use the logger in this file.
 
 class VariantCaller:
     """
@@ -123,47 +122,108 @@ class VariantCaller:
     def _align_sequences(self, output_dir, filename, scores=[4, 2, 10], alignment_name="alignment_minimap"):
         try:
             all_fastq = os.path.join(output_dir, '*.fastq')
-            fastq_list = glob.glob(all_fastq)
-            fastq_files = all_fastq # os.path.join(output_dir, f"demultiplexed_{filename}.fastq")
-
-            if not all_fastq:
+            fastq_list = sorted(glob.glob(all_fastq))
+            if not fastq_list:
                 logger.error("No FASTQ files found in the specified output directory.")
                 return
 
-            # Combining fastq files into one if there are more than 1
-            if len(fastq_list) > 1:
-                with open(fastq_files, 'w') as outfile:
-                    for fastq in fastq_list:
-                        with open(fastq, 'r') as infile:
-                            outfile.write(infile.read())
-            else:
-                fastq_files = fastq_list[0]
+            sam_path = os.path.join(output_dir, f"{alignment_name}.sam")
             # Alignment using minimap2
-            minimap_cmd = f"minimap2 -ax map-ont -A {scores[0]} -B {scores[1]} -O {scores[2]},24 '{self.template_fasta}' '{fastq_files}' > '{output_dir}/{alignment_name}.sam'"
-            subprocess.run(minimap_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            minimap_cmd = [
+                "minimap2", "-ax", "map-ont",
+                "-A", str(scores[0]),
+                "-B", str(scores[1]),
+                "-O", f"{scores[2]},24",
+                str(self.template_fasta),
+                *fastq_list,
+            ]
+            with open(sam_path, "w") as sam_handle:
+                minimap_result = subprocess.run(
+                    minimap_cmd,
+                    stdout=sam_handle,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+            if minimap_result.returncode != 0:
+                logger.error(
+                    "minimap2 failed for %s: %s",
+                    filename,
+                    minimap_result.stderr.strip(),
+                )
+                return
             # print(minimap_cmd)
-            # Convert SAM to BAM and sort
-            view_cmd = f"samtools view -bS '{output_dir}/{alignment_name}.sam' > '{output_dir}/{alignment_name}.bam'"
-            subprocess.run(view_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            # print(view_cmd)
+            # Convert SAM to BAM
+            unsorted_bam = os.path.join(output_dir, f"{alignment_name}.unsorted.bam")
+            with open(unsorted_bam, "wb") as bam_handle:
+                view_result = subprocess.run(
+                    ["samtools", "view", "-bS", sam_path],
+                    stdout=bam_handle,
+                    stderr=subprocess.PIPE,
+                )
+            if view_result.returncode != 0:
+                logger.error(
+                    "samtools view failed for %s: %s",
+                    filename,
+                    view_result.stderr.decode().strip(),
+                )
+                return
 
-            sort_cmd = f"samtools sort '{output_dir}/{alignment_name}.bam' -o '{output_dir}/{alignment_name}.bam'"
-            subprocess.run(sort_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            # print(sort_cmd)
+            # Sort BAM (support both modern and legacy samtools syntax)
+            sorted_bam = os.path.join(output_dir, f"{alignment_name}.bam")
+            sort_result = subprocess.run(
+                ["samtools", "sort", "-o", sorted_bam, unsorted_bam],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            if sort_result.returncode != 0 or not os.path.exists(sorted_bam):
+                legacy_prefix = os.path.join(output_dir, f"{alignment_name}.sorted")
+                legacy_result = subprocess.run(
+                    ["samtools", "sort", unsorted_bam, legacy_prefix],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+                if legacy_result.returncode != 0:
+                    logger.error(
+                        "samtools sort failed for %s: %s",
+                        filename,
+                        legacy_result.stderr.decode().strip(),
+                    )
+                    return
+                legacy_bam = f"{legacy_prefix}.bam"
+                if not os.path.exists(legacy_bam):
+                    logger.error("samtools sort did not produce %s", legacy_bam)
+                    return
+                shutil.move(legacy_bam, sorted_bam)
 
             # Index the BAM file
-            index_cmd = f"samtools index '{output_dir}/{alignment_name}.bam'"
-            subprocess.run(index_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if not os.path.exists(sorted_bam):
+                logger.error("samtools sort did not produce %s", sorted_bam)
+                return
+            index_cmd = ["samtools", "index", sorted_bam]
+            index_result = subprocess.run(
+                index_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            if index_result.returncode != 0:
+                logger.error(
+                    "samtools index failed for %s: %s",
+                    filename,
+                    index_result.stderr.decode().strip(),
+                )
+                return
 
             # Cleanup SAM file to save space
-            os.remove(f"{output_dir}/{alignment_name}.sam")
+            os.remove(sam_path)
+            os.remove(unsorted_bam)
         except Exception as e:
             logger.error(f"Error during alignment for {filename}: {e}")
 
     def _run_variant_thread(self, args):
         barcode_ids, threshold, min_depth, output_dir = args
-        # Overall progress bar for all barcodes in this thread
-        with tqdm(barcode_ids, desc="Processing barcodes", leave=False) as pbar:
+        logger.info("Variant calling: processing %d barcodes", len(barcode_ids))
+        # Overall progress bar for all barcodes in this thread (disabled to reduce console spam)
+        with tqdm(barcode_ids, desc="Processing barcodes", leave=False, disable=True) as pbar:
             for barcode_id in pbar:
                 try:
                     row = self.variant_dict.get(barcode_id)
@@ -171,9 +231,18 @@ class VariantCaller:
 
                     # Check if alignment file exists, if not, align sequences
                     if not os.path.exists(bam_file):
-                       logger.info(f"Aligning sequences for {row['Path']}")
-                    self._align_sequences(row["Path"], row['Barcodes'],
-                                              alignment_name=f'{self.alignment_name}_{barcode_id}')
+                        logger.info(f"Aligning sequences for {row['Path']}")
+                        self._align_sequences(
+                            row["Path"],
+                            row['Barcodes'],
+                            alignment_name=f'{self.alignment_name}_{barcode_id}',
+                        )
+                    elif not os.path.exists(f"{bam_file}.bai"):
+                        subprocess.run(
+                            ["samtools", "index", bam_file],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
 
                     # Placeholder function calls to demonstrate workflow
                     well_df, alignment_count = get_reads_for_well(self.experiment_name, bam_file,
@@ -184,7 +253,12 @@ class VariantCaller:
                                 continue
                         self.variant_dict[barcode_id]['Alignment Count'] = alignment_count
                         well_df.to_csv(f"{row['Path']}/seq_{barcode_id}.csv", index=False)
-                        label, freq, combined_p_value, mixed_well, avg_error_rate = get_variant_label_for_well(well_df, threshold)
+                        # Suppress noisy numerical warnings from downstream stats on sparse wells.
+                        with warnings.catch_warnings():
+                            warnings.filterwarnings("ignore", category=RuntimeWarning)
+                            label, freq, combined_p_value, mixed_well, avg_error_rate = get_variant_label_for_well(
+                                well_df, threshold
+                            )
                         self.variant_dict[barcode_id]['Variant'] = label
                         self.variant_dict[barcode_id]['Mixed Well'] = mixed_well
                         self.variant_dict[barcode_id]['Average mutation frequency'] = freq
