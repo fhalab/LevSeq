@@ -26,9 +26,11 @@ LevSeq was designed for epPCR and SSM experiments, however, we are currently ext
 
 If you notice any issues with new features or have adapted the LevSeq code for your own use cases, we would love community contributions! Please submit either an issue, or a pull request and we will aim to incorperate the changes.
 
+Performance update: demultiplexing now runs in parallel batches of 8 plates and input FASTQs are staged once per run, improving throughput on multi-core systems.
+
 ## Quick Start
 
-Note the current stable version is: `1.4.2`, the latest version is `1.4.3`. 
+Note the current stable version is: `1.5`, the latest version is `1.5`. 
 
 For stable releases these are made available via docker and pip. For latest versions, please clone the repo and install locally (see *Local development or install of latest version* below).
 

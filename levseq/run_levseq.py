@@ -62,6 +62,7 @@ import numpy as np
 import tqdm
 import panel as pn
 import holoviews as hv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib import resources
 from holoviews.streams import Tap
 
@@ -485,6 +486,11 @@ def process_ref_csv_oligopool(cl_args, tqdm_fn=tqdm.tqdm):
     result_folder = create_result_folder(cl_args)
     variant_csv_path = os.path.join(result_folder, "variants.csv")
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
+
+    output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not cl_args["skip_demultiplexing"]:
+        cat_fastq_files(cl_args.get("path"), output_dir)
     
     # First get the different barcode plates (these will be unique)
     barcode_plates = ref_df["barcode_plate"].unique()
@@ -496,10 +502,7 @@ def process_ref_csv_oligopool(cl_args, tqdm_fn=tqdm.tqdm):
             name_folder = os.path.join(result_folder, f'RB{barcode_plate}')
             os.makedirs(name_folder, exist_ok=True)
             barcode_path = filter_bc(cl_args, name_folder, i)
-            output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
-            output_dir.mkdir(parents=True, exist_ok=True)
             
-            file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
             try:
                 demux_fastq(output_dir, name_folder, barcode_path)
             except Exception as e:
@@ -543,62 +546,134 @@ def process_ref_csv(cl_args, tqdm_fn=tqdm.tqdm):
     variant_csv_path = os.path.join(result_folder, "variants.csv")
 
     variant_df = pd.DataFrame(columns=["barcode_plate", "name", "refseq", "variant"])
-    
-    for i, row in tqdm_fn(ref_df.iterrows(), total=len(ref_df), desc="Processing Samples"):
+
+    output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not cl_args["skip_demultiplexing"]:
+        cat_fastq_files(cl_args.get("path"), output_dir)
+
+    samples = []
+    for i, row in ref_df.iterrows():
         barcode_plate = row["barcode_plate"]
         name = row["name"]
         refseq = row["refseq"].upper()
 
         name_folder = os.path.join(result_folder, name)
         os.makedirs(name_folder, exist_ok=True)
-        
+
         temp_fasta_path = os.path.join(name_folder, f"temp_{name}.fasta")
         if not os.path.exists(temp_fasta_path):
             with open(temp_fasta_path, "w") as f:
                 f.write(f">{name}\n{refseq}\n")
         else:
             logging.info(f"Fasta file for {name} already exists. Skipping write.")
-        
+
         barcode_path = filter_bc(cl_args, name_folder, i)
-        output_dir = Path(result_folder) / f"{cl_args['name']}_fastq"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        samples.append({
+            "barcode_plate": barcode_plate,
+            "name": name,
+            "refseq": refseq,
+            "name_folder": name_folder,
+            "temp_fasta_path": temp_fasta_path,
+            "barcode_path": barcode_path,
+            "demux_ok": True,
+        })
 
-        if not cl_args["skip_demultiplexing"]:
-            file_to_fastq = cat_fastq_files(cl_args.get("path"), output_dir)
+    def _demux_only(sample):
+        name = sample["name"]
+        name_folder = sample["name_folder"]
+        barcode_path = sample["barcode_path"]
+        try:
+            demux_fastq(output_dir, name_folder, barcode_path)
+            return True
+        except Exception:
+            logging.error(
+                "An error occurred during demultiplexing for sample {}. Skipping this sample.".format(name),
+                exc_info=True,
+            )
+            return False
+
+    if not cl_args["skip_demultiplexing"]:
+        batch_size = 8
+        if samples:
+            pbar = tqdm_fn(total=len(samples), desc="Demultiplex plates")
             try:
-                demux_fastq(output_dir, name_folder, barcode_path)
+                for i in range(0, len(samples), batch_size):
+                    batch = samples[i:i + batch_size]
+                    max_workers = len(batch)
+                    if max_workers <= 1:
+                        sample = batch[0]
+                        sample["demux_ok"] = _demux_only(sample)
+                        pbar.update(1)
+                        continue
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        futures = {executor.submit(_demux_only, sample): sample for sample in batch}
+                        for future in as_completed(futures):
+                            sample = futures[future]
+                            sample["demux_ok"] = future.result()
+                            pbar.update(1)
+            finally:
+                pbar.close()
+    else:
+        for sample in samples:
+            sample["demux_ok"] = True
 
-                # Add filtering step here with multithreading
+    if not cl_args["skip_demultiplexing"]:
+        for sample in tqdm_fn(samples, total=len(samples), desc="Filter plates"):
+            if not sample["demux_ok"]:
+                continue
+            name = sample["name"]
+            refseq = sample["refseq"]
+            name_folder = sample["name_folder"]
+            try:
                 filtered_counts = filter_demultiplexed_folder(
-                        name_folder, 
-                        refseq,
-                        num_threads=10
+                    name_folder,
+                    refseq,
+                    num_threads=10,
                 )
                 logging.info(f"Orientation filtering completed for {name}")
                 total_reads = sum(counts['total'] for counts in filtered_counts.values())
                 kept_reads = sum(counts['kept'] for counts in filtered_counts.values())
-                logging.info(f"Total filtering results: {kept_reads}/{total_reads} reads kept ({kept_reads/total_reads*100:.2f}%)")
+                if total_reads:
+                    logging.info(
+                        "Total filtering results: %d/%d reads kept (%.2f%%)",
+                        kept_reads,
+                        total_reads,
+                        kept_reads / total_reads * 100,
+                    )
                 for file, counts in filtered_counts.items():
                     logging.info(f"{file}: {counts['kept']}/{counts['total']} reads kept")
-
-
-            except Exception as e:
-                logging.error("An error occurred during demultiplexing/filtering for sample {}. Skipping this sample.".format(name), exc_info=True)
+            except Exception:
+                logging.error(
+                    "An error occurred during filtering for sample {}. Skipping this sample.".format(name),
+                    exc_info=True,
+                )
+                sample["demux_ok"] = False
                 continue
-        
-        if not cl_args["skip_variantcalling"]:
+
+    if not cl_args["skip_variantcalling"]:
+        for sample in tqdm_fn(samples, total=len(samples), desc="Calling variants"):
+            if not sample["demux_ok"] and not cl_args["skip_demultiplexing"]:
+                continue
             try:
                 threshold = cl_args.get("threshold") if cl_args.get("threshold") is not None else 0.5
                 variant_result = call_variant(
-                    f"{name}", name_folder, temp_fasta_path, barcode_path, threshold=threshold
+                    f"{sample['name']}",
+                    sample["name_folder"],
+                    sample["temp_fasta_path"],
+                    sample["barcode_path"],
+                    threshold=threshold,
                 )
-                variant_result["barcode_plate"] = barcode_plate
-                variant_result["name"] = name
-                variant_result["refseq"] = refseq
+                variant_result["barcode_plate"] = sample["barcode_plate"]
+                variant_result["name"] = sample["name"]
+                variant_result["refseq"] = sample["refseq"]
 
                 variant_df = pd.concat([variant_df, variant_result])
             except Exception as e:
-                logging.error("An error occurred during variant calling for sample {}. Skipping this sample.".format(name), exc_info=True)
+                logging.error(
+                    "An error occurred during variant calling for sample {}. Skipping this sample.".format(sample["name"]),
+                    exc_info=True,
+                )
                 continue
     
     variant_df.to_csv(variant_csv_path, index=False)
@@ -676,4 +751,3 @@ def run_LevSeq(cl_args, tqdm_fn=tqdm.tqdm):
 
 # This modification saves the results at each critical stage, ensuring that even in the case of failure,
 # the user has access to intermediate results and does not lose all the progress.
-

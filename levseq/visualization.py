@@ -392,25 +392,33 @@ def generate_platemaps(
         out=np.zeros_like(max_combo_df["Alignment Count"], dtype=float),
         where=max_combo_df["Alignment Count"] != 0,
     )
-    # Set the center
-    center = np.log(10)
+    max_combo_df["logseqdepth"] = max_combo_df["logseqdepth"].fillna(0.0)
 
-    add_min = False
-    if max_combo_df["logseqdepth"].min() >= center:
-        add_min = True
-
-    # Adjust if it is greater than max of data (avoids ValueError)
-    if max_combo_df["logseqdepth"].max() <= center:
-        # Adjust the center
-        center = max_combo_df["logseqdepth"].median()
-
-    # center colormap
-    if not add_min:
-        color_levels = ns.viz._center_colormap(max_combo_df["logseqdepth"], center)
+    min_val = max_combo_df["logseqdepth"].min()
+    max_val = max_combo_df["logseqdepth"].max()
+    if not np.isfinite(min_val) or not np.isfinite(max_val) or min_val == max_val:
+        # Avoid invalid colormap centers when data has no range.
+        color_levels = [min_val - 0.1, min_val, min_val + 0.1]
     else:
-        color_levels = ns.viz._center_colormap(
-            list(max_combo_df["logseqdepth"]) + [np.log(1)], center
-        )
+        # Set the center
+        center = np.log(10)
+
+        add_min = False
+        if min_val >= center:
+            add_min = True
+
+        # Adjust if it is greater than max of data (avoids ValueError)
+        if max_val <= center:
+            # Adjust the center
+            center = max_combo_df["logseqdepth"].median()
+
+        # center colormap
+        if not add_min:
+            color_levels = ns.viz._center_colormap(max_combo_df["logseqdepth"], center)
+        else:
+            color_levels = ns.viz._center_colormap(
+                list(max_combo_df["logseqdepth"]) + [np.log(1)], center
+            )
 
     # dictionary for storing plots
     hm_dict = {}
