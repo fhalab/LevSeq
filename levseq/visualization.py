@@ -67,13 +67,36 @@ import seaborn as sns
 
 from levseq.utils import *
 
-output_notebook()
+def _in_notebook():
+    try:
+        from IPython import get_ipython
+    except Exception:
+        return False
+    ip = get_ipython()
+    if ip is None:
+        return False
+    return ip.__class__.__name__ == "ZMQInteractiveShell"
 
-pn.extension()
-pn.config.comms = "vscode"
 
-hv.extension("bokeh")
-hv.renderer("bokeh").webgl = True
+def _should_init_notebook():
+    if os.environ.get("LEVSEQ_DISABLE_NOTEBOOK_INIT") == "1":
+        return False
+    if os.environ.get("LEVSEQ_FORCE_NOTEBOOK_INIT") == "1":
+        return True
+    return _in_notebook()
+
+
+def init_notebook_env():
+    # Avoid notebook UI side-effects during plain imports/tests.
+    output_notebook()
+    pn.extension()
+    pn.config.comms = "vscode"
+    hv.extension("bokeh")
+    hv.renderer("bokeh").webgl = True
+
+
+if _should_init_notebook():
+    init_notebook_env()
 
 # warnings.filterwarnings("ignore")
 #warnings.filterwarnings("ignore", category=Warning)
