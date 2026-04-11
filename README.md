@@ -40,18 +40,19 @@ For stable releases these are made available via docker and pip. For latest vers
 2. Pull the appropriate image:
    ```bash
    # For Linux/Windows x86 systems:
-   docker pull yueminglong/levseq:levseq-1.4-x86
+   docker pull yueminglong/levseq:levseq-1.5-x86
    
    # For Mac M-series chips (M1, M2, M3, M4):
-   docker pull yueminglong/levseq:levseq-1.4-arm64
+   docker pull yueminglong/levseq:levseq-1.5-arm64
    ```
+   **Versioning note**: Pin a specific tag (for example `levseq-1.5-x86` or `levseq-1.5-arm64`) for reproducible runs. Use the `x86` tag on Intel/AMD systems and `arm64` on Apple Silicon/ARM systems.
 3. Run LevSeq:
    ```bash
-   docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.4-arm64 my_experiment levseq_results/ levseq_results/ref.csv
+   docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.5-arm64 my_experiment levseq_results/ levseq_results/ref.csv
    ```
 4. Connect function data to your sequence data
    ```bash
-   docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.4-arm64 my_experiment levseq_results/ levseq_results/ref.csv --fitness_files "levseq_results/20250712_epPCR_Q06714_37.csv,levseq_results/20250712_epPCR_Q06714_39.csv,levseq_results/20250712_epPCR_Q06714_40.csv" --smiles 'O=P(OC1=CC=CC=C1)(OC2=CC=CC=C2)OC3=CC=CC=C3>>O=P(O)(OC4=CC=CC=C4)OC5=CC=CC=C5' --compound dPPi --variant_df "levseq_results/visualization_partial.csv"
+   docker run --rm -v "/full/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.5-arm64 my_experiment levseq_results/ levseq_results/ref.csv --fitness_files "levseq_results/20250712_epPCR_Q06714_37.csv,levseq_results/20250712_epPCR_Q06714_39.csv,levseq_results/20250712_epPCR_Q06714_40.csv" --smiles 'O=P(OC1=CC=CC=C1)(OC2=CC=CC=C2)OC3=CC=CC=C3>>O=P(O)(OC4=CC=CC=C4)OC5=CC=CC=C5' --compound dPPi --variant_df "levseq_results/visualization_partial.csv"
    ```
 ### Pip Installation (Mac/Linux only)
 
@@ -139,7 +140,7 @@ For oligopool experiments (multiple proteins per plate), use:
 2. **Run LevSeq**:
    ```bash
    # Via Docker
-   docker run --rm -v "/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.4-arm64 my_experiment levseq_results/ levseq_results/ref.csv
+   docker run --rm -v "/path/to/data:/levseq_results" yueminglong/levseq:levseq-1.5-arm64 my_experiment levseq_results/ levseq_results/ref.csv
    
    # Via pip
    levseq my_experiment /path/to/data/ /path/to/ref.csv
@@ -170,7 +171,7 @@ conda create --name levseq python=3.10
 git clone git@github.com:fhalab/LevSeq.git
 cd LevSeq
 python setup.py sdist bdist_wheel
-pip install dist/levseq-1.4.3.tar.gz
+pip install dist/levseq-1.5.tar.gz
 ```
 
 ## Citing LevSeq
