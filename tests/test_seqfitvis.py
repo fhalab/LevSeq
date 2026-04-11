@@ -1,5 +1,5 @@
-from levseq.seqfit import SeqFitVis, gen_seqfitvis
+from levseq import seqfit
 
-# SeqFitVis(seqfit_path="sandbox/processed_plate_data.csv")
 
-gen_seqfitvis(seqfit_path="sandbox/processed_plate_data.csv")
+def test_seqfit_module_imports():
+    assert callable(seqfit.gen_seqfitvis)

@@ -77,13 +77,13 @@ setup(name='levseq',
           'Topic :: Scientific/Engineering :: Bio-Informatics',
       ],
       keywords=['Nanopore', 'ONT', 'evSeq'],
-      packages=['levseq'],
+      packages=find_packages(include=['levseq', 'levseq.*']),
       include_package_data=True,
       package_data={
           'levseq.barcoding': [
               'minion_barcodes.fasta',
               'demultiplex',
-              'demultiplex-arm64'
+              'demultiplex-arm64',
               'demultiplex-x86',
           ],
       },

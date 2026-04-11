@@ -26,8 +26,15 @@ import pandas as pd
 import biopandas as Bio
 from sklearn.decomposition import PCA
 
-import esm
-import torch
+try:
+    import esm
+except ImportError:
+    esm = None
+
+try:
+    import torch
+except ImportError:
+    torch = None
 
 import panel as pn
 import holoviews as hv
@@ -105,7 +112,7 @@ AA_NUMB = len(ALL_AAS)
 AA_TO_IND = {aa: i for i, aa in enumerate(ALL_AAS)}
 
 # Set up cuda variables
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch is not None and torch.cuda.is_available() else "cpu"
 
 
 
@@ -852,6 +859,10 @@ def append_xy(
     print(f"Encoding sequences using the {model_name} model...")
 
     if "esm" in model_name:
+        if esm is None or torch is None:
+            raise ImportError(
+                "Using ESM models requires optional dependencies `fair-esm` and `torch`."
+            )
 
         max_layer = get_max_layer(model_name)
 
